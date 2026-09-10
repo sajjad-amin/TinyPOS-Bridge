@@ -392,10 +392,79 @@ def test_stop_print_flow():
     db.delete_job(test_pub_job_id)
 
 
+def test_bangla_unicode_text_printing():
+    print("--> Testing Unicode Bangla Text Rendering & API Pipeline...")
+
+    # 1. Direct render_text_to_bitmap with complex Bengali characters & currency
+    bn_text = """================================
+       সাজ্জাদ স্টোর
+   রশিদ নং #INV-2026-0042
+--------------------------------
+আইটেম              পরিমাণ   দাম
+--------------------------------
+মিনিকেট চাল ৫ কেজি     ১    ৳৫০০.০০
+সয়াবিন তেল ২ লিটার     ১    ৳৩৬০.০০
+চিনি ১ কেজি            ১    ৳১৩০.০০
+--------------------------------
+মোট পরিশোধ:                 ৳৯৯০.০০
+================================
+    ধন্যবাদ আবার আসবেন!"""
+
+    bitmap = printer_ble.render_text_to_bitmap(bn_text, font_size=22, strength=7)
+    assert bitmap.size[0] == 384
+    assert bitmap.size[1] > 200
+
+    # Ensure glyphs rendered dark pixels (not blank or missing)
+    black_pixels = [p for p in bitmap.getdata() if p < 128]
+    assert len(black_pixels) > 1000, "Should have rendered dark pixels for Bangla characters"
+    print(f" [OK] Direct render_text_to_bitmap rendered {len(black_pixels)} black pixels on 384px canvas")
+
+    # 2. Test /api/internal/preview-text with Bangla payload
+    login_res = client.post(
+        "/login",
+        data={"username": server.config.get_admin_username(), "password": server.config.get_admin_password()},
+        follow_redirects=False,
+    )
+    cookies = login_res.cookies
+
+    res_prev = client.post(
+        "/api/internal/preview-text",
+        cookies=cookies,
+        json={"text": bn_text, "font_size": 22, "strength": 7},
+    )
+    assert res_prev.status_code == 200
+    assert res_prev.headers["content-type"] == "image/png"
+    img_stream = Image.open(io.BytesIO(res_prev.content))
+    assert img_stream.size[0] == 384
+    assert img_stream.size[1] > 200
+    print(" [OK] /api/internal/preview-text generated valid 384px PNG preview for Bangla text")
+
+    # 3. Test /api/print/text with Bangla payload
+    test_key = "sk_live_bangla_test_key"
+    if not db.is_valid_api_key(test_key):
+        db.insert_api_key(key=test_key, name="Bangla Test Key")
+
+    res_api = client.post(
+        "/api/print/text",
+        headers={"X-API-Key": test_key},
+        json={"text": bn_text, "font_size": 22, "immediate": False, "keepjob": True},
+    )
+    assert res_api.status_code == 200
+    job_data = res_api.json()
+    assert "job_id" in job_data
+    db_job = db.get_job(job_data["job_id"])
+    assert db_job is not None
+    assert db_job["job_type"] == "text"
+    print(f" [OK] Public /api/print/text successfully queued Bangla print job: {job_data['job_id']}")
+    db.delete_job(job_data["job_id"])
+    db.delete_api_key(test_key)
+
+
 if __name__ == "__main__":
     test_sqlite_api_keys()
     test_auth_and_ui_pages()
     test_temporary_vs_preserved_jobs()
     test_api_printing_pipeline()
     test_stop_print_flow()
-    print("\n🎉 ALL TESTS (KEEPJOB LIFECYCLE, STOP API, UI CONTROLS & SQLITE) PASSED SUCCESSFULLY!")
+    test_bangla_unicode_text_printing()
+    print("\n🎉 ALL TESTS (BANGLA UNICODE, KEEPJOB LIFECYCLE, STOP API, UI CONTROLS & SQLITE) PASSED SUCCESSFULLY!")

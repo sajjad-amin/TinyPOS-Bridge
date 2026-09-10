@@ -249,10 +249,19 @@ def get_strength_params(strength: int = 7) -> Tuple[int, float, int]:
     return params[strength]
 
 
-def load_cross_platform_font(font_size: int = 22) -> ImageFont.ImageFont:
+def contains_bangla(text: Optional[str]) -> bool:
+    """Checks if the text contains any Bengali Unicode characters (U+0980 - U+09FF)."""
+    if not text:
+        return False
+    return any("\u0980" <= ch <= "\u09ff" for ch in text)
+
+
+def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) -> ImageFont.ImageFont:
     """
     Loads a scalable font cross-platform (Linux, Windows, macOS, Docker).
     Guaranteed to run cleanly on any PC with zero platform-specific hardcoding.
+    Automatically prioritizes Unicode Bengali fonts (bundled SolaimanLipi.ttf)
+    whenever Bengali text is detected or as primary Unicode font fallback.
     """
     # 1. User-configured font path via environment variable
     custom_path = os.getenv("TINYPOS_FONT_PATH")
@@ -262,7 +271,46 @@ def load_cross_platform_font(font_size: int = 22) -> ImageFont.ImageFont:
         except Exception:
             pass
 
-    # 2. Try generic font names supported by Pillow's FreeType lookup
+    # Resolve bundled fonts directory relative to this file
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    bundled_fonts_dir = os.path.join(base_dir, "fonts")
+
+    is_bangla = contains_bangla(text)
+
+    # 2. If text contains Bengali, prioritize bundled SolaimanLipi and system Bengali fonts
+    if is_bangla:
+        bangla_font_candidates = [
+            os.path.join(bundled_fonts_dir, "SolaimanLipi.ttf"),
+            os.path.join(bundled_fonts_dir, "Kalpurush.ttf"),
+            "/Users/sayem/Works/Laravel/prm.sajjadamin.com/resources/fonts/SolaimanLipi.ttf",
+            # macOS native Bengali fonts
+            "/System/Library/Fonts/Supplemental/Bangla Sangam MN.ttc",
+            "/System/Library/Fonts/Supplemental/Bangla MN.ttc",
+            "/System/Library/Fonts/Supplemental/KohinoorBangla.ttc",
+            # Linux / Raspberry Pi Bengali fonts
+            "/usr/share/fonts/truetype/lohit-bengali/Lohit-Bengali.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+            # Windows Bengali fonts
+            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "vrinda.ttf"),
+            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "Nirmala.ttf"),
+        ]
+        for path in bangla_font_candidates:
+            if os.path.exists(path):
+                try:
+                    return ImageFont.truetype(path, font_size)
+                except Exception:
+                    continue
+
+        if os.path.isdir(bundled_fonts_dir):
+            for fname in os.listdir(bundled_fonts_dir):
+                if fname.lower().endswith((".ttf", ".otf")):
+                    try:
+                        return ImageFont.truetype(os.path.join(bundled_fonts_dir, fname), font_size)
+                    except Exception:
+                        continue
+
+    # 3. For standard ASCII or non-Bangla:
+    # First try standard monospace fonts so column tabs and receipts align uniformly
     font_names = [
         "DejaVuSansMono-Bold.ttf",
         "DejaVuSansMono.ttf",
@@ -278,7 +326,7 @@ def load_cross_platform_font(font_size: int = 22) -> ImageFont.ImageFont:
         except Exception:
             continue
 
-    # 3. Standard font locations on Linux and Windows
+    # Standard font locations on Linux and Windows
     windir = os.environ.get("WINDIR", "C:\\Windows")
     common_paths = [
         # Linux / Unix / Raspberry Pi
@@ -298,7 +346,15 @@ def load_cross_platform_font(font_size: int = 22) -> ImageFont.ImageFont:
             except Exception:
                 continue
 
-    # 4. Universal fallback: Pillow's built-in scalable FreeType font (bundled with Pillow, works on any PC)
+    # 4. Check bundled font directory (SolaimanLipi.ttf renders English and numbers cleanly)
+    bundled_solaiman = os.path.join(bundled_fonts_dir, "SolaimanLipi.ttf")
+    if os.path.exists(bundled_solaiman):
+        try:
+            return ImageFont.truetype(bundled_solaiman, font_size)
+        except Exception:
+            pass
+
+    # 5. Universal fallback: Pillow's built-in scalable FreeType font
     try:
         return ImageFont.load_default(size=font_size)
     except TypeError:
@@ -309,8 +365,9 @@ def render_text_to_bitmap(text: str, font_size: int = 22, strength: int = 7) -> 
     """
     Renders receipt text cleanly onto a 384px wide canvas with auto-wrapping.
     Enforces bold stroke weight when strength >= 5 to boost legibility on weak paper.
+    Supports full Unicode Bangla script, conjuncts, and thermal divider lines.
     """
-    font = load_cross_platform_font(font_size)
+    font = load_cross_platform_font(font_size, text=text)
 
     margin = 16
     max_text_width = PRINT_WIDTH - (margin * 2)
@@ -320,10 +377,23 @@ def render_text_to_bitmap(text: str, font_size: int = 22, strength: int = 7) -> 
 
     wrapped_lines = []
     for raw_line in text.splitlines():
-        if not raw_line.strip():
+        trimmed = raw_line.strip()
+        if not trimmed:
             wrapped_lines.append("")
             continue
 
+        # Preserve horizontal divider lines (e.g. ---, ===) as dedicated line tokens
+        if trimmed.startswith("---") or trimmed.startswith("==="):
+            wrapped_lines.append(trimmed[:3])
+            continue
+
+        # If the line already fits within receipt printable width, preserve spaces for columns
+        bbox = dummy_draw.textbbox((0, 0), raw_line, font=font)
+        if (bbox[2] - bbox[0]) <= max_text_width:
+            wrapped_lines.append(raw_line)
+            continue
+
+        # Otherwise wrap words to fit within max_text_width
         words = raw_line.split(" ")
         current_line = ""
         for word in words:

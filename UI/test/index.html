@@ -50,7 +50,13 @@
             </div>
             <div class="card-body p-4">
                 <div class="mb-3">
-                    <label for="receipt-text" class="form-label small fw-bold text-muted text-uppercase">Receipt Content</label>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="receipt-text" class="form-label small fw-bold text-muted text-uppercase mb-0">Receipt Content</label>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" onclick="loadReceiptSample('en')">English Sample</button>
+                            <button type="button" class="btn btn-outline-primary py-0 px-2" style="font-size: 0.75rem;" onclick="loadReceiptSample('bn')"><i class="bi bi-translate me-1"></i>বাংলা রশিদ</button>
+                        </div>
+                    </div>
                     <textarea id="receipt-text" class="form-control font-monospace" rows="10" style="font-size: 0.85rem;">================================
       ACME MINI STORE
    Invoice #INV-2026-0042
@@ -505,6 +511,37 @@ TOTAL PAID                $25.00
             }
         } catch (e) {
             showToast('Error sending feed command', 'text-bg-danger');
+        }
+    }
+
+    function loadReceiptSample(lang) {
+        if (lang === 'bn') {
+            document.getElementById('receipt-text').value = `================================
+       সাজ্জাদ স্টোর
+   রশিদ নং #INV-2026-0042
+--------------------------------
+আইটেম              পরিমাণ   দাম
+--------------------------------
+মিনিকেট চাল ৫ কেজি     ১    ৳৫০০.০০
+সয়াবিন তেল ২ লিটার     ১    ৳৩৬০.০০
+চিনি ১ কেজি            ১    ৳১৩০.০০
+--------------------------------
+মোট পরিশোধ:                 ৳৯৯০.০০
+================================
+    ধন্যবাদ আবার আসবেন!`;
+        } else {
+            document.getElementById('receipt-text').value = `================================
+      ACME MINI STORE
+   Invoice #INV-2026-0042
+--------------------------------
+Item                Qty    Price
+--------------------------------
+Standard Widget      2    $20.00
+Thermal Paper Roll   1     $5.00
+--------------------------------
+TOTAL PAID                $25.00
+================================
+    Thank You For Shopping!`;
         }
     }
 
