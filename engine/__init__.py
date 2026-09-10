@@ -48,6 +48,7 @@ from .renderer import (
     convert_image_to_bitmap,
     render_pdf_to_bitmap,
     render_text_to_bitmap,
+    render_qr_to_bitmap,
 )
 
 __all__ = [
@@ -88,4 +89,5 @@ __all__ = [
     "convert_image_to_bitmap",
     "render_pdf_to_bitmap",
     "render_text_to_bitmap",
+    "render_qr_to_bitmap",
 ]

@@ -1,0 +1,133 @@
+const LANGUAGE_SAMPLES = {
+    bengali: "আমার সোনার বাংলা, আমি তোমায় ভালোবাসি",
+    arabic: "خير الكلام ما قل ودل • شكراً لزيارتكم",
+    english: "To be, or not to be, that is the question.",
+    chinese: "千里之行，始于足下 • 欢迎光临",
+    hindi: "सारे जहाँ से अच्छा, हिन्दोसितां हमारा",
+    russian: "Красота спасёт мир — Фёдор Достоевский",
+    japanese: "七転び八起き、明日は明日の風が吹く",
+    telugu: "దేశభాషలందు తెలుగు లెస్స • స్వాగతం",
+    tamil: "யாதும் ஊரே யாவரும் கேளிர் • வணக்கம்",
+    korean: "시작이 반이다, 고생 끝에 낙이 온다",
+    thai: "ความพยายามอยู่ที่ไหน ความสำเร็จอยู่ที่นั่น",
+    gujarati: "જ્યાં જ્યાં વસે એક ગુજરાતી, ત્યાં ત્યાં સદાકાળ ગુજરાત",
+    kannada: "ಸಿರಿಗನ್ನಡಂ ಗೆಲ್ಗೆ, ಸಿರಿಗನ್ನಡಂ ಬಾಳ್ಗೆ",
+    malayalam: "സ്വാഗതം • നന്ദി • എല്ലാ ഭാഷകളും ഇവിടെയുണ്ട്",
+    oriya: "ସୁନ୍ଦର ଓଡ଼ିଶା • ଆପଣଙ୍କୁ ସ୍ୱାଗତମ୍",
+    myanmar: "ကြိုဆိုပါသည် • ကျေးဇူးတင်ပါသည်",
+    gurmukhi: "ਜੀ ਆਇਆਂ ਨੂੰ • ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ",
+    ethiopic: "እንኳን ደህනා መጡ • ሰላም ለሁሉም ይሁን",
+    lao: "ຍິນດີຕ້ອນຮັບ • ຄວາມພະຍາຍາມຢູ່ໃສ ຄວາມສໍາເລັດຢູ່ນັ້ນ",
+    khmer: "សូមស្វាគមន៍ • ការព្យាយាមគង់បានសម្រេច",
+    sinhala: "සාදරයෙන් පිළිගනිමු • ජයෙන් ජයම වේවා",
+    greek: "Γνῶθι σεαυτόν • Καλώς ήρθατε",
+    hebrew: "שלום עליכם • ברוכים הבאים • קבלה",
+    armenian: "Բարի գալուստ • Խաղաղություն ամենքին",
+    georgian: "მოგესალმებით • მშვიდობა ყველას",
+    emoji: "Receipt 🧾 Express Print 🚀 Rating ⭐⭐⭐⭐⭐ Success ✔️"
+};
+
+function loadLanguageSample(lang) {
+    const receiptText = document.getElementById('receipt-text');
+    if (!receiptText) return;
+
+    if (!lang) {
+        receiptText.value = '';
+        return;
+    }
+
+    if (lang === 'all') {
+        const allLines = [
+            "==================================",
+            "       GLOBAL MULTI-LANGUAGE      ",
+            "         UNIVERSAL RECEIPT        ",
+            "==================================",
+            "1. বাংলা (Bengali):",
+            LANGUAGE_SAMPLES.bengali,
+            "----------------------------------",
+            "2. العربية (Arabic / Urdu / Farsi):",
+            LANGUAGE_SAMPLES.arabic,
+            "----------------------------------",
+            "3. English (Latin):",
+            LANGUAGE_SAMPLES.english,
+            "----------------------------------",
+            "4. 中文 (Chinese):",
+            LANGUAGE_SAMPLES.chinese,
+            "----------------------------------",
+            "5. हिन्दी (Hindi / Devanagari):",
+            LANGUAGE_SAMPLES.hindi,
+            "----------------------------------",
+            "6. Русский (Russian / Cyrillic):",
+            LANGUAGE_SAMPLES.russian,
+            "----------------------------------",
+            "7. 日本語 (Japanese):",
+            LANGUAGE_SAMPLES.japanese,
+            "----------------------------------",
+            "8. తెలుగు (Telugu):",
+            LANGUAGE_SAMPLES.telugu,
+            "----------------------------------",
+            "9. தமிழ் (Tamil):",
+            LANGUAGE_SAMPLES.tamil,
+            "----------------------------------",
+            "10. 한국어 (Korean):",
+            LANGUAGE_SAMPLES.korean,
+            "----------------------------------",
+            "11. ไทย (Thai):",
+            LANGUAGE_SAMPLES.thai,
+            "----------------------------------",
+            "12. ગુજરાતી (Gujarati):",
+            LANGUAGE_SAMPLES.gujarati,
+            "----------------------------------",
+            "13. ಕನ್ನಡ (Kannada):",
+            LANGUAGE_SAMPLES.kannada,
+            "----------------------------------",
+            "14. മലയാളം (Malayalam):",
+            LANGUAGE_SAMPLES.malayalam,
+            "----------------------------------",
+            "15. ଓଡ଼ିଆ (Odia):",
+            LANGUAGE_SAMPLES.oriya,
+            "----------------------------------",
+            "16. မြန်မာ (Burmese):",
+            LANGUAGE_SAMPLES.myanmar,
+            "----------------------------------",
+            "17. ਪੰਜਾਬੀ (Punjabi / Gurmukhi):",
+            LANGUAGE_SAMPLES.gurmukhi,
+            "----------------------------------",
+            "18. አማርኛ (Ethiopic / Amharic):",
+            LANGUAGE_SAMPLES.ethiopic,
+            "----------------------------------",
+            "19. ພາສາລາວ (Lao):",
+            LANGUAGE_SAMPLES.lao,
+            "----------------------------------",
+            "20. ភាសាខ្មែរ (Khmer):",
+            LANGUAGE_SAMPLES.khmer,
+            "----------------------------------",
+            "21. සිංහල (Sinhala):",
+            LANGUAGE_SAMPLES.sinhala,
+            "----------------------------------",
+            "22. Ελληνικά (Greek):",
+            LANGUAGE_SAMPLES.greek,
+            "----------------------------------",
+            "23. עברית (Hebrew):",
+            LANGUAGE_SAMPLES.hebrew,
+            "----------------------------------",
+            "24. Հայերեն (Armenian):",
+            LANGUAGE_SAMPLES.armenian,
+            "----------------------------------",
+            "25. ქართული (Georgian):",
+            LANGUAGE_SAMPLES.georgian,
+            "----------------------------------",
+            "26. Symbols & Emojis:",
+            LANGUAGE_SAMPLES.emoji,
+            "==================================",
+            "    THANK YOU / 100% GLOBAL POS   ",
+            "=================================="
+        ];
+        receiptText.value = allLines.join("\n");
+        return;
+    }
+
+    if (LANGUAGE_SAMPLES[lang]) {
+        receiptText.value = LANGUAGE_SAMPLES[lang];
+    }
+}

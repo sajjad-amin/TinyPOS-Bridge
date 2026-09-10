@@ -31,6 +31,24 @@ class PrintTextRequest(BaseModel):
         return False
 
 
+class PrintQRRequest(BaseModel):
+    content: str = Field(..., description="QR code data payload (URL, text, WiFi, UPI, etc.)")
+    header: Optional[str] = Field(None, description="Optional text displayed above the QR code")
+    footer: Optional[str] = Field(None, description="Optional text displayed below the QR code")
+    qr_size: int = Field(280, ge=140, le=368, description="QR code pixel size (default 280, max 368)")
+    strength: int = Field(7, ge=1, le=7, description="Print strength/darkness 1-7")
+    immediate: bool = Field(True, description="When true, directly prints in background without requiring /confirm")
+    keep_job: Optional[bool] = Field(None, description="When true, permanently preserves job in database. Default false (temporary, purged after 5 minutes)")
+    keepjob: Optional[bool] = Field(None, description="Alias for keep_job")
+
+    def should_keep(self) -> bool:
+        if self.keep_job is not None:
+            return bool(self.keep_job)
+        if self.keepjob is not None:
+            return bool(self.keepjob)
+        return False
+
+
 @public_api_router.get("/status")
 async def check_status(_: str = Depends(verify_api_key)):
     """Probe thermal printer online/offline status."""
@@ -152,6 +170,66 @@ async def print_text_job(
         background_tasks.add_task(execute_print_job, job_id)
     elif not preserve:
         # Schedule cleanup in case pending job is never confirmed
+        asyncio.create_task(schedule_job_cleanup(job_id, delay_seconds=300))
+
+    return {
+        "job_id": job_id,
+        "status": job_status,
+        "immediate": payload.immediate,
+        "keep_job": preserve,
+        "width": bitmap.width,
+        "height": bitmap.height,
+        "preview_url": f"/api/print/preview/{job_id}",
+        "confirm_url": f"/api/print/confirm/{job_id}" if not payload.immediate else None,
+        "message": (
+            "Job dispatched to printer immediately." if payload.immediate else "Job queued. Call /api/print/confirm/{job_id} to print."
+        ) + (" (Preserved in database)" if preserve else " (Temporary: auto-removed in 5 minutes)"),
+    }
+
+
+@public_api_router.post("/print/qr")
+async def print_qr_job(
+    payload: PrintQRRequest,
+    background_tasks: BackgroundTasks,
+    x_api_key: str = Depends(verify_api_key),
+):
+    """
+    Queue a high-contrast QR code for printing.
+    If immediate=true (default), queues and immediately transmits the job to the printer.
+    """
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Content field cannot be empty.")
+
+    try:
+        bitmap = printer_ble.render_qr_to_bitmap(
+            content=payload.content,
+            header_text=payload.header,
+            footer_text=payload.footer,
+            qr_size=payload.qr_size,
+            strength=payload.strength,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to render QR code: {str(e)}")
+
+    job_id = str(uuid.uuid4())
+    job_status = "printing" if payload.immediate else "pending"
+    preserve = payload.should_keep()
+
+    db.insert_job(
+        job_id=job_id,
+        job_type="qr",
+        status=job_status,
+        api_key=x_api_key,
+        image=bitmap,
+        strength=payload.strength,
+        scale=1.0,
+        autocrop=False,
+        keep_job=preserve,
+    )
+
+    if payload.immediate:
+        background_tasks.add_task(execute_print_job, job_id)
+    elif not preserve:
         asyncio.create_task(schedule_job_cleanup(job_id, delay_seconds=300))
 
     return {

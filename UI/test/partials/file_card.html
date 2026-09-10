@@ -1,0 +1,68 @@
+<!-- Test Print File (PDF / Image) -->
+<div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-file-earmark-arrow-up me-2"></i>Print PDF or Image File</h6>
+            <span class="badge bg-primary-subtle text-primary">Auto-Scale 384px</span>
+        </div>
+        <div class="card-body p-4">
+            <div>
+                <p class="small text-muted mb-3">
+                    Upload an invoice PDF, receipt, barcode, or image. TinyPOS auto-crops white margins, resizes to 384 dots, and adjusts thermal strength.
+                </p>
+                <div class="mb-3">
+                    <label for="receipt-file" class="form-label small fw-bold text-muted text-uppercase">Select File (.pdf, .png, .jpg)</label>
+                    <input class="form-control form-control-sm" type="file" id="receipt-file" accept=".pdf,image/*">
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-12 col-sm-6">
+                        <label for="file-scale" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-zoom-in me-1"></i> Scale / Font Size:
+                        </label>
+                        <select id="file-scale" class="form-select form-select-sm w-100">
+                            <option value="1.0" selected>100% (Fit Width)</option>
+                            <option value="1.15">115% (+15% Zoom)</option>
+                            <option value="1.25">125% (Recommended for 80mm)</option>
+                            <option value="1.5">150% (Recommended for A4)</option>
+                            <option value="1.75">175% (+75% Zoom)</option>
+                            <option value="2.0">200% (2x Magnified)</option>
+                            <option value="0.85">85% (Shrink -15%)</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label for="file-strength" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-fire text-danger me-1"></i> Print Strength:
+                        </label>
+                        <select id="file-strength" class="form-select form-select-sm border-primary w-100">
+                            <option value="4">4 - Normal</option>
+                            <option value="5">5 - Dark</option>
+                            <option value="6">6 - Extra Dark</option>
+                            <option value="7" selected>7 - Max Dark (Weak Paper)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="file-autocrop" checked>
+                    <label class="form-check-label small fw-semibold text-body" for="file-autocrop">
+                        Auto-crop whitespace margins
+                        <small class="text-muted d-block fw-normal">Trims empty page borders so receipt content expands to fill paper</small>
+                    </label>
+                </div>
+            </div>
+
+            <div class="pt-3 border-top d-flex flex-wrap gap-2 align-items-center">
+                <button id="btn-print-file" class="btn btn-sm btn-primary flex-grow-1 fw-semibold" onclick="printFileNow()">
+                    <i class="bi bi-printer-fill me-1"></i> Print File Now
+                </button>
+                <button id="btn-stop-file" class="btn btn-sm btn-outline-danger px-3 fw-semibold" onclick="stopPrintingNow()" disabled>
+                    <i class="bi bi-stop-circle me-1"></i> Stop
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="previewFileBitmap()">
+                    <i class="bi bi-eye me-1"></i> Preview
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

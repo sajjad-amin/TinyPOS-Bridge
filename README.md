@@ -10,6 +10,7 @@ It runs seamlessly on macOS, Linux, Raspberry Pi, and Windows, exposing both a m
 
 - **100% Universal World Language & Emoji Support:** Print receipts in any living language on Earth — Bengali, Arabic, Urdu, English, Chinese, Hindi, Russian, Japanese, Telugu, Tamil, Korean, Thai, Gujarati, Kannada, Malayalam, Odia, Burmese, Punjabi, Ethiopic/Amharic, Lao, Khmer, Sinhala, Greek, Hebrew, Armenian, Georgian, and all Emojis — seamlessly mixed on the same line without missing glyph boxes.
 - **Direct 1-Step Printing:** Print formatted text, receipts, or PDF/image files immediately via REST API or the Web UI.
+- **Direct QR Code Printing:** Print razor-sharp, pixel-perfect 1-bit thermal QR codes (URLs, UPI/payments, Wi-Fi credentials, order tickets) with optional multilingual header and footer captions.
 - **Live Job Cancellation:** Stop and abort active print jobs mid-stream from the dashboard or API to prevent paper waste.
 - **Receipt Auto-Scaling & Margin Cropping:** Automatically crop white borders and scale 80mm/A4 receipts to fit 57mm rolls cleanly.
 - **Adjustable Print Darkness (1–7):** Fine-tune thermal burn strength for faint or aged paper rolls.
@@ -99,6 +100,7 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 |---|---|---|
 | `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image with auto-scaling, auto-cropping, and strength options. |
 | `POST` | `/api/print/text` | **Direct Text Print:** Formatted receipt text supporting all languages and emojis with customizable font size and strength. |
+| `POST` | `/api/print/qr` | **Direct QR Code Print:** High-contrast thermal QR code with optional multilingual header and footer text. |
 | `POST` | `/api/print/stop` | **Immediate Stop:** Aborts whatever job is currently streaming to the thermal printer. |
 | `DELETE` / `POST` | `/api/print/cancel/{job_id}` | Cancels a pending job or aborts an active printing job by ID. |
 | `POST` | `/api/print/confirm/{job_id}` | Confirms a pending job (if submitted with `immediate=false`). |
@@ -149,7 +151,24 @@ curl -X POST https://pos.yourdomain.com/api/print/text \
   }'
 ```
 
-### 3. Immediate Stop / Abort Job (cURL)
+### 3. Direct 1-Step QR Code Print (cURL)
+Print payment QR codes, Wi-Fi logins, or URL tickets with sharp pixel-perfect alignment:
+```bash
+curl -X POST https://pos.yourdomain.com/api/print/qr \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "https://pos.sayem.com/pay/inv_99812",
+    "header": "SCAN TO PAY ৳১৫০.০০",
+    "footer": "TinyPOS Thermal Bridge",
+    "qr_size": 260,
+    "strength": 7,
+    "immediate": true,
+    "keepjob": false
+  }'
+```
+
+### 4. Immediate Stop / Abort Job (cURL)
 To abort whatever job is currently transmitting to the printer:
 ```bash
 curl -X POST https://pos.yourdomain.com/api/print/stop \

@@ -46,6 +46,7 @@ from engine import (
     convert_image_to_bitmap,
     render_pdf_to_bitmap,
     render_text_to_bitmap,
+    render_qr_to_bitmap,
 )
 
 logger = logging.getLogger("tinypos.ble")

@@ -210,3 +210,60 @@ def render_text_to_bitmap(text: str, font_size: int = 22, strength: int = 7) -> 
         y += line_height + line_spacing
 
     return canvas
+
+
+def render_qr_to_bitmap(
+    content: str,
+    header_text: Optional[str] = None,
+    footer_text: Optional[str] = None,
+    qr_size: int = 280,
+    strength: int = 7,
+) -> Image.Image:
+    """
+    Renders a high-contrast QR code centered on a 384px thermal canvas.
+    Optionally prepends header_text and appends footer_text, rendered with multi-script font support.
+    """
+    import qrcode
+
+    qr_size = max(140, min(PRINT_WIDTH - 16, int(qr_size)))
+
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(content)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white").convert("L")
+    qr_resized = qr_img.resize((qr_size, qr_size), Image.Resampling.NEAREST)
+
+    elements: List[Image.Image] = []
+
+    if header_text and header_text.strip():
+        hdr = render_text_to_bitmap(header_text.strip(), font_size=22, strength=strength)
+        hdr_cropped = autocrop_whitespace(hdr, padding=4)
+        elements.append(hdr_cropped)
+
+    elements.append(qr_resized)
+
+    if footer_text and footer_text.strip():
+        ftr = render_text_to_bitmap(footer_text.strip(), font_size=18, strength=strength)
+        ftr_cropped = autocrop_whitespace(ftr, padding=4)
+        elements.append(ftr_cropped)
+
+    gap = 12
+    margin_top = 16
+    margin_bottom = 16
+    total_height = margin_top + margin_bottom + sum(e.size[1] for e in elements) + gap * (len(elements) - 1)
+
+    canvas = Image.new("L", (PRINT_WIDTH, total_height), 255)
+
+    y = margin_top
+    for elem in elements:
+        x = max(0, (PRINT_WIDTH - elem.size[0]) // 2)
+        canvas.paste(elem, (x, y))
+        y += elem.size[1] + gap
+
+    return canvas
+

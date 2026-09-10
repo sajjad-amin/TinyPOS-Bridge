@@ -1,0 +1,88 @@
+<!-- Tab 1: Text -->
+<div class="tab-pane active" id="tab-text-pane" role="tabpanel" aria-labelledby="tab-text-btn">
+    <div>
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <label for="receipt-text" class="form-label small fw-bold text-muted text-uppercase mb-0">Receipt Content</label>
+                <div class="d-flex align-items-center gap-1">
+                    <label for="sample-lang-select" class="small text-muted mb-0 me-1" style="font-size: 0.78rem;">
+                        <i class="bi bi-translate text-primary me-1"></i>Language:
+                    </label>
+                    <select id="sample-lang-select" class="form-select form-select-sm py-0 ps-2 pe-4" style="font-size: 0.78rem; width: auto;" onchange="loadLanguageSample(this.value)">
+                        <option value="" selected>-- Select a Language to Test --</option>
+                        <option value="all">🌍 All Languages (Universal Receipt)</option>
+                        <option value="bengali">1. Bengali (বাংলা)</option>
+                        <option value="arabic">2. Arabic (العربية / Urdu / Persian)</option>
+                        <option value="english">3. English (Latin / Global)</option>
+                        <option value="chinese">4. Chinese (中文)</option>
+                        <option value="hindi">5. Hindi / Devanagari (हिन्दी)</option>
+                        <option value="russian">6. Russian / Cyrillic (Русский)</option>
+                        <option value="japanese">7. Japanese (日本語)</option>
+                        <option value="telugu">8. Telugu (తెలుగు)</option>
+                        <option value="tamil">9. Tamil (தமிழ்)</option>
+                        <option value="korean">10. Korean (한국어)</option>
+                        <option value="thai">11. Thai (ไทย)</option>
+                        <option value="gujarati">12. Gujarati (ગુજરાતી)</option>
+                        <option value="kannada">13. Kannada (ಕನ್ನಡ)</option>
+                        <option value="malayalam">14. Malayalam (മലയാളം)</option>
+                        <option value="oriya">15. Odia / Oriya (ଓଡ଼ିଆ)</option>
+                        <option value="myanmar">16. Burmese / Myanmar (မြန်မာ)</option>
+                        <option value="gurmukhi">17. Punjabi / Gurmukhi (ਪੰਜਾਬੀ)</option>
+                        <option value="ethiopic">18. Ethiopic / Amharic (አማርኛ)</option>
+                        <option value="lao">19. Lao (ພາສາລາວ)</option>
+                        <option value="khmer">20. Khmer (ភាសាខ្មែរ)</option>
+                        <option value="sinhala">21. Sinhala (සිංහල)</option>
+                        <option value="greek">22. Greek (Ελληνικά)</option>
+                        <option value="hebrew">23. Hebrew (עברית)</option>
+                        <option value="armenian">24. Armenian (Հայերեն)</option>
+                        <option value="georgian">25. Georgian (ქართული)</option>
+                        <option value="emoji">26. Symbols & Emojis (⭐ 🚀 🧾)</option>
+                    </select>
+                </div>
+            </div>
+            <textarea id="receipt-text" class="form-control font-monospace" rows="10" style="font-size: 0.85rem;" placeholder="Type or paste receipt text in any language, or select a language preset above..."></textarea>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-sm-6">
+                <label for="font-size" class="form-label small fw-semibold text-muted mb-1">
+                    <i class="bi bi-fonts me-1"></i> Font Size:
+                </label>
+                <select id="font-size" class="form-select form-select-sm w-100">
+                    <option value="16">Tiny (16pt)</option>
+                    <option value="18">Small (18pt)</option>
+                    <option value="22" selected>Standard / Medium (22pt)</option>
+                    <option value="26">Large (26pt)</option>
+                    <option value="30">Extra Large (30pt)</option>
+                    <option value="36">Huge Header (36pt)</option>
+                </select>
+            </div>
+            <div class="col-12 col-sm-6">
+                <label for="print-strength" class="form-label small fw-semibold text-muted mb-1">
+                    <i class="bi bi-fire text-danger me-1"></i> Print Strength (1-7):
+                </label>
+                <select id="print-strength" class="form-select form-select-sm border-primary w-100">
+                    <option value="1">1 - Ultra Light</option>
+                    <option value="2">2 - Light</option>
+                    <option value="3">3 - Medium</option>
+                    <option value="4">4 - Normal</option>
+                    <option value="5">5 - Dark</option>
+                    <option value="6">6 - Extra Dark</option>
+                    <option value="7" selected>7 - Max Dark (Weak Paper)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <button id="btn-print-text" class="btn btn-sm btn-primary px-3 fw-semibold" onclick="printTextNow()">
+                <i class="bi bi-printer-fill me-1"></i> Print Text
+            </button>
+            <button id="btn-stop-text" class="btn btn-sm btn-outline-danger px-3 fw-semibold" onclick="stopPrintingNow()" disabled>
+                <i class="bi bi-stop-circle me-1"></i> Stop
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="previewTextBitmap()">
+                <i class="bi bi-eye me-1"></i> Preview Bitmap
+            </button>
+        </div>
+    </div>
+</div>

@@ -120,6 +120,67 @@ async def internal_preview_text(payload: InternalPrintTextRequest):
     return StreamingResponse(buf, media_type="image/png")
 
 
+class InternalPrintQRRequest(BaseModel):
+    content: str
+    header: Optional[str] = None
+    footer: Optional[str] = None
+    qr_size: int = 280
+    strength: int = 7
+    keep_job: bool = True
+
+
+@internal_api_router.post("/preview-qr")
+async def internal_preview_qr(payload: InternalPrintQRRequest):
+    """Generate 384px PNG preview for QR code."""
+    if not payload.content.strip():
+        payload.content = "https://pos.sayem.com"
+    bitmap = printer_ble.render_qr_to_bitmap(
+        content=payload.content,
+        header_text=payload.header,
+        footer_text=payload.footer,
+        qr_size=payload.qr_size,
+        strength=payload.strength,
+    )
+    buf = io.BytesIO()
+    bitmap.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+
+@internal_api_router.post("/print-qr")
+async def internal_print_qr(payload: InternalPrintQRRequest):
+    """Render and print QR code from the test console."""
+    if not payload.content.strip():
+        return {"success": False, "message": "QR content cannot be empty"}
+
+    try:
+        bitmap = printer_ble.render_qr_to_bitmap(
+            content=payload.content,
+            header_text=payload.header,
+            footer_text=payload.footer,
+            qr_size=payload.qr_size,
+            strength=payload.strength,
+        )
+        job_id = str(uuid.uuid4())
+        db.insert_job(
+            job_id=job_id,
+            job_type="qr",
+            status="printing",
+            api_key="test_page",
+            image=bitmap,
+            strength=payload.strength,
+            scale=1.0,
+            autocrop=False,
+            keep_job=payload.keep_job,
+        )
+        success, msg = await printer_ble.send_bitmap_to_printer(bitmap, strength=payload.strength, job_id=job_id)
+        final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
+        db.update_job_status(job_id, final_status, error=None if success else msg)
+        return {"success": success, "message": msg, "job_id": job_id, "status": final_status}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
 @internal_api_router.post("/print-file")
 async def internal_print_file(
     file: UploadFile = File(...),

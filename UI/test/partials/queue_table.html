@@ -1,0 +1,51 @@
+<!-- Live Print Jobs Table with 50/page Pagination & Deletion -->
+<div class="col-12">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-card-checklist me-2"></i>Recent Print Jobs</h6>
+                <span id="queue-total-badge" class="badge bg-primary-subtle text-primary">0 Total</span>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadQueue(currentPage)">
+                    <i class="bi bi-arrow-repeat me-1"></i> Refresh
+                </button>
+                <button class="btn btn-sm btn-outline-danger" id="btn-clear-all" onclick="openClearAllModal()">
+                    <i class="bi bi-trash-fill me-1"></i> Clear History
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-body-tertiary">
+                        <tr>
+                            <th class="ps-3">Job ID</th>
+                            <th>Type</th>
+                            <th>Source</th>
+                            <th>Status</th>
+                            <th>Settings</th>
+                            <th>Created</th>
+                            <th class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queue-body">
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">Loading print queue...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <!-- Pagination Footer -->
+        <div class="card-footer bg-body py-3 d-flex flex-wrap justify-content-between align-items-center" id="queue-pagination-container" style="display: none !important;">
+            <div class="small text-muted mb-2 mb-sm-0" id="queue-pagination-info">
+                Showing jobs 1-50 of 0
+            </div>
+            <nav aria-label="Queue navigation">
+                <ul class="pagination pagination-sm mb-0" id="queue-pagination-nav">
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>

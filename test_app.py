@@ -73,8 +73,11 @@ def test_auth_and_ui_pages():
     res_test = client.get("/test", cookies=cookies)
     assert res_test.status_code == 200
     assert "Printer Test Console" in res_test.text
-    assert "Print by Writing Something" in res_test.text
-    print(" [OK] /test (Default Page) rendered cleanly")
+    assert "Print Text" in res_test.text
+    assert "Print QR Code" in res_test.text
+    assert "sample-lang-select" in res_test.text
+    assert "qr-content" in res_test.text
+    print(" [OK] /test (Modular Console with Text & QR Tabs) rendered cleanly")
 
     # 5. Access /api-keys with session
     res_keys = client.get("/api-keys", cookies=cookies)
@@ -525,6 +528,77 @@ def test_mixed_multi_script_rendering():
     print(" [OK] Mixed script text (English + Korean + Emoji + Bengali + Arabic + CJK) rendered cleanly without missing boxes")
 
 
+def test_qr_code_rendering_and_api():
+    print("--> Testing QR Code Rendering & API Pipeline...")
+
+    # 1. Test engine renderer directly
+    bmp = printer_ble.render_qr_to_bitmap(
+        content="https://pos.sayem.com",
+        header_text="SCAN TO PAY",
+        footer_text="TinyPOS Thermal Bridge",
+        qr_size=260,
+        strength=7,
+    )
+    assert bmp.size[0] == 384
+    assert bmp.size[1] > 260
+    black_pixels = sum(1 for p in bmp.get_flattened_data() if p < 128)
+    assert black_pixels > 2000, f"Expected dark modules in QR code, got {black_pixels}"
+    print(" [OK] Engine render_qr_to_bitmap output verified (384px wide, sharp thermal pixels)")
+
+    # 2. Test internal preview endpoint
+    res_preview = client.post(
+        "/api/internal/preview-qr",
+        json={
+            "content": "https://pos.sayem.com",
+            "header": "TABLE #12",
+            "footer": "THANK YOU",
+            "qr_size": 240,
+            "strength": 7,
+        },
+    )
+    assert res_preview.status_code == 200
+    assert res_preview.headers["content-type"] == "image/png"
+    img = Image.open(io.BytesIO(res_preview.content))
+    assert img.size[0] == 384
+    print(" [OK] Internal /api/internal/preview-qr endpoint verified")
+
+    # 3. Test public print QR API with API key
+    test_key = "sk_test_qr_print_key_101"
+    db.delete_api_key(test_key)
+    db.insert_api_key(test_key, name="QR Test Client")
+
+    res_print = client.post(
+        "/api/print/qr",
+        headers={"X-API-Key": test_key},
+        json={
+            "content": "WIFI:S:Guest;T:WPA;P:secret123;;",
+            "header": "WI-FI LOGIN",
+            "footer": "Connect & Enjoy",
+            "qr_size": 260,
+            "strength": 7,
+            "immediate": True,
+            "keep_job": True,
+        },
+    )
+    assert res_print.status_code == 200
+    data = res_print.json()
+    assert data["status"] == "printing"
+    job_id = data["job_id"]
+
+    # Verify job persisted in SQLite
+    job = db.get_job(job_id)
+    assert job is not None
+    assert job["job_type"] == "qr"
+    assert job["api_key"] == test_key
+    assert job["status"] in ("printing", "failed", "completed")
+    assert job["keep_job"] == 1
+    print(f" [OK] Public /api/print/qr completed and recorded in SQLite (Job {job_id[:8]})")
+
+    # Clean up
+    db.delete_api_key(test_key)
+    db.delete_job(job_id)
+
+
 if __name__ == "__main__":
     test_sqlite_api_keys()
     test_auth_and_ui_pages()
@@ -534,4 +608,5 @@ if __name__ == "__main__":
     test_bangla_unicode_text_printing()
     test_universal_multilingual_printing()
     test_mixed_multi_script_rendering()
-    print("\n🎉 ALL TESTS (MIXED SCRIPTS, UNIVERSAL MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
+    test_qr_code_rendering_and_api()
+    print("\n🎉 ALL TESTS (MODULAR UI, QR CODE, MIXED SCRIPTS, UNIVERSAL MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
