@@ -1,0 +1,36 @@
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# SQLite Databases & Local Storage
+tinypos.db
+*.db
+*.sqlite
+*.sqlite3
+api_keys.json
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary Files & Logs
+*.log
+temp_*
+sample.txt

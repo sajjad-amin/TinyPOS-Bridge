@@ -1,0 +1,820 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}
+<i class="bi bi-printer text-primary me-2"></i>Printer Test Console
+{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-outline-primary btn-sm" onclick="checkPrinterStatus(true)">
+    <i class="bi bi-arrow-repeat me-1" id="refresh-icon"></i> Scan Printer
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Printer Status Card -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="p-3 bg-primary-subtle text-primary rounded-3">
+                        <i class="bi bi-bluetooth fs-3"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1 d-flex align-items-center gap-2">
+                            Thermal Printer: 
+                            <span id="printer-name" class="text-body-emphasis">Checking...</span>
+                            <span id="printer-badge" class="badge bg-secondary-subtle text-secondary">Probing BLE...</span>
+                        </h6>
+                        <div class="small text-muted font-monospace" id="printer-address">Looking for Bainiu / X6 / Tiny Print...</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-body-secondary text-body-secondary border px-3 py-2">
+                        Paper: <strong>57mm (384 dots)</strong>
+                    </span>
+                    <button class="btn btn-sm btn-primary" onclick="testFeedPaper()">
+                        <i class="bi bi-arrow-down-circle me-1"></i> Feed Paper
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Print Text -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i>Print by Writing Something</h6>
+                <span class="badge bg-primary-subtle text-primary">Instant Print</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <label for="receipt-text" class="form-label small fw-bold text-muted text-uppercase">Receipt Content</label>
+                    <textarea id="receipt-text" class="form-control font-monospace" rows="10" style="font-size: 0.85rem;">================================
+      ACME MINI STORE
+   Invoice #INV-2026-0042
+--------------------------------
+Item                Qty    Price
+--------------------------------
+Standard Widget      2    $20.00
+Thermal Paper Roll   1     $5.00
+--------------------------------
+TOTAL PAID                $25.00
+================================
+    Thank You For Shopping!</textarea>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-sm-6">
+                        <label for="font-size" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-fonts me-1"></i> Font Size:
+                        </label>
+                        <select id="font-size" class="form-select form-select-sm w-100">
+                            <option value="16">Tiny (16pt)</option>
+                            <option value="18">Small (18pt)</option>
+                            <option value="22" selected>Standard / Medium (22pt)</option>
+                            <option value="26">Large (26pt)</option>
+                            <option value="30">Extra Large (30pt)</option>
+                            <option value="36">Huge Header (36pt)</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label for="print-strength" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-fire text-danger me-1"></i> Print Strength (1-7):
+                        </label>
+                        <select id="print-strength" class="form-select form-select-sm border-primary w-100">
+                            <option value="1">1 - Ultra Light</option>
+                            <option value="2">2 - Light</option>
+                            <option value="3">3 - Medium</option>
+                            <option value="4">4 - Normal</option>
+                            <option value="5">5 - Dark</option>
+                            <option value="6">6 - Extra Dark</option>
+                            <option value="7" selected>7 - Max Dark (Weak Paper)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button id="btn-print-text" class="btn btn-sm btn-primary px-3 fw-semibold" onclick="printTextNow()">
+                        <i class="bi bi-printer-fill me-1"></i> Print Now
+                    </button>
+                    <button id="btn-stop-text" class="btn btn-sm btn-outline-danger px-3 fw-semibold" onclick="stopPrintingNow()" disabled>
+                        <i class="bi bi-stop-circle me-1"></i> Stop
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="previewTextBitmap()">
+                        <i class="bi bi-eye me-1"></i> Preview Bitmap
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Print File (PDF / Image) -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold"><i class="bi bi-file-earmark-arrow-up me-2"></i>Print PDF or Image File</h6>
+                <span class="badge bg-primary-subtle text-primary">Auto-Scale 384px</span>
+            </div>
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <p class="small text-muted mb-3">
+                        Upload an invoice PDF, receipt, barcode, or image. TinyPOS auto-crops white margins, resizes to 384 dots, and adjusts thermal strength.
+                    </p>
+                    <div class="mb-3">
+                        <label for="receipt-file" class="form-label small fw-bold text-muted text-uppercase">Select File (.pdf, .png, .jpg)</label>
+                        <input class="form-control form-control-sm" type="file" id="receipt-file" accept=".pdf,image/*">
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label for="file-scale" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-zoom-in me-1"></i> Scale / Font Size:
+                            </label>
+                            <select id="file-scale" class="form-select form-select-sm w-100">
+                                <option value="1.0" selected>100% (Fit Width)</option>
+                                <option value="1.15">115% (+15% Zoom)</option>
+                                <option value="1.25">125% (Recommended for 80mm)</option>
+                                <option value="1.5">150% (Recommended for A4)</option>
+                                <option value="1.75">175% (+75% Zoom)</option>
+                                <option value="2.0">200% (2x Magnified)</option>
+                                <option value="0.85">85% (Shrink -15%)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label for="file-strength" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-fire text-danger me-1"></i> Print Strength:
+                            </label>
+                            <select id="file-strength" class="form-select form-select-sm border-primary w-100">
+                                <option value="4">4 - Normal</option>
+                                <option value="5">5 - Dark</option>
+                                <option value="6">6 - Extra Dark</option>
+                                <option value="7" selected>7 - Max Dark (Weak Paper)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="file-autocrop" checked>
+                        <label class="form-check-label small fw-semibold text-body" for="file-autocrop">
+                            Auto-crop whitespace margins
+                            <small class="text-muted d-block fw-normal">Trims empty page borders so receipt content expands to fill paper</small>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-top mt-2 d-flex flex-wrap gap-2 align-items-center">
+                    <button id="btn-print-file" class="btn btn-sm btn-primary flex-grow-1 fw-semibold" onclick="printFileNow()">
+                        <i class="bi bi-printer-fill me-1"></i> Print File Now
+                    </button>
+                    <button id="btn-stop-file" class="btn btn-sm btn-outline-danger px-3 fw-semibold" onclick="stopPrintingNow()" disabled>
+                        <i class="bi bi-stop-circle me-1"></i> Stop
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="previewFileBitmap()">
+                        <i class="bi bi-eye me-1"></i> Preview
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Print Jobs Table with 50/page Pagination & Deletion -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-card-checklist me-2"></i>Recent Print Jobs</h6>
+                    <span id="queue-total-badge" class="badge bg-primary-subtle text-primary">0 Total</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadQueue(currentPage)">
+                        <i class="bi bi-arrow-repeat me-1"></i> Refresh
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" id="btn-clear-all" onclick="openClearAllModal()">
+                        <i class="bi bi-trash-fill me-1"></i> Clear History
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-body-tertiary">
+                            <tr>
+                                <th class="ps-3">Job ID</th>
+                                <th>Type</th>
+                                <th>Source</th>
+                                <th>Status</th>
+                                <th>Settings</th>
+                                <th>Created</th>
+                                <th class="text-end pe-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queue-body">
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">Loading print queue...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Pagination Footer -->
+            <div class="card-footer bg-body py-3 d-flex flex-wrap justify-content-between align-items-center" id="queue-pagination-container" style="display: none !important;">
+                <div class="small text-muted mb-2 mb-sm-0" id="queue-pagination-info">
+                    Showing jobs 1-50 of 0
+                </div>
+                <nav aria-label="Queue navigation">
+                    <ul class="pagination pagination-sm mb-0" id="queue-pagination-nav">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for 384px Bitmap Preview -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">384px Thermal Raster Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center bg-body-tertiary p-4">
+                <p class="small text-muted mb-2">Exact 1-bit monochrome data sent to thermal head:</p>
+                <div class="p-2 bg-white rounded shadow-sm d-inline-block border" style="max-width: 100%;">
+                    <img id="preview-img" src="" alt="Thermal Bitmap" style="max-width: 100%; height: auto; image-rendering: pixelated;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Confirming Single Job Deletion -->
+<div class="modal fade" id="deleteJobModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold text-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Job
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small mb-1 text-body">Are you sure you want to delete this job record and its stored preview?</p>
+                <div class="font-monospace small text-muted text-break" id="delete-job-id-display"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger" id="confirm-delete-job-btn" onclick="executeDeleteJob()">
+                    <i class="bi bi-trash-fill me-1"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Confirming Clear All Jobs -->
+<div class="modal fade" id="clearAllModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger">
+                    <i class="bi bi-trash-fill me-2"></i>Clear Print History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-body mb-2">Are you sure you want to permanently clear all print jobs and their preview rasters?</p>
+                <div class="alert alert-warning small mb-0">
+                    <i class="bi bi-exclamation-circle me-1"></i> This action cannot be undone. All stored job history will be removed from SQLite.
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger" id="confirm-clear-all-btn" onclick="executeClearAllJobs()">
+                    <i class="bi bi-trash-fill me-1"></i> Yes, Clear All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="liveToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-msg">Notification</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function showToast(msg, bgClass = 'text-bg-primary') {
+        const toastEl = document.getElementById('liveToast');
+        const toastMsg = document.getElementById('toast-msg');
+        toastEl.className = `toast align-items-center ${bgClass} border-0`;
+        toastMsg.innerText = msg;
+        const toast = new bootstrap.Toast(toastEl);
+        toast.show();
+    }
+
+    function setPrintingUI(isPrinting, source = null) {
+        const btnPrintText = document.getElementById('btn-print-text');
+        const btnStopText = document.getElementById('btn-stop-text');
+        const btnPrintFile = document.getElementById('btn-print-file');
+        const btnStopFile = document.getElementById('btn-stop-file');
+
+        if (isPrinting) {
+            if (source === 'text') {
+                if (btnPrintText) {
+                    btnPrintText.disabled = true;
+                    btnPrintText.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Printing...';
+                }
+                if (btnStopText) {
+                    btnStopText.disabled = false;
+                    btnStopText.className = 'btn btn-sm btn-danger px-3 fw-semibold shadow-sm';
+                    btnStopText.innerHTML = '<i class="bi bi-stop-circle-fill me-1"></i> Stop Printing';
+                }
+                if (btnPrintFile) btnPrintFile.disabled = true;
+                if (btnStopFile) {
+                    btnStopFile.disabled = false;
+                    btnStopFile.className = 'btn btn-sm btn-danger px-3 fw-semibold shadow-sm';
+                    btnStopFile.innerHTML = '<i class="bi bi-stop-circle-fill me-1"></i> Stop';
+                }
+            } else if (source === 'file') {
+                if (btnPrintFile) {
+                    btnPrintFile.disabled = true;
+                    btnPrintFile.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Processing & Printing...';
+                }
+                if (btnStopFile) {
+                    btnStopFile.disabled = false;
+                    btnStopFile.className = 'btn btn-sm btn-danger px-3 fw-semibold shadow-sm';
+                    btnStopFile.innerHTML = '<i class="bi bi-stop-circle-fill me-1"></i> Stop Printing';
+                }
+                if (btnPrintText) btnPrintText.disabled = true;
+                if (btnStopText) {
+                    btnStopText.disabled = false;
+                    btnStopText.className = 'btn btn-sm btn-danger px-3 fw-semibold shadow-sm';
+                    btnStopText.innerHTML = '<i class="bi bi-stop-circle-fill me-1"></i> Stop';
+                }
+            } else {
+                if (btnPrintText) btnPrintText.disabled = true;
+                if (btnPrintFile) btnPrintFile.disabled = true;
+                if (btnStopText) {
+                    btnStopText.disabled = false;
+                    btnStopText.className = 'btn btn-sm btn-danger px-3 fw-semibold shadow-sm';
+                    btnStopText.innerHTML = '<i class="bi bi-stop-circle-fill me-1"></i> Stop';
+                }
+                if (btnStopFile) {
+                    btnStopFile.disabled = false;
+                    btnStopFile.className = 'btn btn-sm btn-danger px-3 fw-semibold shadow-sm';
+                    btnStopFile.innerHTML = '<i class="bi bi-stop-circle-fill me-1"></i> Stop';
+                }
+            }
+        } else {
+            if (btnPrintText) {
+                btnPrintText.disabled = false;
+                btnPrintText.innerHTML = '<i class="bi bi-printer-fill me-1"></i> Print Now';
+            }
+            if (btnStopText) {
+                btnStopText.disabled = true;
+                btnStopText.className = 'btn btn-sm btn-outline-danger px-3 fw-semibold';
+                btnStopText.innerHTML = '<i class="bi bi-stop-circle me-1"></i> Stop';
+            }
+            if (btnPrintFile) {
+                btnPrintFile.disabled = false;
+                btnPrintFile.innerHTML = '<i class="bi bi-printer-fill me-1"></i> Print File Now';
+            }
+            if (btnStopFile) {
+                btnStopFile.disabled = true;
+                btnStopFile.className = 'btn btn-sm btn-outline-danger px-3 fw-semibold';
+                btnStopFile.innerHTML = '<i class="bi bi-stop-circle me-1"></i> Stop';
+            }
+        }
+    }
+
+    async function stopPrintingNow() {
+        const btnStopText = document.getElementById('btn-stop-text');
+        const btnStopFile = document.getElementById('btn-stop-file');
+
+        if (btnStopText) {
+            btnStopText.disabled = true;
+            btnStopText.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Stopping...';
+        }
+        if (btnStopFile) {
+            btnStopFile.disabled = true;
+            btnStopFile.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Stopping...';
+        }
+
+        showToast('Sending stop command to printer...', 'text-bg-warning');
+
+        try {
+            const res = await fetch('/api/internal/stop', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Print job stopped successfully!', 'text-bg-warning');
+            } else {
+                showToast(data.message || 'Could not stop printer', 'text-bg-secondary');
+            }
+        } catch (e) {
+            showToast('Failed to send stop command: ' + e.message, 'text-bg-danger');
+        } finally {
+            setTimeout(() => {
+                setPrintingUI(false);
+                loadQueue(currentPage);
+            }, 300);
+        }
+    }
+
+    async function stopJob(jobId) {
+        showToast(`Stopping job ${jobId.substring(0, 8)}...`, 'text-bg-warning');
+        try {
+            const res = await fetch(`/api/internal/jobs/${jobId}/stop`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Job stopped!', 'text-bg-warning');
+            } else {
+                showToast(data.message || 'Could not stop job', 'text-bg-danger');
+            }
+        } catch (e) {
+            showToast('Error stopping job: ' + e.message, 'text-bg-danger');
+        } finally {
+            setPrintingUI(false);
+            loadQueue(currentPage);
+        }
+    }
+
+    async function checkPrinterStatus(interactive = false) {
+        const nameEl = document.getElementById('printer-name');
+        const badgeEl = document.getElementById('printer-badge');
+        const addrEl = document.getElementById('printer-address');
+        const icon = document.getElementById('refresh-icon');
+
+        if (icon) icon.classList.add('bi-spin');
+        badgeEl.className = 'badge bg-warning-subtle text-warning';
+        badgeEl.innerText = 'Scanning BLE...';
+
+        try {
+            const res = await fetch('/api/internal/status');
+            const data = await res.json();
+            if (data.status === 'online') {
+                if (data.is_printing) {
+                    badgeEl.className = 'badge bg-primary-subtle text-primary';
+                    badgeEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Printing';
+                    nameEl.innerText = data.printer_name || 'X6 Thermal Printer (Printing)';
+                    setPrintingUI(true);
+                } else {
+                    badgeEl.className = 'badge bg-success-subtle text-success-emphasis';
+                    badgeEl.innerHTML = '<i class="bi bi-circle-fill me-1 small"></i> Online';
+                    nameEl.innerText = data.printer_name || 'X6 Thermal Printer';
+                }
+                addrEl.innerText = 'BLE Address: ' + (data.address || 'Connected');
+                if (interactive) showToast('Printer found: ' + data.printer_name, 'text-bg-success');
+            } else {
+                badgeEl.className = 'badge bg-danger-subtle text-danger-emphasis';
+                badgeEl.innerHTML = '<i class="bi bi-x-circle-fill me-1 small"></i> Offline';
+                nameEl.innerText = 'Printer Not Detected';
+                addrEl.innerText = 'Make sure printer is powered on and in range';
+                if (interactive) showToast('Printer is offline or out of range', 'text-bg-danger');
+            }
+        } catch (e) {
+            badgeEl.className = 'badge bg-danger-subtle text-danger-emphasis';
+            badgeEl.innerText = 'Error';
+            nameEl.innerText = 'Connection Error';
+        } finally {
+            if (icon) icon.classList.remove('bi-spin');
+        }
+    }
+
+    async function testFeedPaper() {
+        showToast('Sending paper feed command...');
+        try {
+            const res = await fetch('/api/internal/feed', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Paper fed successfully!', 'text-bg-success');
+            } else {
+                showToast(data.error || 'Failed to feed paper', 'text-bg-danger');
+            }
+        } catch (e) {
+            showToast('Error sending feed command', 'text-bg-danger');
+        }
+    }
+
+    async function printTextNow() {
+        const text = document.getElementById('receipt-text').value;
+        const fontSize = parseInt(document.getElementById('font-size').value) || 22;
+        const strength = parseInt(document.getElementById('print-strength').value) || 7;
+
+        if (!text.trim()) {
+            showToast('Please enter receipt text', 'text-bg-warning');
+            return;
+        }
+
+        setPrintingUI(true, 'text');
+
+        try {
+            const res = await fetch('/api/internal/print-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, font_size: fontSize, strength: strength })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Print completed successfully (Strength ' + strength + ')!', 'text-bg-success');
+            } else {
+                if (data.status === 'cancelled' || (data.message && data.message.toLowerCase().includes('stop'))) {
+                    showToast('Print job was stopped.', 'text-bg-warning');
+                } else {
+                    showToast(data.message || 'Print failed', 'text-bg-danger');
+                }
+            }
+            loadQueue(1);
+        } catch (e) {
+            showToast('Print request failed: ' + e.message, 'text-bg-danger');
+        } finally {
+            setPrintingUI(false);
+        }
+    }
+
+    async function previewTextBitmap() {
+        const text = document.getElementById('receipt-text').value;
+        const fontSize = parseInt(document.getElementById('font-size').value) || 22;
+        const strength = parseInt(document.getElementById('print-strength').value) || 7;
+
+        try {
+            const res = await fetch('/api/internal/preview-text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, font_size: fontSize, strength: strength })
+            });
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            document.getElementById('preview-img').src = url;
+            new bootstrap.Modal(document.getElementById('previewModal')).show();
+        } catch (e) {
+            showToast('Preview error', 'text-bg-danger');
+        }
+    }
+
+    async function printFileNow() {
+        const fileInput = document.getElementById('receipt-file');
+        const fileStrength = document.getElementById('file-strength').value || '7';
+        const fileScale = document.getElementById('file-scale').value || '1.0';
+        const fileAutocrop = document.getElementById('file-autocrop').checked ? 'true' : 'false';
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showToast('Please select an invoice PDF or image file', 'text-bg-warning');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('strength', fileStrength);
+        formData.append('scale', fileScale);
+        formData.append('autocrop', fileAutocrop);
+
+        setPrintingUI(true, 'file');
+
+        try {
+            const res = await fetch('/api/internal/print-file', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`File printed successfully (Strength ${fileStrength}, Scale ${Math.round(fileScale*100)}%)!`, 'text-bg-success');
+            } else {
+                if (data.status === 'cancelled' || (data.message && data.message.toLowerCase().includes('stop'))) {
+                    showToast('Print job was stopped.', 'text-bg-warning');
+                } else {
+                    showToast(data.message || 'File print failed', 'text-bg-danger');
+                }
+            }
+            loadQueue(1);
+        } catch (e) {
+            showToast('Upload failed: ' + e.message, 'text-bg-danger');
+        } finally {
+            setPrintingUI(false);
+        }
+    }
+
+    async function previewFileBitmap() {
+        const fileInput = document.getElementById('receipt-file');
+        const fileStrength = document.getElementById('file-strength').value || '7';
+        const fileScale = document.getElementById('file-scale').value || '1.0';
+        const fileAutocrop = document.getElementById('file-autocrop').checked ? 'true' : 'false';
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showToast('Please select an invoice PDF or image file to preview', 'text-bg-warning');
+            return;
+        }
+
+        showToast('Generating 384px bitmap preview...');
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('strength', fileStrength);
+        formData.append('scale', fileScale);
+        formData.append('autocrop', fileAutocrop);
+
+        try {
+            const res = await fetch('/api/internal/preview-file', {
+                method: 'POST',
+                body: formData
+            });
+            if (!res.ok) {
+                const err = await res.text();
+                showToast('Preview error: ' + err, 'text-bg-danger');
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            document.getElementById('preview-img').src = url;
+            new bootstrap.Modal(document.getElementById('previewModal')).show();
+        } catch (e) {
+            showToast('Preview request failed: ' + e.message, 'text-bg-danger');
+        }
+    }
+
+    let currentPage = 1;
+    let activeJobToDelete = null;
+
+    async function loadQueue(page = 1) {
+        currentPage = page;
+        const tbody = document.getElementById('queue-body');
+        const badgeTotal = document.getElementById('queue-total-badge');
+        const pagContainer = document.getElementById('queue-pagination-container');
+        const pagInfo = document.getElementById('queue-pagination-info');
+        const pagNav = document.getElementById('queue-pagination-nav');
+
+        try {
+            const res = await fetch(`/api/internal/queue?page=${page}&per_page=50`);
+            const data = await res.json();
+            const jobs = data.jobs || [];
+            const total = data.total || 0;
+            const totalPages = data.total_pages || 1;
+
+            if (badgeTotal) badgeTotal.innerText = `${total} Total`;
+
+            if (jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted"><i class="bi bi-inbox d-block fs-3 mb-2 opacity-50"></i>No print jobs in database yet.</td></tr>';
+                if (pagContainer) pagContainer.style.setProperty('display', 'none', 'important');
+                return;
+            }
+
+            let html = '';
+            jobs.forEach(job => {
+                let badge = '<span class="badge bg-secondary">Pending</span>';
+                if (job.status === 'completed') badge = '<span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Completed</span>';
+                if (job.status === 'printing') badge = '<span class="badge bg-primary-subtle text-primary"><i class="bi bi-hourglass-split me-1"></i>Printing</span>';
+                if (job.status === 'cancelled') badge = '<span class="badge bg-warning-subtle text-warning-emphasis"><i class="bi bi-stop-circle me-1"></i>Stopped</span>';
+                if (job.status === 'failed') badge = `<span class="badge bg-danger-subtle text-danger" title="${job.error || 'Failed'}"><i class="bi bi-x-circle me-1"></i>Failed</span>`;
+
+                const keepBadge = job.keep_job
+                    ? '<span class="badge bg-secondary-subtle text-secondary ms-1" title="Preserved permanently in SQLite"><i class="bi bi-bookmark-fill me-1"></i>Saved</span>'
+                    : '<span class="badge bg-warning-subtle text-warning-emphasis ms-1" title="Temporary - auto-purged after 5 minutes"><i class="bi bi-clock-history me-1"></i>Temp (5m)</span>';
+
+                const srcBadge = job.api_key === 'test_page' 
+                    ? '<span class="badge bg-info-subtle text-info">Test Page</span>'
+                    : (job.api_key ? `<span class="badge bg-dark-subtle text-body font-monospace" title="${job.api_key}">API (${job.api_key.substring(0, 8)}...)</span>` : '<span class="badge bg-secondary-subtle text-secondary">Direct</span>');
+
+                const createdTime = job.created_at ? job.created_at.substring(0, 19).replace('T', ' ') : '';
+
+                const stopBtnHtml = (job.status === 'printing')
+                    ? `<button class="btn btn-sm btn-danger me-1" onclick="stopJob('${job.job_id}')" title="Stop Printing This Job"><i class="bi bi-stop-circle-fill"></i></button>`
+                    : '';
+
+                html += `<tr>
+                    <td class="ps-3 font-monospace small"><span title="${job.job_id}">${job.job_id.substring(0, 8)}...</span></td>
+                    <td><span class="badge bg-body-secondary text-body text-uppercase">${job.job_type}</span></td>
+                    <td>${srcBadge}</td>
+                    <td>${badge} ${keepBadge}</td>
+                    <td class="small text-muted">
+                        <span class="badge bg-light text-dark border">Str: ${job.strength || 7}</span>
+                        <span class="badge bg-light text-dark border">Scale: ${Math.round((job.scale || 1.0) * 100)}%</span>
+                    </td>
+                    <td class="small text-muted">${createdTime}</td>
+                    <td class="text-end pe-3 text-nowrap">
+                        ${stopBtnHtml}
+                        <button class="btn btn-sm btn-outline-secondary me-1" onclick="openJobPreview('${job.job_id}')" title="Preview Raster">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="openDeleteJobModal('${job.job_id}')" title="Delete Job">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+
+            // Render Pagination
+            if (pagContainer) {
+                pagContainer.style.removeProperty('display');
+                const startIdx = ((page - 1) * 50) + 1;
+                const endIdx = Math.min(page * 50, total);
+                pagInfo.innerText = `Showing jobs ${startIdx}-${endIdx} of ${total}`;
+
+                if (totalPages > 1) {
+                    let navHtml = '';
+                    navHtml += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="javascript:void(0)" onclick="loadQueue(${page - 1})"><i class="bi bi-chevron-left"></i></a>
+                    </li>`;
+
+                    for (let p = 1; p <= totalPages; p++) {
+                        if (p === page) {
+                            navHtml += `<li class="page-item active"><span class="page-link">${p}</span></li>`;
+                        } else if (p <= 3 || p >= totalPages - 2 || (p >= page - 1 && p <= page + 1)) {
+                            navHtml += `<li class="page-item"><a class="page-link" href="javascript:void(0)" onclick="loadQueue(${p})">${p}</a></li>`;
+                        } else if (p === 4 || p === totalPages - 3) {
+                            navHtml += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+                        }
+                    }
+
+                    navHtml += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="javascript:void(0)" onclick="loadQueue(${page + 1})"><i class="bi bi-chevron-right"></i></a>
+                    </li>`;
+                    pagNav.innerHTML = navHtml;
+                } else {
+                    pagNav.innerHTML = '';
+                }
+            }
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-danger">Failed to load print queue</td></tr>';
+        }
+    }
+
+    function openJobPreview(jobId) {
+        document.getElementById('preview-img').src = `/api/print/preview/${jobId}`;
+        new bootstrap.Modal(document.getElementById('previewModal')).show();
+    }
+
+    function openDeleteJobModal(jobId) {
+        activeJobToDelete = jobId;
+        document.getElementById('delete-job-id-display').innerText = 'ID: ' + jobId;
+        new bootstrap.Modal(document.getElementById('deleteJobModal')).show();
+    }
+
+    async function executeDeleteJob() {
+        if (!activeJobToDelete) return;
+        const btn = document.getElementById('confirm-delete-job-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Deleting...';
+
+        try {
+            const res = await fetch(`/api/internal/jobs/${activeJobToDelete}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('deleteJobModal')).hide();
+                showToast('Job record deleted successfully', 'text-bg-success');
+                loadQueue(currentPage);
+            } else {
+                showToast(data.message || 'Failed to delete job', 'text-bg-danger');
+            }
+        } catch (e) {
+            showToast('Delete request error: ' + e.message, 'text-bg-danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash-fill me-1"></i> Delete';
+        }
+    }
+
+    function openClearAllModal() {
+        new bootstrap.Modal(document.getElementById('clearAllModal')).show();
+    }
+
+    async function executeClearAllJobs() {
+        const btn = document.getElementById('confirm-clear-all-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Clearing...';
+
+        try {
+            const res = await fetch('/api/internal/jobs/clear', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('clearAllModal')).hide();
+                showToast(`Cleared ${data.count} jobs from history!`, 'text-bg-success');
+                loadQueue(1);
+            } else {
+                showToast(data.message || 'Failed to clear jobs', 'text-bg-danger');
+            }
+        } catch (e) {
+            showToast('Clear request error: ' + e.message, 'text-bg-danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash-fill me-1"></i> Yes, Clear All';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        checkPrinterStatus();
+        loadQueue();
+    });
+</script>
+{% endblock %}

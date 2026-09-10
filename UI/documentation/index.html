@@ -1,0 +1,301 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}
+<i class="bi bi-book text-primary me-2"></i>API Documentation
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-book-half me-2"></i>Thermal Printer Integration Guide</h6>
+    </div>
+    <div class="card-body p-4">
+        <!-- Security Notice -->
+        <div class="alert alert-info border-0 shadow-sm mb-4">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="bi bi-shield-lock-fill fs-3"></i>
+                </div>
+                <div>
+                    <h6 class="alert-heading fw-bold mb-1">Authentication & Security</h6>
+                    <p class="mb-0 small">
+                        All requests under <code>/api/*</code> require your <strong>API Key</strong> to be sent via the <code>X-API-Key</code> HTTP header. Requests with missing or invalid keys return <code>403 Forbidden</code>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoints List -->
+        <h6 class="fw-bold mb-3">Core API Endpoints</h6>
+        <div class="p-3 bg-body-tertiary rounded border mb-4">
+            <div class="row g-3">
+                <div class="col-md-2 fw-bold text-uppercase text-secondary small">Base URL</div>
+                <div class="col-md-10 font-monospace small d-flex flex-wrap align-items-center gap-2">
+                    <span class="text-primary fw-bold base-url-display">{{ request_url_base }}</span>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyBaseUrl(this)" title="Copy Base URL">
+                        <i class="bi bi-clipboard me-1"></i>Copy
+                    </button>
+                    <span class="text-muted small">(Auto-detected)</span>
+                </div>
+                
+                <div class="col-md-2 fw-bold text-uppercase text-secondary small">Headers</div>
+                <div class="col-md-10 font-monospace small">
+                    <div><span class="text-primary">X-API-Key</span>: &lt;your_api_key&gt;</div>
+                    <div><span class="text-primary">Accept</span>: application/json</div>
+                </div>
+
+                <div class="col-12"><hr class="text-secondary opacity-25"></div>
+
+                <div class="col-md-2 fw-bold text-uppercase text-secondary small">Endpoints</div>
+                <div class="col-md-10">
+                    <table class="table table-sm table-borderless align-middle mb-0">
+                        <tr>
+                            <td style="width: 100px;"><span class="badge bg-success">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold" style="width: 250px;">/api/print/raw</td>
+                            <td>Upload PDF/Image. By default prints immediately in 1-step! (Supports <code>scale</code>, <code>autocrop</code>, <code>immediate</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-success">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/text</td>
+                            <td>Print formatted text in 1-step! (Supports <code>font_size</code>, <code>strength</code>, <code>immediate</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-danger">POST</span></td>
+                            <td class="font-monospace text-danger fw-bold">/api/print/stop</td>
+                            <td><strong>Immediate Stop:</strong> Aborts whatever print job is currently actively streaming to the printer!</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-warning text-dark">DELETE</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/cancel/{id}</td>
+                            <td>Cancel a pending queued job or halt an active printing job by ID.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-secondary">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/confirm/{id}</td>
+                            <td>Optional: Manually confirm a pending print job (if <code>immediate=false</code> was used)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-primary">GET</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/status</td>
+                            <td>Probe thermal printer online/offline status (reports <code>is_printing: true</code> if busy)</td>
+                        </tr>
+                    </table>
+
+                    <div class="mt-3 pt-3 border-top">
+                        <span class="fw-bold small text-uppercase text-secondary d-block mb-2">Parameters & Options</span>
+                        <ul class="small text-muted mb-0 ps-3">
+                            <li class="mb-1"><code>immediate</code> (boolean, default: <code>true</code>): <strong>Direct 1-Step Execution!</strong> When <code>true</code>, the job prints immediately in the background without needing a secondary <code>/confirm</code> request.</li>
+                            <li class="mb-1"><code>keepjob</code> / <code>keep_job</code> (boolean, default: <code>false</code>): <strong>Database Bloat Protection!</strong> By default, jobs are temporary and purged from SQLite after 5 minutes so high-volume POS invoicing doesn't bloat disk space. Pass <code>keepjob=true</code> or <code>keep_job=true</code> to permanently save the job and preview raster in history.</li>
+                            <li class="mb-1"><code>scale</code> (float, default: <code>1.0</code>): Zoom/Scale multiplier (e.g. <code>1.25</code> = +25% zoom, <code>1.5</code> = +50% zoom). Expands 80mm or A4 receipts to make fonts crisp and readable on 57mm paper!</li>
+                            <li class="mb-1"><code>autocrop</code> (boolean, default: <code>true</code>): Automatically strips empty white borders and margins so receipt text fills the full 384-dot width.</li>
+                            <li class="mb-1"><code>strength</code> (integer 1-7, default: <code>7</code>): Thermal burning energy and pulse pacing. Level <code>7</code> maximizes darkness and thickens text strokes for weak or aged thermal paper rolls.</li>
+                            <li><code>font_size</code> (integer, default: <code>22</code>): Direct text font size (12 to 60pt) for <code>/api/print/text</code>.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Examples Header with Key & Base URL Pre-fillers -->
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+            <h6 class="fw-bold mb-0">Code Examples (Direct 1-Step Printing)</h6>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="d-flex align-items-center">
+                    <label for="baseUrlInput" class="form-label me-2 mb-0 small text-muted text-nowrap">Base URL:</label>
+                    <input type="text" class="form-control form-control-sm font-monospace" id="baseUrlInput" style="width: 250px;" oninput="updateBaseUrlPlaceholders(this.value)">
+                </div>
+                <div class="d-flex align-items-center">
+                    <label for="keySelector" class="form-label me-2 mb-0 small text-muted text-nowrap">API Key:</label>
+                    <select class="form-select form-select-sm" id="keySelector" style="width: 230px;" onchange="updateApiKeyPlaceholders(this)">
+                        {% if api_keys and api_keys|length > 0 %}
+                            {% for k in api_keys %}
+                            <option value="{{ k.key }}">{{ k.name }} ({{ k.key[:8] }}...)</option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="sk_live_your_api_key_here">sk_live_your_api_key_here</option>
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-3" id="codeTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fw-semibold" id="php-tab" data-bs-toggle="tab" data-bs-target="#php-pane" type="button">Laravel / PHP</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="curl-tab" data-bs-toggle="tab" data-bs-target="#curl-pane" type="button">cURL</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="js-tab" data-bs-toggle="tab" data-bs-target="#js-pane" type="button">JavaScript / Node</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="codeTabsContent">
+            <!-- PHP / Laravel Tab -->
+            <div class="tab-pane fade show active" id="php-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('php-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="php-code"><span class="text-primary">&lt;?php</span>
+
+<span class="text-secondary">// Direct 1-Step Print in Laravel (No /confirm needed!)</span>
+<span class="text-warning">use</span> Illuminate\Support\Facades\Http;
+
+<span class="text-info">$apiKey</span> = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">$baseUrl</span> = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-secondary">// Example 1: Print Receipt PDF immediately (temporary, purged after 5m)</span>
+<span class="text-info">$response</span> = Http::withHeaders([
+    <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
+])-&gt;attach(
+    <span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$pdfPath</span>), <span class="text-success">'receipt.pdf'</span>
+)-&gt;post(<span class="text-success">"{$baseUrl}/api/print/raw"</span>, [
+    <span class="text-success">'immediate'</span> =&gt; <span class="text-success">'true'</span>,  <span class="text-secondary">// Prints immediately!</span>
+    <span class="text-success">'scale'</span>     =&gt; <span class="text-warning">1.25</span>,    <span class="text-secondary">// 1.25x zoom for 80mm receipts, 1.5x for A4</span>
+    <span class="text-success">'autocrop'</span>  =&gt; <span class="text-success">'true'</span>,  <span class="text-secondary">// Trims empty white margins</span>
+    <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,       <span class="text-secondary">// 1-7: max thermal burn darkness</span>
+    <span class="text-success">'keepjob'</span>   =&gt; <span class="text-success">'false'</span>,  <span class="text-secondary">// Set 'true' only if you want to permanently keep in SQLite</span>
+]);
+
+<span class="text-info">$jobId</span> = <span class="text-info">$response</span>-&gt;json(<span class="text-success">'job_id'</span>); <span class="text-secondary">// Already printing!</span>
+
+<span class="text-secondary">// Example 2: Print Plain Text Receipt immediately</span>
+<span class="text-info">$textRes</span> = Http::withHeaders([
+    <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
+])-&gt;post(<span class="text-success">"{$baseUrl}/api/print/text"</span>, [
+    <span class="text-success">'text'</span>      =&gt; <span class="text-success">"ACME STORE\nInvoice #1042\nTotal: \$45.00"</span>,
+    <span class="text-success">'font_size'</span> =&gt; <span class="text-warning">24</span>,
+    <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,
+    <span class="text-success">'immediate'</span> =&gt; <span class="text-warning">true</span>,    <span class="text-secondary">// Prints immediately!</span>
+    <span class="text-success">'keepjob'</span>   =&gt; <span class="text-warning">false</span>,   <span class="text-secondary">// Temporary job, removed after 5 minutes</span>
+]);
+</code></pre>
+                </div>
+            </div>
+
+            <!-- cURL Tab -->
+            <div class="tab-pane fade" id="curl-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('curl-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="curl-code"><span class="text-secondary"># 1. Direct 1-Step Text Print (Temporary by default, removed after 5m)</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/text \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -H <span class="text-success">"Content-Type: application/json"</span> \
+  -d <span class="text-success">'{"text": "SAMPLE INVOICE\nItem 1: $10.00\nTotal: $10.00", "font_size": 22, "immediate": true, "keepjob": false}'</span>
+
+<span class="text-secondary"># 2. Direct 1-Step File Upload Print (PDF or Image, preserved permanently in DB)</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/raw \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -F <span class="text-success">"file=@receipt.pdf"</span> \
+  -F <span class="text-success">"scale=1.25"</span> \
+  -F <span class="text-success">"autocrop=true"</span> \
+  -F <span class="text-success">"immediate=true"</span> \
+  -F <span class="text-success">"keepjob=true"</span>
+
+<span class="text-secondary"># 3. Check Printer Status</span>
+<span class="text-primary">curl</span> -X GET <span class="base-url-placeholder">{{ request_url_base }}</span>/api/status \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
+</code></pre>
+                </div>
+            </div>
+
+            <!-- JavaScript Tab -->
+            <div class="tab-pane fade" id="js-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('js-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="js-code"><span class="text-info">const</span> apiKey = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">const</span> baseUrl = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-secondary">// Direct 1-Step Print Receipt (immediate: true, keepjob: false)</span>
+<span class="text-warning">const</span> res = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/text`</span>, {
+  method: <span class="text-success">'POST'</span>,
+  headers: {
+    <span class="text-success">'Content-Type'</span>: <span class="text-success">'application/json'</span>,
+    <span class="text-success">'X-API-Key'</span>: apiKey,
+  },
+  body: JSON.stringify({
+    text: <span class="text-success">"RECEIPT #101\nWidget A: $20.00\nTotal: $20.00"</span>,
+    font_size: <span class="text-warning">22</span>,
+    immediate: <span class="text-warning">true</span>, <span class="text-secondary">// Automatically starts printing!</span>
+    keepjob: <span class="text-warning">false</span>,   <span class="text-secondary">// Temporary job, removed after 5 minutes</span>
+  })
+});
+<span class="text-warning">const</span> data = <span class="text-warning">await</span> res.json();
+console.log(<span class="text-success">'Dispatched Job ID:'</span>, data.job_id);
+</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function updateBaseUrlPlaceholders(url) {
+        if (!url) return;
+        const cleanUrl = url.trim().replace(/\/+$/, '');
+        document.querySelectorAll('.base-url-placeholder, .base-url-display').forEach(el => {
+            el.textContent = cleanUrl;
+        });
+    }
+
+    function updateApiKeyPlaceholders(select) {
+        const key = select.value;
+        document.querySelectorAll('.api-key-placeholder').forEach(el => {
+            el.textContent = key;
+        });
+    }
+
+    function copyBaseUrl(btn) {
+        const el = document.querySelector('.base-url-display');
+        const text = el ? el.textContent : window.location.origin;
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+            btn.classList.replace('btn-outline-secondary', 'btn-success');
+            btn.classList.add('text-white');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.replace('btn-success', 'btn-outline-secondary');
+                btn.classList.remove('text-white');
+            }, 2000);
+        });
+    }
+
+    function copyCode(elementId, btn) {
+        const codeElement = document.getElementById(elementId);
+        navigator.clipboard.writeText(codeElement.innerText).then(() => {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+            btn.classList.replace('btn-light', 'btn-success');
+            btn.classList.add('text-white');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.replace('btn-success', 'btn-light');
+                btn.classList.remove('text-white');
+            }, 2000);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Auto-detect production domain/tunnel URL from browser location
+        const originUrl = window.location.origin;
+        const baseUrlInput = document.getElementById('baseUrlInput');
+        if (baseUrlInput) {
+            baseUrlInput.value = originUrl;
+        }
+        updateBaseUrlPlaceholders(originUrl);
+
+        const sel = document.getElementById('keySelector');
+        if (sel) updateApiKeyPlaceholders(sel);
+    });
+</script>
+{% endblock %}
