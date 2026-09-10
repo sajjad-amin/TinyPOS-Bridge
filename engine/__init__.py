@@ -56,6 +56,9 @@ from .renderer import (
 
 from .photo import (
     render_photo_to_bitmap,
+    atkinson_dither,
+    bayer_dither,
+    PHOTO_PRESETS,
 )
 
 __all__ = [

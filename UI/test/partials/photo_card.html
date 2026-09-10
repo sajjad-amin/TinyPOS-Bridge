@@ -1,0 +1,160 @@
+<!-- Dedicated Photo & Artwork Studio Card -->
+<div class="col-12">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-warning-subtle text-warning-emphasis py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-camera-fill text-warning fs-5 me-2"></i>
+                <div>
+                    <h6 class="mb-0 fw-bold">Photo &amp; Artwork Studio</h6>
+                    <small class="text-muted d-none d-sm-inline">High-fidelity 1-bit thermal halftoning matching the official Tiny Print app</small>
+                </div>
+            </div>
+            <span class="badge bg-warning text-dark px-3 py-1">Advanced Dithering &amp; Quality Controls</span>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <!-- Left: Photo Drag & Drop Upload & Thumbnail Preview -->
+                <div class="col-lg-5">
+                    <label class="form-label small fw-bold text-muted text-uppercase mb-2">Select or Drop Photo (.jpg, .png, .webp)</label>
+                    <div id="photo-dropzone" class="p-3 text-center rounded border border-2 bg-body-tertiary position-relative" style="cursor: pointer; transition: all 0.2s ease-in-out; border-style: dashed !important; min-height: 220px; display: flex; align-items: center; justify-content: center;">
+                        <input class="position-absolute top-0 start-0 w-100 h-100 opacity-0" type="file" id="photo-file" accept="image/*" style="cursor: pointer; z-index: 2;">
+                        
+                        <div id="photo-prompt" class="w-100 py-3">
+                            <i class="bi bi-images fs-2 text-warning d-block mb-2"></i>
+                            <span class="small fw-bold text-body d-block">Drag &amp; drop photo here, or <span class="text-primary text-decoration-underline">browse</span></span>
+                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Supports Portraits, Artwork, Photos, Logos (Auto-resized to 384 dots)</small>
+                        </div>
+
+                        <div id="photo-preview-box" class="d-none flex-column align-items-center justify-content-center w-100">
+                            <div class="position-relative mb-2">
+                                <img id="photo-thumb" src="" alt="Selected Photo" class="rounded shadow-sm border" style="max-height: 160px; max-width: 100%; object-fit: contain;">
+                                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle p-1" style="line-height: 1; z-index: 3;" title="Remove photo" onclick="clearSelectedPhoto(event)">
+                                    <i class="bi bi-x fs-6"></i>
+                                </button>
+                            </div>
+                            <span id="photo-filename" class="small fw-bold text-body d-block text-truncate w-100" style="max-width: 280px;"></span>
+                            <small id="photo-meta" class="text-muted d-block" style="font-size: 0.75rem;"></small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Photo Quality & Dithering Controls -->
+                <div class="col-lg-7">
+                    <div class="row g-3">
+                        <!-- Quality Preset -->
+                        <div class="col-sm-6">
+                            <label for="photo-preset" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-magic text-warning me-1"></i> Quality Preset:
+                            </label>
+                            <select id="photo-preset" class="form-select form-select-sm" onchange="onPhotoPresetChange()">
+                                <option value="portrait" selected>Portrait / Face (Soft Skin Tones)</option>
+                                <option value="sharp">Crisp &amp; Detailed (Eyes, Hair, Jewelry)</option>
+                                <option value="balanced">Balanced / Landscape (Natural)</option>
+                                <option value="high_contrast">High Contrast (Logos, Ink Art)</option>
+                                <option value="halftone">Retro Halftone (Vintage Newsprint)</option>
+                            </select>
+                        </div>
+
+                        <!-- Dithering Algorithm -->
+                        <div class="col-sm-6">
+                            <label for="photo-dither" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-grid-3x3 me-1"></i> Dithering Algorithm:
+                            </label>
+                            <select id="photo-dither" class="form-select form-select-sm">
+                                <option value="floyd" selected>Floyd-Steinberg (Ultra-Smooth Diffusion)</option>
+                                <option value="atkinson">Atkinson (Apple Mac Classic - Crisp Highlights)</option>
+                                <option value="bayer">Bayer 8x8 (Ordered Matrix Halftone)</option>
+                            </select>
+                        </div>
+
+                        <!-- Edge Sharpening (Unsharp Mask) -->
+                        <div class="col-sm-6">
+                            <label for="photo-sharpness" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-lightning text-primary me-1"></i> Edge Sharpening:
+                            </label>
+                            <select id="photo-sharpness" class="form-select form-select-sm">
+                                <option value="1.2" selected>Normal (120% Unsharp Mask)</option>
+                                <option value="2.0">High (200% High-Definition)</option>
+                                <option value="0.0">None (Soft &amp; Natural)</option>
+                            </select>
+                        </div>
+
+                        <!-- Print Strength -->
+                        <div class="col-sm-6">
+                            <label for="photo-strength" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-fire text-danger me-1"></i> Print Strength / Darkness:
+                            </label>
+                            <select id="photo-strength" class="form-select form-select-sm border-warning">
+                                <option value="4">4 - Normal</option>
+                                <option value="5">5 - Dark</option>
+                                <option value="6">6 - Extra Dark</option>
+                                <option value="7" selected>7 - Max Dark (Thermal Paper)</option>
+                            </select>
+                        </div>
+
+                        <!-- Contrast Calibration -->
+                        <div class="col-sm-6">
+                            <label for="photo-contrast" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-circle-half me-1"></i> Contrast Curve:
+                            </label>
+                            <select id="photo-contrast" class="form-select form-select-sm">
+                                <option value="default" selected>Preset Default</option>
+                                <option value="1.0">100% Normal</option>
+                                <option value="1.15">+15% Enhanced</option>
+                                <option value="1.30">+30% High Dynamic</option>
+                                <option value="0.9">-10% Soft</option>
+                            </select>
+                        </div>
+
+                        <!-- Brightness / Shadow Lift -->
+                        <div class="col-sm-6">
+                            <label for="photo-brightness" class="form-label small fw-semibold text-muted mb-1">
+                                <i class="bi bi-brightness-high text-warning me-1"></i> Brightness / Shadow Lift:
+                            </label>
+                            <select id="photo-brightness" class="form-select form-select-sm">
+                                <option value="default" selected>Preset Default</option>
+                                <option value="1.08">+8% Shadow Lift (Bright Skin)</option>
+                                <option value="1.15">+15% High Lift</option>
+                                <option value="1.0">100% Neutral</option>
+                                <option value="0.95">-5% Darker</option>
+                            </select>
+                        </div>
+
+                        <!-- Scale & Margin Options -->
+                        <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-3 pt-2">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="photo-autocrop" checked>
+                                <label class="form-check-label small fw-semibold text-body" for="photo-autocrop">
+                                    Auto-crop borders
+                                    <small class="text-muted d-block fw-normal">Trims empty borders so photo fills 384 dots</small>
+                                </label>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <label for="photo-scale" class="form-label small fw-semibold text-muted mb-0 text-nowrap">Scale:</label>
+                                <select id="photo-scale" class="form-select form-select-sm" style="width: 140px;">
+                                    <option value="1.0" selected>100% Fit Width</option>
+                                    <option value="1.15">115% Zoom</option>
+                                    <option value="1.25">125% Zoom</option>
+                                    <option value="0.85">85% Shrink</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-3 mt-3 border-top d-flex flex-wrap gap-2 align-items-center">
+                <button id="btn-print-photo" class="btn btn-sm btn-warning text-dark fw-bold px-4 flex-grow-1" onclick="printPhotoNow()">
+                    <i class="bi bi-printer-fill me-1"></i> Print Photo Now
+                </button>
+                <button id="btn-stop-photo" class="btn btn-sm btn-outline-danger px-3 fw-semibold" onclick="stopPrintingNow()" disabled>
+                    <i class="bi bi-stop-circle me-1"></i> Stop
+                </button>
+                <button class="btn btn-sm btn-outline-secondary px-3" onclick="previewPhotoHalftone()">
+                    <i class="bi bi-eye me-1"></i> Preview 384px Halftone
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

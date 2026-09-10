@@ -50,9 +50,14 @@
                 <div class="col-md-10">
                     <table class="table table-sm table-borderless align-middle mb-0">
                         <tr>
-                            <td style="width: 100px;"><span class="badge bg-success">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold" style="width: 250px;">/api/print/raw</td>
-                            <td>Upload PDF/Image. By default prints immediately in 1-step! (Supports <code>scale</code>, <code>autocrop</code>, <code>immediate</code>)</td>
+                            <td><span class="badge bg-success">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/raw</td>
+                            <td>Upload PDF/Image invoice. Prints immediately in 1-step! (Supports <code>scale</code>, <code>autocrop</code>, <code>immediate</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-warning text-dark">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/photo</td>
+                            <td><strong>Photo Studio Print:</strong> High-fidelity 1-bit thermal halftoning for photos and artwork with quality presets (<code>preset</code>, <code>dither_algo</code>, <code>sharpness</code>, <code>contrast</code>, <code>brightness</code>, <code>strength</code>)</td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-success">POST</span></td>
@@ -62,12 +67,12 @@
                         <tr>
                             <td><span class="badge bg-success">POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/print/qr</td>
-                            <td>Print high-contrast QR codes in 1-step! (Supports <code>content</code> / <code>text</code>, <code>header</code>, <code>footer</code>, <code>qr_size</code>, <code>strength</code>)</td>
+                            <td><strong>Print Thermal QR Code:</strong> High-contrast thermal QR code with optional header &amp; footer text (supports <code>content</code> / <code>text</code>, <code>header</code>, <code>footer</code>, <code>qr_size</code>, <code>strength</code>)</td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-info text-dark">GET/POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/qr/generate</td>
-                            <td><strong>Direct QR Generator:</strong> Returns a 384px PNG QR code stream from text or URL directly (ideal for <code>&lt;img&gt;</code> tags or reports, no auth required).</td>
+                            <td><strong>Direct QR Generator:</strong> Streams a 384px PNG QR code directly from text/URL for embedding in <code>&lt;img&gt;</code> tags or reports (no auth required).</td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-danger">POST</span></td>
@@ -95,12 +100,13 @@
                         <span class="fw-bold small text-uppercase text-secondary d-block mb-2">Parameters & Options</span>
                         <ul class="small text-muted mb-0 ps-3">
                             <li class="mb-1"><code>immediate</code> (boolean, default: <code>true</code>): <strong>Direct 1-Step Execution!</strong> When <code>true</code>, the job prints immediately in the background without needing a secondary <code>/confirm</code> request.</li>
-                            <li class="mb-1"><code>mode</code> (string, default: <code>text</code>): Rendering mode for <code>/api/print/raw</code>. Use <code>mode=photo</code> (or <code>dither=true</code>) for realistic Floyd-Steinberg error-diffusion dithering with thermal dot-gain compensation for photographs, portraits, and artworks.</li>
+                            <li class="mb-1"><code>preset</code> (string, default: <code>portrait</code>): Quality preset for <code>/api/print/photo</code> (<code>portrait</code> for soft skin tones, <code>sharp</code> for eyes &amp; hair detail, <code>balanced</code> for landscapes, <code>high_contrast</code> for logos, <code>halftone</code> for vintage newsprint).</li>
+                            <li class="mb-1"><code>dither_algo</code> (string): Halftoning algorithm for <code>/api/print/photo</code> (<code>floyd</code> for Floyd-Steinberg error diffusion, <code>atkinson</code> for crisp Apple Mac highlights, <code>bayer</code> for 8x8 ordered matrix).</li>
+                            <li class="mb-1"><code>sharpness</code> (float, default: <code>1.2</code>): Unsharp-mask spatial edge enhancement filter (0.0 to 3.0) applied before halftoning to make thermal photos razor-sharp.</li>
                             <li class="mb-1"><code>keepjob</code> / <code>keep_job</code> (boolean, default: <code>false</code>): <strong>Database Bloat Protection!</strong> By default, jobs are temporary and purged from SQLite after 5 minutes so high-volume POS invoicing doesn't bloat disk space. Pass <code>keepjob=true</code> or <code>keep_job=true</code> to permanently save the job and preview raster in history.</li>
                             <li class="mb-1"><code>scale</code> (float, default: <code>1.0</code>): Zoom/Scale multiplier (e.g. <code>1.25</code> = +25% zoom, <code>1.5</code> = +50% zoom). Expands 80mm or A4 receipts to make fonts crisp and readable on 57mm paper!</li>
                             <li class="mb-1"><code>autocrop</code> (boolean, default: <code>true</code>): Automatically strips empty white borders and margins so receipt text fills the full 384-dot width.</li>
                             <li class="mb-1"><code>strength</code> (integer 1-7, default: <code>7</code>): Thermal burning energy and pulse pacing. Level <code>7</code> maximizes darkness and thickens text strokes for weak or aged thermal paper rolls.</li>
-                            <li><code>font_size</code> (integer, default: <code>22</code>): Direct text font size (12 to 60pt) for <code>/api/print/text</code>.</li>
                         </ul>
                     </div>
                 </div>
@@ -151,38 +157,58 @@
                         <i class="bi bi-clipboard"></i> Copy
                     </button>
 <pre class="bg-dark text-light p-3 rounded small mb-0"><code id="php-code"><span class="text-primary">&lt;?php</span>
-
-<span class="text-secondary">// Direct 1-Step Print in Laravel (No /confirm needed!)</span>
 <span class="text-warning">use</span> Illuminate\Support\Facades\Http;
 
 <span class="text-info">$apiKey</span> = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
 <span class="text-info">$baseUrl</span> = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
 
-<span class="text-secondary">// Example 1: Print Receipt PDF immediately (temporary, purged after 5m)</span>
-<span class="text-info">$response</span> = Http::withHeaders([
-    <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
-])-&gt;attach(
-    <span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$pdfPath</span>), <span class="text-success">'receipt.pdf'</span>
-)-&gt;post(<span class="text-success">"{$baseUrl}/api/print/raw"</span>, [
-    <span class="text-success">'immediate'</span> =&gt; <span class="text-success">'true'</span>,  <span class="text-secondary">// Prints immediately!</span>
-    <span class="text-success">'scale'</span>     =&gt; <span class="text-warning">1.25</span>,    <span class="text-secondary">// 1.25x zoom for 80mm receipts, 1.5x for A4</span>
-    <span class="text-success">'autocrop'</span>  =&gt; <span class="text-success">'true'</span>,  <span class="text-secondary">// Trims empty white margins</span>
-    <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,       <span class="text-secondary">// 1-7: max thermal burn darkness</span>
-    <span class="text-success">'keepjob'</span>   =&gt; <span class="text-success">'false'</span>,  <span class="text-secondary">// Set 'true' only if you want to permanently keep in SQLite</span>
-]);
+<span class="text-secondary">// 1. Direct 1-Step QR Code Print</span>
+<span class="text-info">$qrRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;post(<span class="text-success">"{$baseUrl}/api/print/qr"</span>, [
+        <span class="text-success">'text'</span>      =&gt; <span class="text-success">'https://pos.sayem.com/pay/inv_1042'</span>,
+        <span class="text-success">'header'</span>    =&gt; <span class="text-success">'SCAN TO PAY ৳৪৫০.০০'</span>,
+        <span class="text-success">'footer'</span>    =&gt; <span class="text-success">'Table #12 • TinyPOS'</span>,
+        <span class="text-success">'qr_size'</span>   =&gt; <span class="text-warning">260</span>,
+        <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,
+        <span class="text-success">'immediate'</span> =&gt; <span class="text-warning">true</span>,
+    ]);
 
-<span class="text-info">$jobId</span> = <span class="text-info">$response</span>-&gt;json(<span class="text-success">'job_id'</span>); <span class="text-secondary">// Already printing!</span>
+<span class="text-secondary">// 2. Direct QR Image Stream (Returns binary PNG, no auth required)</span>
+<span class="text-info">$qrPngBytes</span> = Http::get(<span class="text-success">"{$baseUrl}/api/qr/generate"</span>, [
+    <span class="text-success">'text'</span>   =&gt; <span class="text-success">'https://pos.sayem.com'</span>,
+    <span class="text-success">'header'</span> =&gt; <span class="text-success">'ORDER #99'</span>,
+    <span class="text-success">'size'</span>   =&gt; <span class="text-warning">260</span>,
+])-&gt;body();
 
-<span class="text-secondary">// Example 2: Print Plain Text Receipt immediately</span>
-<span class="text-info">$textRes</span> = Http::withHeaders([
-    <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
-])-&gt;post(<span class="text-success">"{$baseUrl}/api/print/text"</span>, [
-    <span class="text-success">'text'</span>      =&gt; <span class="text-success">"ACME STORE\nInvoice #1042\nTotal: \$45.00"</span>,
-    <span class="text-success">'font_size'</span> =&gt; <span class="text-warning">24</span>,
-    <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,
-    <span class="text-success">'immediate'</span> =&gt; <span class="text-warning">true</span>,    <span class="text-secondary">// Prints immediately!</span>
-    <span class="text-success">'keepjob'</span>   =&gt; <span class="text-warning">false</span>,   <span class="text-secondary">// Temporary job, removed after 5 minutes</span>
-]);
+<span class="text-secondary">// 3. High-Quality Photo Print (Floyd-Steinberg / Atkinson Dithering)</span>
+<span class="text-info">$photoRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;attach(<span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$photoPath</span>), <span class="text-success">'portrait.jpg'</span>)
+    -&gt;post(<span class="text-success">"{$baseUrl}/api/print/photo"</span>, [
+        <span class="text-success">'preset'</span>      =&gt; <span class="text-success">'portrait'</span>, <span class="text-secondary">// 'portrait', 'sharp', 'balanced', 'halftone'</span>
+        <span class="text-success">'dither_algo'</span> =&gt; <span class="text-success">'floyd'</span>,    <span class="text-secondary">// 'floyd', 'atkinson', 'bayer'</span>
+        <span class="text-success">'sharpness'</span>   =&gt; <span class="text-warning">1.2</span>,        <span class="text-secondary">// Unsharp-mask edge boost</span>
+        <span class="text-success">'strength'</span>    =&gt; <span class="text-warning">7</span>,
+        <span class="text-success">'immediate'</span>   =&gt; <span class="text-warning">true</span>,
+    ]);
+
+<span class="text-secondary">// 4. Print Invoice PDF or Receipt Document</span>
+<span class="text-info">$pdfRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;attach(<span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$pdfPath</span>), <span class="text-success">'invoice.pdf'</span>)
+    -&gt;post(<span class="text-success">"{$baseUrl}/api/print/raw"</span>, [
+        <span class="text-success">'immediate'</span> =&gt; <span class="text-success">'true'</span>,
+        <span class="text-success">'scale'</span>     =&gt; <span class="text-warning">1.25</span>,   <span class="text-secondary">// 80mm receipt zoom</span>
+        <span class="text-success">'autocrop'</span>  =&gt; <span class="text-success">'true'</span>,
+        <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,
+    ]);
+
+<span class="text-secondary">// 5. Print Multilingual Text Receipt</span>
+<span class="text-info">$textRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;post(<span class="text-success">"{$baseUrl}/api/print/text"</span>, [
+        <span class="text-success">'text'</span>      =&gt; <span class="text-success">"ACME POS 🍕\nআইটেম: ৳১৫০\nTotal: \$15.00"</span>,
+        <span class="text-success">'font_size'</span> =&gt; <span class="text-warning">22</span>,
+        <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,
+        <span class="text-success">'immediate'</span> =&gt; <span class="text-warning">true</span>,
+    ]);
 </code></pre>
                 </div>
             </div>
@@ -193,24 +219,38 @@
                     <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('curl-code', this)">
                         <i class="bi bi-clipboard"></i> Copy
                     </button>
-<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="curl-code"><span class="text-secondary"># 1. Direct 1-Step Text Print (Temporary by default, removed after 5m)</span>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="curl-code"><span class="text-secondary"># 1. Print Thermal QR Code directly to printer</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/qr \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -H <span class="text-success">"Content-Type: application/json"</span> \
+  -d <span class="text-success">'{"text": "https://pos.sayem.com/pay/101", "header": "TABLE #5", "footer": "Scan to Pay", "qr_size": 260, "immediate": true}'</span>
+
+<span class="text-secondary"># 2. Directly Generate/Download 384px QR Code PNG (no API key required)</span>
+<span class="text-primary">curl</span> -o qr.png <span class="text-success">"<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?text=https://pos.sayem.com&header=ORDER+101&size=260"</span>
+
+<span class="text-secondary"># 3. High-Quality Photo Print (Floyd-Steinberg / Atkinson Dithering &amp; Unsharp Mask)</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/photo \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -F <span class="text-success">"file=@portrait.jpg"</span> \
+  -F <span class="text-success">"preset=portrait"</span> \
+  -F <span class="text-success">"dither_algo=floyd"</span> \
+  -F <span class="text-success">"sharpness=1.2"</span> \
+  -F <span class="text-success">"strength=7"</span> \
+  -F <span class="text-success">"immediate=true"</span>
+
+<span class="text-secondary"># 4. Print Invoice PDF or Receipt Document</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/raw \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -F <span class="text-success">"file=@invoice.pdf"</span> \
+  -F <span class="text-success">"scale=1.25"</span> \
+  -F <span class="text-success">"autocrop=true"</span> \
+  -F <span class="text-success">"immediate=true"</span>
+
+<span class="text-secondary"># 5. Print Formatted Multilingual Text Receipt</span>
 <span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/text \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
   -H <span class="text-success">"Content-Type: application/json"</span> \
-  -d <span class="text-success">'{"text": "SAMPLE INVOICE\nItem 1: $10.00\nTotal: $10.00", "font_size": 22, "immediate": true, "keepjob": false}'</span>
-
-<span class="text-secondary"># 2. Direct 1-Step File Upload Print (PDF or Image, preserved permanently in DB)</span>
-<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/raw \
-  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
-  -F <span class="text-success">"file=@receipt.pdf"</span> \
-  -F <span class="text-success">"scale=1.25"</span> \
-  -F <span class="text-success">"autocrop=true"</span> \
-  -F <span class="text-success">"immediate=true"</span> \
-  -F <span class="text-success">"keepjob=true"</span>
-
-<span class="text-secondary"># 3. Check Printer Status</span>
-<span class="text-primary">curl</span> -X GET <span class="base-url-placeholder">{{ request_url_base }}</span>/api/status \
-  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
+  -d <span class="text-success">'{"text": "RESTAURANT EXPRESS 🍕\nTotal: ৳৪৫০.০০", "font_size": 22, "immediate": true}'</span>
 </code></pre>
                 </div>
             </div>
@@ -224,22 +264,38 @@
 <pre class="bg-dark text-light p-3 rounded small mb-0"><code id="js-code"><span class="text-info">const</span> apiKey = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
 <span class="text-info">const</span> baseUrl = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
 
-<span class="text-secondary">// Direct 1-Step Print Receipt (immediate: true, keepjob: false)</span>
-<span class="text-warning">const</span> res = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/text`</span>, {
+<span class="text-secondary">// 1. Direct 1-Step QR Code Print</span>
+<span class="text-warning">const</span> qrRes = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/qr`</span>, {
   method: <span class="text-success">'POST'</span>,
-  headers: {
-    <span class="text-success">'Content-Type'</span>: <span class="text-success">'application/json'</span>,
-    <span class="text-success">'X-API-Key'</span>: apiKey,
-  },
+  headers: { <span class="text-success">'Content-Type'</span>: <span class="text-success">'application/json'</span>, <span class="text-success">'X-API-Key'</span>: apiKey },
   body: JSON.stringify({
-    text: <span class="text-success">"RECEIPT #101\nWidget A: $20.00\nTotal: $20.00"</span>,
-    font_size: <span class="text-warning">22</span>,
-    immediate: <span class="text-warning">true</span>, <span class="text-secondary">// Automatically starts printing!</span>
-    keepjob: <span class="text-warning">false</span>,   <span class="text-secondary">// Temporary job, removed after 5 minutes</span>
+    text: <span class="text-success">"https://pos.sayem.com/order/54"</span>,
+    header: <span class="text-success">"TABLE 5"</span>,
+    footer: <span class="text-success">"Scan to Pay"</span>,
+    qr_size: <span class="text-warning">260</span>,
+    immediate: <span class="text-warning">true</span>,
   })
 });
-<span class="text-warning">const</span> data = <span class="text-warning">await</span> res.json();
-console.log(<span class="text-success">'Dispatched Job ID:'</span>, data.job_id);
+console.log(<span class="text-success">'QR Job ID:'</span>, (<span class="text-warning">await</span> qrRes.json()).job_id);
+
+<span class="text-secondary">// 2. Embed QR directly into HTML &lt;img&gt; tag (No API Key needed)</span>
+<span class="text-secondary">// &lt;img src="${baseUrl}/api/qr/generate?text=https://pos.sayem.com&header=TABLE+5&size=260" /&gt;</span>
+
+<span class="text-secondary">// 3. High-Quality Photo Print with Presets &amp; Dithering</span>
+<span class="text-info">const</span> photoForm = <span class="text-warning">new</span> FormData();
+photoForm.append(<span class="text-success">'file'</span>, photoFile);
+photoForm.append(<span class="text-success">'preset'</span>, <span class="text-success">'portrait'</span>); <span class="text-secondary">// 'portrait', 'sharp', 'balanced', 'halftone'</span>
+photoForm.append(<span class="text-success">'dither_algo'</span>, <span class="text-success">'floyd'</span>);  <span class="text-secondary">// 'floyd', 'atkinson', 'bayer'</span>
+photoForm.append(<span class="text-success">'sharpness'</span>, <span class="text-success">'1.2'</span>);
+photoForm.append(<span class="text-success">'strength'</span>, <span class="text-success">'7'</span>);
+photoForm.append(<span class="text-success">'immediate'</span>, <span class="text-success">'true'</span>);
+
+<span class="text-warning">const</span> photoRes = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/photo`</span>, {
+  method: <span class="text-success">'POST'</span>,
+  headers: { <span class="text-success">'X-API-Key'</span>: apiKey },
+  body: photoForm,
+});
+console.log(<span class="text-success">'Photo Job ID:'</span>, (<span class="text-warning">await</span> photoRes.json()).job_id);
 </code></pre>
                 </div>
             </div>

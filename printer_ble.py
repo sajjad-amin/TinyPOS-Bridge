@@ -48,6 +48,9 @@ from engine import (
     render_text_to_bitmap,
     render_qr_to_bitmap,
     render_photo_to_bitmap,
+    atkinson_dither,
+    bayer_dither,
+    PHOTO_PRESETS,
 )
 
 logger = logging.getLogger("tinypos.ble")

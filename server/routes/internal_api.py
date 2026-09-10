@@ -268,6 +268,97 @@ async def internal_preview_file(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@internal_api_router.post("/print-photo")
+async def internal_print_photo(
+    file: UploadFile = File(...),
+    preset: str = Form("portrait"),
+    dither_algo: Optional[str] = Form(None),
+    sharpness: Optional[float] = Form(None),
+    contrast: Optional[float] = Form(None),
+    brightness: Optional[float] = Form(None),
+    strength: int = Form(7),
+    scale: float = Form(1.0),
+    autocrop: bool = Form(True),
+    keep_job: bool = Form(True),
+):
+    """Process and print uploaded photo with advanced quality and dithering controls."""
+    content = await file.read()
+    if not content:
+        return {"success": False, "message": "Uploaded photo file is empty"}
+
+    try:
+        raw_img = Image.open(io.BytesIO(content))
+        bitmap = printer_ble.render_photo_to_bitmap(
+            raw_img,
+            scale=scale,
+            autocrop=autocrop,
+            strength=strength,
+            preset=preset,
+            dither_algo=dither_algo,
+            sharpness=sharpness,
+            contrast=contrast,
+            brightness=brightness,
+        )
+
+        job_id = str(uuid.uuid4())
+        db.insert_job(
+            job_id=job_id,
+            job_type="photo",
+            status="printing",
+            api_key="test_page",
+            image=bitmap,
+            strength=strength,
+            scale=scale,
+            autocrop=autocrop,
+            keep_job=keep_job,
+        )
+        success, msg = await printer_ble.send_bitmap_to_printer(bitmap, strength=strength, job_id=job_id)
+        final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
+        db.update_job_status(job_id, final_status, error=None if success else msg)
+        return {"success": success, "message": msg, "job_id": job_id, "status": final_status, "preset": preset}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@internal_api_router.post("/preview-photo")
+async def internal_preview_photo(
+    file: UploadFile = File(...),
+    preset: str = Form("portrait"),
+    dither_algo: Optional[str] = Form(None),
+    sharpness: Optional[float] = Form(None),
+    contrast: Optional[float] = Form(None),
+    brightness: Optional[float] = Form(None),
+    strength: int = Form(7),
+    scale: float = Form(1.0),
+    autocrop: bool = Form(True),
+):
+    """Generate 384px PNG thermal preview for uploaded photo with quality controls."""
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded photo is empty")
+
+    try:
+        raw_img = Image.open(io.BytesIO(content))
+        bitmap = printer_ble.render_photo_to_bitmap(
+            raw_img,
+            scale=scale,
+            autocrop=autocrop,
+            strength=strength,
+            preset=preset,
+            dither_algo=dither_algo,
+            sharpness=sharpness,
+            contrast=contrast,
+            brightness=brightness,
+        )
+
+        buf = io.BytesIO()
+        bitmap.save(buf, format="PNG")
+        buf.seek(0)
+        return StreamingResponse(buf, media_type="image/png")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @internal_api_router.get("/queue")
 async def internal_queue(
     page: int = 1,

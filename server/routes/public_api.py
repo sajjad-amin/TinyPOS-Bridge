@@ -168,6 +168,86 @@ async def print_raw_file(
     }
 
 
+@public_api_router.post("/print/photo")
+async def print_photo_job(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    preset: str = Form("portrait", description="Quality preset: portrait, sharp, balanced, high_contrast, halftone"),
+    dither_algo: Optional[str] = Form(None, description="Dithering algorithm: floyd, atkinson, bayer"),
+    sharpness: Optional[float] = Form(None, description="Unsharp mask edge sharpening level (0.0 to 3.0)"),
+    contrast: Optional[float] = Form(None, description="Contrast multiplier (e.g. 1.15)"),
+    brightness: Optional[float] = Form(None, description="Brightness multiplier (e.g. 1.08)"),
+    strength: int = Form(7, description="Print strength 1-7"),
+    scale: float = Form(1.0, description="Scale multiplier (e.g. 1.0 = 384px fit)"),
+    autocrop: bool = Form(True, description="Auto-crop whitespace borders"),
+    immediate: bool = Form(True, description="Directly execute and print immediately (default: true)"),
+    keep_job: Optional[bool] = Form(None, description="When true, permanently preserves job in database. Default false (temporary, purged after 5 minutes)"),
+    keepjob: Optional[bool] = Form(None, description="Alias for keep_job"),
+    x_api_key: str = Depends(verify_api_key),
+):
+    """
+    High-fidelity photo and artwork printing with advanced halftoning and quality controls.
+    Supports Floyd-Steinberg error diffusion, Atkinson, and Bayer dot-matrix dithering,
+    with unsharp mask edge enhancement and tone curve presets (portrait, sharp, balanced, high_contrast, halftone).
+    """
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded photo is empty.")
+
+    try:
+        raw_img = Image.open(io.BytesIO(content))
+        bitmap = printer_ble.render_photo_to_bitmap(
+            raw_img,
+            scale=scale,
+            autocrop=autocrop,
+            strength=strength,
+            preset=preset,
+            dither_algo=dither_algo,
+            sharpness=sharpness,
+            contrast=contrast,
+            brightness=brightness,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to process photo: {str(e)}")
+
+    job_id = str(uuid.uuid4())
+    job_status = "printing" if immediate else "pending"
+    preserve = bool(keep_job) or bool(keepjob)
+
+    db.insert_job(
+        job_id=job_id,
+        job_type="photo",
+        status=job_status,
+        api_key=x_api_key,
+        image=bitmap,
+        strength=max(1, min(7, strength)),
+        scale=scale,
+        autocrop=autocrop,
+        keep_job=preserve,
+    )
+
+    if immediate:
+        background_tasks.add_task(execute_print_job, job_id)
+    elif not preserve:
+        asyncio.create_task(schedule_job_cleanup(job_id, delay_seconds=300))
+
+    return {
+        "job_id": job_id,
+        "status": job_status,
+        "preset": preset,
+        "dither_algo": dither_algo or "preset_default",
+        "immediate": immediate,
+        "keep_job": preserve,
+        "width": bitmap.width,
+        "height": bitmap.height,
+        "preview_url": f"/api/print/preview/{job_id}",
+        "confirm_url": f"/api/print/confirm/{job_id}" if not immediate else None,
+        "message": (
+            "Photo dispatched to printer immediately." if immediate else "Photo queued. Call /api/print/confirm/{job_id} to print."
+        ) + (" (Preserved in database)" if preserve else " (Temporary: auto-removed in 5 minutes)"),
+    }
+
+
 @public_api_router.post("/print/text")
 async def print_text_job(
     payload: PrintTextRequest,

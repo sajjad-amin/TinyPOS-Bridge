@@ -3,11 +3,9 @@ async function printFileNow() {
     const fileStrength = document.getElementById('file-strength').value || '7';
     const fileScale = document.getElementById('file-scale').value || '1.0';
     const fileAutocrop = document.getElementById('file-autocrop').checked ? 'true' : 'false';
-    const isPhotoMode = document.getElementById('file-photo-mode')?.checked;
-    const fileMode = isPhotoMode ? 'photo' : 'text';
 
     if (!fileInput.files || fileInput.files.length === 0) {
-        showToast('Please select an invoice PDF or image file', 'text-bg-warning');
+        showToast('Please select an invoice PDF or document file', 'text-bg-warning');
         return;
     }
 
@@ -16,8 +14,7 @@ async function printFileNow() {
     formData.append('strength', fileStrength);
     formData.append('scale', fileScale);
     formData.append('autocrop', fileAutocrop);
-    formData.append('mode', fileMode);
-    formData.append('dither', isPhotoMode ? 'true' : 'false');
+    formData.append('mode', 'text');
 
     setPrintingUI(true, 'file');
 
@@ -49,22 +46,19 @@ async function previewFileBitmap() {
     const fileStrength = document.getElementById('file-strength').value || '7';
     const fileScale = document.getElementById('file-scale').value || '1.0';
     const fileAutocrop = document.getElementById('file-autocrop').checked ? 'true' : 'false';
-    const isPhotoMode = document.getElementById('file-photo-mode')?.checked;
-    const fileMode = isPhotoMode ? 'photo' : 'text';
 
     if (!fileInput.files || fileInput.files.length === 0) {
-        showToast('Please select an invoice PDF or image file to preview', 'text-bg-warning');
+        showToast('Please select an invoice PDF or document file to preview', 'text-bg-warning');
         return;
     }
 
-    showToast(isPhotoMode ? 'Generating 384px dithered photo preview...' : 'Generating 384px bitmap preview...');
+    showToast('Generating 384px bitmap preview...');
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     formData.append('strength', fileStrength);
     formData.append('scale', fileScale);
     formData.append('autocrop', fileAutocrop);
-    formData.append('mode', fileMode);
-    formData.append('dither', isPhotoMode ? 'true' : 'false');
+    formData.append('mode', 'text');
 
     try {
         const res = await fetch('/api/internal/preview-file', {

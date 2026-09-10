@@ -59,6 +59,9 @@
     <!-- Test Print File (Right Column) -->
     {% include "test/partials/file_card.html" %}
 
+    <!-- Dedicated Photo & Artwork Studio (Under Text & File) -->
+    {% include "test/partials/photo_card.html" %}
+
     <!-- Live Print Jobs Table (Bottom) -->
     {% include "test/partials/queue_table.html" %}
 </div>
@@ -75,6 +78,7 @@
 {% include "test/scripts/print_text.js" %}
 {% include "test/scripts/print_qr.js" %}
 {% include "test/scripts/print_file.js" %}
+{% include "test/scripts/print_photo.js" %}
 {% include "test/scripts/queue.js" %}
 
 document.addEventListener('DOMContentLoaded', () => {

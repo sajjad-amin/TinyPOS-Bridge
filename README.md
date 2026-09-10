@@ -100,9 +100,8 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image with auto-scaling, auto-cropping, and strength options. Supports `mode=photo` (or `dither=true`) for realistic Floyd-Steinberg photo dithering. |
+| `POST` | `/api/print/photo` | **Photo Studio Print:** High-fidelity 1-bit thermal halftoning for photos and artwork with quality presets (`preset`, `dither_algo`, `sharpness`, `contrast`, `brightness`, `strength`). |
+| `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image invoice document with auto-scaling, auto-cropping, and strength options. |
 | `POST` | `/api/print/text` | **Direct Text Print:** Formatted receipt text supporting all languages and emojis with customizable font size and strength. |
 | `POST` | `/api/print/qr` | **Direct QR Code Print:** High-contrast thermal QR code with optional multilingual header and footer text (supports `content` and `text`). |
 | `GET` / `POST` | `/api/qr/generate` | **Direct QR Generator:** Directly streams a 384px PNG QR code from query parameters or JSON body (no auth required, ideal for `<img>` tags). |
@@ -117,8 +116,8 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 
 ## Integration Code Examples
 
-### 1. Direct 1-Step File & Photo Print (Laravel / PHP)
-Send invoice PDFs, receipts, or photos directly from Laravel to your printer. Use `'mode' => 'photo'` for realistic photographic shading:
+### 1. Photo & Artwork Print with Quality Presets (Laravel / PHP)
+Send portraits or artwork with Floyd-Steinberg or Atkinson dithering and edge sharpening:
 ```php
 <?php
 use Illuminate\Support\Facades\Http;
@@ -129,17 +128,35 @@ $baseUrl = 'https://pos.yourdomain.com'; // or http://localhost:8100
 $response = Http::withHeaders([
     'X-API-Key' => $apiKey,
 ])->attach(
-    'file', file_get_contents($imagePath), 'portrait.jpg'
-)->post("{$baseUrl}/api/print/raw", [
-    'immediate' => 'true',   // Prints immediately in 1-step!
-    'mode'      => 'photo',  // 'photo' for Floyd-Steinberg dithering; 'text' for receipts
-    'scale'     => 1.0,      // 1.0 = fit 384px width; 1.25 = +25% zoom
-    'autocrop'  => 'true',   // Trims empty white borders
-    'strength'  => 7,        // 1-7 thermal darkness
-    'keepjob'   => 'false',  // Temporary (purged from SQLite after 5m)
+    'file', file_get_contents($photoPath), 'portrait.jpg'
+)->post("{$baseUrl}/api/print/photo", [
+    'immediate'   => 'true',        // Prints immediately in 1-step!
+    'preset'      => 'portrait',    // 'portrait', 'sharp', 'balanced', 'halftone'
+    'dither_algo' => 'floyd',       // 'floyd', 'atkinson', 'bayer'
+    'sharpness'   => 1.2,           // Unsharp-mask edge sharpening
+    'strength'    => 7,             // 1-7 thermal darkness
+    'keepjob'     => 'false',       // Temporary (purged from SQLite after 5m)
 ]);
 
 $jobId = $response->json('job_id');
+```
+
+### 2. Direct 1-Step Invoice PDF & Document Print (Laravel / PHP)
+Send invoice PDFs or documents directly to your printer:
+```php
+<?php
+use Illuminate\Support\Facades\Http;
+
+$response = Http::withHeaders([
+    'X-API-Key' => $apiKey,
+])->attach(
+    'file', file_get_contents($pdfPath), 'invoice.pdf'
+)->post("{$baseUrl}/api/print/raw", [
+    'immediate' => 'true',
+    'scale'     => 1.25,   // 1.25x zoom for 80mm receipts
+    'autocrop'  => 'true', // Trims empty white margins
+    'strength'  => 7,
+]);
 ```
 
 ### 2. Direct 1-Step Text Print with Multi-Language Support (cURL)

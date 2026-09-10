@@ -693,6 +693,34 @@ def test_photo_dithering_and_direct_qr():
     db.delete_job(alias_job_id)
     print(" [OK] POST /api/print/qr with 'text' alias succeeded")
 
+    # 8. Test dedicated POST /api/print/photo with presets and dithering algorithms
+    for preset in ("portrait", "sharp", "balanced", "high_contrast", "halftone"):
+        res_p = client.post(
+            "/api/print/photo",
+            headers={"X-API-Key": test_key},
+            files={"file": ("test_preset.png", img_buf.getvalue(), "image/png")},
+            data={"preset": preset, "immediate": False, "keep_job": False},
+        )
+        assert res_p.status_code == 200
+        data_p = res_p.json()
+        assert data_p["preset"] == preset
+        assert data_p["status"] == "pending"
+        db.delete_job(data_p["job_id"])
+    print(" [OK] POST /api/print/photo verified across all 5 quality presets")
+
+    # 9. Test internal preview-photo and print-photo
+    res_prev = client.post(
+        "/api/internal/preview-photo",
+        files={"file": ("prev.png", img_buf.getvalue(), "image/png")},
+        data={"preset": "sharp", "dither_algo": "atkinson", "sharpness": "2.0"},
+    )
+    assert res_prev.status_code == 200
+    assert res_prev.headers["content-type"] == "image/png"
+    prev_img = Image.open(io.BytesIO(res_prev.content))
+    assert prev_img.size[0] == 384
+    assert prev_img.mode == "1"
+    print(" [OK] POST /api/internal/preview-photo returned valid 384px 1-bit PNG")
+
     # Clean up
     db.delete_api_key(test_key)
 
