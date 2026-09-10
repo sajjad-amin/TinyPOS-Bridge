@@ -17,7 +17,7 @@ def contains_bangla(text: Optional[str]) -> bool:
     return any("\u0980" <= ch <= "\u09ff" for ch in text)
 
 
-def get_char_script(ch: str, line_has_bengali: bool = False) -> str:
+def get_char_script(ch: str, line_has_bengali: bool = False, line_has_korean: bool = False) -> str:
     """Classifies a single character into its script category."""
     code = ord(ch)
     # Emojis, Symbols, Pictographs, Dingbats, Stars, Regional Indicators, Variation Selectors
@@ -26,6 +26,16 @@ def get_char_script(ch: str, line_has_bengali: bool = False) -> str:
     # Bengali (U+0980 - U+09FF)
     if 0x0980 <= code <= 0x09FF:
         return "bengali"
+    # Korean (Hangul Syllables, Jamo, Compatibility Jamo, Extended A/B, Halfwidth)
+    if (
+        (0xAC00 <= code <= 0xD7AF)
+        or (0x1100 <= code <= 0x11FF)
+        or (0x3130 <= code <= 0x318F)
+        or (0xA960 <= code <= 0xA97F)
+        or (0xD7B0 <= code <= 0xD7FF)
+        or (0xFFA0 <= code <= 0xFFDC)
+    ):
+        return "korean"
     # Arabic & Perso-Arabic (Urdu, Farsi, Pashto)
     if (0x0600 <= code <= 0x06FF) or (0x0750 <= code <= 0x077F) or (0x08A0 <= code <= 0x08FF) or (0xFB50 <= code <= 0xFDFF) or (0xFE70 <= code <= 0xFEFF):
         return "arabic"
@@ -41,8 +51,8 @@ def get_char_script(ch: str, line_has_bengali: bool = False) -> str:
     # Thai
     if 0x0E00 <= code <= 0x0E7F:
         return "thai"
-    # CJK (Chinese, Japanese, Korean)
-    if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0xAC00 <= code <= 0xD7AF) or (0x3000 <= code <= 0x303F):
+    # CJK (Chinese Hanzi, Japanese Kana)
+    if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0x3000 <= code <= 0x303F):
         return "cjk"
     # Cyrillic / Greek
     if (0x0400 <= code <= 0x052F) or (0x0370 <= code <= 0x03FF):
@@ -50,13 +60,16 @@ def get_char_script(ch: str, line_has_bengali: bool = False) -> str:
     # If the line contains Bengali, SolaimanLipi renders Latin letters & numbers seamlessly in typographic harmony
     if line_has_bengali and (ch.isascii() or ch.isdigit()):
         return "bengali"
+    # If the line contains Korean, NotoSansKR renders Latin letters & numbers seamlessly in typographic harmony
+    if line_has_korean and (ch.isascii() or ch.isdigit()):
+        return "korean"
     return "latin"
 
 
 def detect_script(text: Optional[str]) -> str:
     """
     Detects the predominant international Unicode script in the given text.
-    Returns: 'bengali', 'arabic', 'devanagari', 'tamil', 'telugu', 'thai', 'cjk', 'cyrillic', 'emoji', or 'latin'.
+    Returns: 'bengali', 'korean', 'arabic', 'devanagari', 'tamil', 'telugu', 'thai', 'cjk', 'cyrillic', 'emoji', or 'latin'.
     """
     if not text:
         return "latin"
@@ -65,6 +78,15 @@ def detect_script(text: Optional[str]) -> str:
         code = ord(ch)
         if 0x0980 <= code <= 0x09FF:
             return "bengali"
+        if (
+            (0xAC00 <= code <= 0xD7AF)
+            or (0x1100 <= code <= 0x11FF)
+            or (0x3130 <= code <= 0x318F)
+            or (0xA960 <= code <= 0xA97F)
+            or (0xD7B0 <= code <= 0xD7FF)
+            or (0xFFA0 <= code <= 0xFFDC)
+        ):
+            return "korean"
         if (0x0600 <= code <= 0x06FF) or (0x0750 <= code <= 0x077F) or (0x08A0 <= code <= 0x08FF) or (0xFB50 <= code <= 0xFDFF) or (0xFE70 <= code <= 0xFEFF):
             return "arabic"
         if (0x0900 <= code <= 0x097F) or (0xA8E0 <= code <= 0xA8FF):
@@ -75,7 +97,7 @@ def detect_script(text: Optional[str]) -> str:
             return "telugu"
         if 0x0E00 <= code <= 0x0E7F:
             return "thai"
-        if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0xAC00 <= code <= 0xD7AF) or (0x3000 <= code <= 0x303F):
+        if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0x3000 <= code <= 0x303F):
             return "cjk"
         if (0x0400 <= code <= 0x052F) or (0x0370 <= code <= 0x03FF):
             return "cyrillic"
@@ -111,7 +133,13 @@ def load_multi_fonts(font_size: int = 22) -> Dict[str, ImageFont.ImageFont]:
         fpath = os.path.join(bundled, filename)
         if os.path.exists(fpath):
             try:
-                fonts[script] = ImageFont.truetype(fpath, font_size)
+                f = ImageFont.truetype(fpath, font_size)
+                if hasattr(f, "set_variation_by_name"):
+                    try:
+                        f.set_variation_by_name("Bold")
+                    except Exception:
+                        pass
+                fonts[script] = f
                 continue
             except Exception:
                 pass
@@ -128,7 +156,7 @@ def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) ->
     """
     Loads a scalable font cross-platform (Linux, Windows, macOS, Docker).
     Guaranteed to run cleanly on any PC with zero platform-specific hardcoding.
-    Automatically detects language script (Bengali, Arabic, Hindi, CJK, etc.)
+    Automatically detects language script (Bengali, Korean, Arabic, Hindi, CJK, etc.)
     and selects the matching high-legibility bundled font.
     """
     # 1. User-configured font path via environment variable
@@ -148,7 +176,13 @@ def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) ->
         bundled_script_font = os.path.join(bundled_fonts_dir, target_font_file)
         if os.path.exists(bundled_script_font):
             try:
-                return ImageFont.truetype(bundled_script_font, font_size)
+                f = ImageFont.truetype(bundled_script_font, font_size)
+                if hasattr(f, "set_variation_by_name"):
+                    try:
+                        f.set_variation_by_name("Bold")
+                    except Exception:
+                        pass
+                return f
             except Exception:
                 pass
 
@@ -163,6 +197,21 @@ def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) ->
                 os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "vrinda.ttf"),
             ]
             for fb in bangla_fallbacks:
+                if os.path.exists(fb):
+                    try:
+                        return ImageFont.truetype(fb, font_size)
+                    except Exception:
+                        continue
+
+        # Fallbacks for Korean
+        if script == "korean":
+            korean_fallbacks = [
+                "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+                "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf",
+                os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "malgun.ttf"),
+            ]
+            for fb in korean_fallbacks:
                 if os.path.exists(fb):
                     try:
                         return ImageFont.truetype(fb, font_size)

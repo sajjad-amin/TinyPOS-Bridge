@@ -14,12 +14,18 @@ def segment_line(line: str) -> List[Tuple[str, str]]:
     Spaces attach to the preceding script to preserve word spacing.
     """
     has_bengali = any(0x0980 <= ord(c) <= 0x09FF for c in line)
+    has_korean = any(
+        (0xAC00 <= ord(c) <= 0xD7AF)
+        or (0x1100 <= ord(c) <= 0x11FF)
+        or (0x3130 <= ord(c) <= 0x318F)
+        for c in line
+    )
     chunks: List[Tuple[str, str]] = []
     curr_script: str = ""
     curr_text: str = ""
 
     for ch in line:
-        s = get_char_script(ch, line_has_bengali=has_bengali)
+        s = get_char_script(ch, line_has_bengali=has_bengali, line_has_korean=has_korean)
         if ch.isspace() and curr_script:
             curr_text += ch
             continue

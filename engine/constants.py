@@ -67,6 +67,7 @@ SCRIPT_FONT_FILE: Dict[str, str] = {
     "tamil": "NotoSansTamil-Bold.ttf",
     "telugu": "NotoSansTelugu-Bold.ttf",
     "thai": "NotoSansThai-Bold.ttf",
+    "korean": "NotoSansKR-Bold.ttf",
     "cjk": "NotoSansSC-Bold.ttf",
     "cyrillic": "NotoSans-Bold.ttf",
     "emoji": "NotoEmoji-Regular.ttf",
