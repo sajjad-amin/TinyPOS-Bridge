@@ -57,22 +57,38 @@
                                 <i class="bi bi-translate text-primary me-1"></i>Language:
                             </label>
                             <select id="sample-lang-select" class="form-select form-select-sm py-0 ps-2 pe-4" style="font-size: 0.78rem; width: auto;" onchange="loadLanguageSample(this.value)">
-                                <option value="bengali" selected>Bengali (বাংলা)</option>
-                                <option value="english">English (Latin)</option>
-                                <option value="arabic">Arabic (العربية)</option>
-                                <option value="hindi">Hindi / Devanagari (हिन्दी)</option>
-                                <option value="chinese">Chinese (中文)</option>
-                                <option value="japanese">Japanese (日本語)</option>
-                                <option value="korean">Korean (한국어)</option>
-                                <option value="russian">Russian / Cyrillic (Русский)</option>
-                                <option value="thai">Thai (ไทย)</option>
-                                <option value="tamil">Tamil (தமிழ்)</option>
-                                <option value="telugu">Telugu (తెలుగు)</option>
-                                <option value="emoji">Symbols & Emojis</option>
+                                <option value="" selected>-- Select a Language to Test --</option>
+                                <option value="all">🌍 All Languages (Universal Receipt)</option>
+                                <option value="bengali">1. Bengali (বাংলা)</option>
+                                <option value="arabic">2. Arabic (العربية / Urdu / Persian)</option>
+                                <option value="english">3. English (Latin / Global)</option>
+                                <option value="chinese">4. Chinese (中文)</option>
+                                <option value="hindi">5. Hindi / Devanagari (हिन्दी)</option>
+                                <option value="russian">6. Russian / Cyrillic (Русский)</option>
+                                <option value="japanese">7. Japanese (日本語)</option>
+                                <option value="telugu">8. Telugu (తెలుగు)</option>
+                                <option value="tamil">9. Tamil (தமிழ்)</option>
+                                <option value="korean">10. Korean (한국어)</option>
+                                <option value="thai">11. Thai (ไทย)</option>
+                                <option value="gujarati">12. Gujarati (ગુજરાતી)</option>
+                                <option value="kannada">13. Kannada (ಕನ್ನಡ)</option>
+                                <option value="malayalam">14. Malayalam (മലയാളം)</option>
+                                <option value="oriya">15. Odia / Oriya (ଓଡ଼ିଆ)</option>
+                                <option value="myanmar">16. Burmese / Myanmar (မြန်မာ)</option>
+                                <option value="gurmukhi">17. Punjabi / Gurmukhi (ਪੰਜਾਬੀ)</option>
+                                <option value="ethiopic">18. Ethiopic / Amharic (አማርኛ)</option>
+                                <option value="lao">19. Lao (ພາສາລາວ)</option>
+                                <option value="khmer">20. Khmer (ភាសាខ្មែរ)</option>
+                                <option value="sinhala">21. Sinhala (සිංහල)</option>
+                                <option value="greek">22. Greek (Ελληνικά)</option>
+                                <option value="hebrew">23. Hebrew (עברית)</option>
+                                <option value="armenian">24. Armenian (Հայերեն)</option>
+                                <option value="georgian">25. Georgian (ქართული)</option>
+                                <option value="emoji">26. Symbols & Emojis (⭐ 🚀 🧾)</option>
                             </select>
                         </div>
                     </div>
-                    <textarea id="receipt-text" class="form-control font-monospace" rows="4" style="font-size: 0.85rem;">আমার সোনার বাংলা, আমি তোমায় ভালোবাসি</textarea>
+                    <textarea id="receipt-text" class="form-control font-monospace" rows="4" style="font-size: 0.85rem;" placeholder="Type or paste receipt text in any language, or select a language preset above..."></textarea>
                 </div>
 
                 <div class="row g-3 mb-3">
@@ -520,20 +536,128 @@
 
     const LANGUAGE_SAMPLES = {
         bengali: "আমার সোনার বাংলা, আমি তোমায় ভালোবাসি",
+        arabic: "خير الكلام ما قل ودل • شكراً لزيارتكم",
         english: "To be, or not to be, that is the question.",
-        arabic: "خير الكلام ما قل ودل",
+        chinese: "千里之行，始于足下 • 欢迎光临",
         hindi: "सारे जहाँ से अच्छा, हिन्दोसितां हमारा",
-        chinese: "千里之行，始于足下",
-        japanese: "七転び八起き、明日は明日の風が吹く",
-        korean: "시작이 반이다, 고생 끝에 낙이 온다",
         russian: "Красота спасёт мир — Фёдор Достоевский",
+        japanese: "七転び八起き、明日は明日の風が吹く",
+        telugu: "దేశభాషలందు తెలుగు లెస్స • స్వాగతం",
+        tamil: "யாதும் ஊரே யாவரும் கேளிர் • வணக்கம்",
+        korean: "시작이 반이다, 고생 끝에 낙이 온다",
         thai: "ความพยายามอยู่ที่ไหน ความสำเร็จอยู่ที่นั่น",
-        tamil: "யாதும் ஊரே யாவரும் கேளிர்",
-        telugu: "దేశభాషలందు తెలుగు లెస్స",
+        gujarati: "જ્યાં જ્યાં વસે એક ગુજરાતી, ત્યાં ત્યાં સદાકાળ ગુજરાત",
+        kannada: "ಸಿರಿಗನ್ನಡಂ ಗೆಲ್ಗೆ, ಸಿರಿಗನ್ನಡಂ ಬಾಳ್ಗೆ",
+        malayalam: "സ്വാഗതം • നന്ദി • എല്ലാ ഭാഷകളും ഇവിടെയുണ്ട്",
+        oriya: "ସୁନ୍ଦର ଓଡ଼ିଶା • ଆପଣଙ୍କୁ ସ୍ୱାଗତମ୍",
+        myanmar: "ကြိုဆိုပါသည် • ကျေးဇူးတင်ပါသည်",
+        gurmukhi: "ਜੀ ਆਇਆਂ ਨੂੰ • ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ",
+        ethiopic: "እንኳን ደህනා መጡ • ሰላም ለሁሉም ይሁን",
+        lao: "ຍິນດີຕ້ອນຮັບ • ຄວາມພະຍາຍາມຢູ່ໃສ ຄວາມສໍາເລັດຢູ່ນັ້ນ",
+        khmer: "សូមស្វាគមន៍ • ការព្យាយាមគង់បានសម្រេច",
+        sinhala: "සාදරයෙන් පිළිගනිමු • ජයෙන් ජයම වේවා",
+        greek: "Γνῶθι σεαυτόν • Καλώς ήρθατε",
+        hebrew: "שלום עליכם • ברוכים הבאים • קבלה",
+        armenian: "Բարի գալուստ • Խաղաղություն ամենքին",
+        georgian: "მოგესალმებით • მშვიდობა ყველას",
         emoji: "Receipt 🧾 Express Print 🚀 Rating ⭐⭐⭐⭐⭐ Success ✔️"
     };
 
     function loadLanguageSample(lang) {
+        if (!lang) {
+            document.getElementById('receipt-text').value = '';
+            return;
+        }
+        if (lang === 'all') {
+            const allLines = [
+                "==================================",
+                "       GLOBAL MULTI-LANGUAGE      ",
+                "         UNIVERSAL RECEIPT        ",
+                "==================================",
+                "1. বাংলা (Bengali):",
+                LANGUAGE_SAMPLES.bengali,
+                "----------------------------------",
+                "2. العربية (Arabic / Urdu / Farsi):",
+                LANGUAGE_SAMPLES.arabic,
+                "----------------------------------",
+                "3. English (Latin):",
+                LANGUAGE_SAMPLES.english,
+                "----------------------------------",
+                "4. 中文 (Chinese):",
+                LANGUAGE_SAMPLES.chinese,
+                "----------------------------------",
+                "5. हिन्दी (Hindi / Devanagari):",
+                LANGUAGE_SAMPLES.hindi,
+                "----------------------------------",
+                "6. Русский (Russian / Cyrillic):",
+                LANGUAGE_SAMPLES.russian,
+                "----------------------------------",
+                "7. 日本語 (Japanese):",
+                LANGUAGE_SAMPLES.japanese,
+                "----------------------------------",
+                "8. తెలుగు (Telugu):",
+                LANGUAGE_SAMPLES.telugu,
+                "----------------------------------",
+                "9. தமிழ் (Tamil):",
+                LANGUAGE_SAMPLES.tamil,
+                "----------------------------------",
+                "10. 한국어 (Korean):",
+                LANGUAGE_SAMPLES.korean,
+                "----------------------------------",
+                "11. ไทย (Thai):",
+                LANGUAGE_SAMPLES.thai,
+                "----------------------------------",
+                "12. ગુજરાતી (Gujarati):",
+                LANGUAGE_SAMPLES.gujarati,
+                "----------------------------------",
+                "13. ಕನ್ನಡ (Kannada):",
+                LANGUAGE_SAMPLES.kannada,
+                "----------------------------------",
+                "14. മലയാളം (Malayalam):",
+                LANGUAGE_SAMPLES.malayalam,
+                "----------------------------------",
+                "15. ଓଡ଼ିଆ (Odia):",
+                LANGUAGE_SAMPLES.oriya,
+                "----------------------------------",
+                "16. မြန်မာ (Burmese):",
+                LANGUAGE_SAMPLES.myanmar,
+                "----------------------------------",
+                "17. ਪੰਜਾਬੀ (Punjabi / Gurmukhi):",
+                LANGUAGE_SAMPLES.gurmukhi,
+                "----------------------------------",
+                "18. አማርኛ (Ethiopic / Amharic):",
+                LANGUAGE_SAMPLES.ethiopic,
+                "----------------------------------",
+                "19. ພາສາລາວ (Lao):",
+                LANGUAGE_SAMPLES.lao,
+                "----------------------------------",
+                "20. ភាសាខ្មែរ (Khmer):",
+                LANGUAGE_SAMPLES.khmer,
+                "----------------------------------",
+                "21. සිංහල (Sinhala):",
+                LANGUAGE_SAMPLES.sinhala,
+                "----------------------------------",
+                "22. Ελληνικά (Greek):",
+                LANGUAGE_SAMPLES.greek,
+                "----------------------------------",
+                "23. עברית (Hebrew):",
+                LANGUAGE_SAMPLES.hebrew,
+                "----------------------------------",
+                "24. Հայերեն (Armenian):",
+                LANGUAGE_SAMPLES.armenian,
+                "----------------------------------",
+                "25. ქართული (Georgian):",
+                LANGUAGE_SAMPLES.georgian,
+                "----------------------------------",
+                "26. Symbols & Emojis:",
+                LANGUAGE_SAMPLES.emoji,
+                "==================================",
+                "    THANK YOU / 100% GLOBAL POS   ",
+                "=================================="
+            ];
+            document.getElementById('receipt-text').value = allLines.join("\n");
+            return;
+        }
         if (LANGUAGE_SAMPLES[lang]) {
             document.getElementById('receipt-text').value = LANGUAGE_SAMPLES[lang];
         }

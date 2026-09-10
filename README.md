@@ -8,7 +8,7 @@ It runs seamlessly on macOS, Linux, Raspberry Pi, and Windows, exposing both a m
 
 ## Key Features
 
-- **Universal Multi-Language & Emoji Support:** Print receipts in any language — Bangla, Arabic, Hindi, Tamil, Telugu, Thai, Chinese, Japanese, Korean, Russian, English, and Emojis — even mixed together on the exact same line without missing characters.
+- **100% Universal World Language & Emoji Support:** Print receipts in any living language on Earth — Bengali, Arabic, Urdu, English, Chinese, Hindi, Russian, Japanese, Telugu, Tamil, Korean, Thai, Gujarati, Kannada, Malayalam, Odia, Burmese, Punjabi, Ethiopic/Amharic, Lao, Khmer, Sinhala, Greek, Hebrew, Armenian, Georgian, and all Emojis — seamlessly mixed on the same line without missing glyph boxes.
 - **Direct 1-Step Printing:** Print formatted text, receipts, or PDF/image files immediately via REST API or the Web UI.
 - **Live Job Cancellation:** Stop and abort active print jobs mid-stream from the dashboard or API to prevent paper waste.
 - **Receipt Auto-Scaling & Margin Cropping:** Automatically crop white borders and scale 80mm/A4 receipts to fit 57mm rolls cleanly.

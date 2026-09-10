@@ -464,18 +464,32 @@ def test_universal_multilingual_printing():
     print("--> Testing Universal Multi-Language Text Rendering Pipeline...")
 
     test_languages = {
-        "Bengali": "সাজ্জাদ স্টোর - চাল ৫ কেজি ৳৫০০",
-        "Arabic": "فاتورة ضريبية - ١٠٠ ريال",
-        "Devanagari": "कुल देय: ₹५०० (धन्यवाद)",
-        "Tamil": "வணக்கம் - ரூபாய் 100",
-        "Telugu": "ధన్యవాదాలు - ₹100",
-        "Thai": "ขอบคุณที่ใช้บริการ ฿100",
-        "Chinese": "简易收据 - 总计: ¥100",
-        "Japanese": "レシート合計: ¥1000",
-        "Korean": "영수증 합계: ₩10000",
-        "Russian": "Кассовый чек №1042 - 500 руб",
-        "Emoji": "Receipt 🧾 Total 💰 Star ⭐",
-        "English": "ACME STORE - TOTAL $25.00",
+        "Bengali": "আমার সোনার বাংলা, আমি তোমায় ভালোবাসি",
+        "Arabic": "خير الكلام ما قل ودل • شكراً لزيارتكم",
+        "English": "To be, or not to be, that is the question.",
+        "Chinese": "千里之行，始于足下 • 欢迎光临",
+        "Hindi": "सारे जहाँ से अच्छा, हिन्दोसितां हमारा",
+        "Russian": "Красота спасёт мир — Фёдор Достоевский",
+        "Japanese": "七転び八起き、明日は明日の風が吹く",
+        "Telugu": "దేశభాషలందు తెలుగు లెస్స • స్వాగతం",
+        "Tamil": "யாதும் ஊரே யாவரும் கேளிர் • வணக்கம்",
+        "Korean": "시작이 반이다, 고생 끝에 낙이 온다",
+        "Thai": "ความพยายามอยู่ที่ไหน ความสำเร็จอยู่ที่นั่น",
+        "Gujarati": "જ્યાં જ્યાં વસે એક ગુજરાતી, ત્યાં ત્યાં સદાકાળ ગુજરાત",
+        "Kannada": "ಸಿರಿಗನ್ನಡಂ ಗೆಲ್ಗೆ, ಸಿರಿಗನ್ನಡಂ ಬಾಳ್ಗೆ",
+        "Malayalam": "സ്വാഗതം • നന്ദി • എല്ലാ ഭാഷകളും ഇവിടെയുണ്ട്",
+        "Odia": "ସୁନ୍ଦର ଓଡ଼ିଶା • ଆପଣଙ୍କୁ ସ୍ୱାଗତମ୍",
+        "Myanmar": "ကြိုဆိုပါသည် • ကျေးဇူးတင်ပါသည်",
+        "Gurmukhi": "ਜੀ ਆਇਆਂ ਨੂੰ • ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ",
+        "Ethiopic": "እንኳን ደህና መጡ • ሰላም ለሁሉም ይሁን",
+        "Lao": "ຍິນດີຕ້ອນຮັບ • ຄວາມພະຍາຍາມຢູ່ໃສ ຄວາມສໍາເລັດຢູ່ນັ້ນ",
+        "Khmer": "សូមស្វាគមន៍ • ការព្យាយាមគង់បានសម្រេច",
+        "Sinhala": "සාදරයෙන් පිළිගනිමු • ජයෙන් ජයම වේවා",
+        "Greek": "Γνῶθι σεαυτόν • Καλώς ήρθατε",
+        "Hebrew": "שלום עליכם • ברוכים הבאים • קבלה",
+        "Armenian": "Բարի գալուստ • Խաղաղություն ամենքին",
+        "Georgian": "მოგესალმებით • მშვიდობა ყველას",
+        "Emoji": "Receipt 🧾 Express Print 🚀 Rating ⭐⭐⭐⭐⭐ Success ✔️",
     }
 
     for lang, text in test_languages.items():
@@ -484,7 +498,13 @@ def test_universal_multilingual_printing():
         black_count = sum(1 for p in bmp.get_flattened_data() if p < 128)
         assert black_count > 300, f"Too few black pixels for {lang}"
 
-    print(f" [OK] All {len(test_languages)} international language scripts rendered cleanly with high contrast")
+    # Verify All Languages universal receipt
+    all_text = "\n".join(test_languages.values())
+    bmp_all = printer_ble.render_text_to_bitmap(all_text, font_size=20, strength=7)
+    assert bmp_all.size[0] == 384
+    assert sum(1 for p in bmp_all.get_flattened_data() if p < 128) > 30000
+
+    print(f" [OK] All {len(test_languages)} international language scripts and All-Languages universal receipt rendered cleanly with high contrast")
 
 
 def test_mixed_multi_script_rendering():

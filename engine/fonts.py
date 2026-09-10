@@ -36,21 +36,60 @@ def get_char_script(ch: str, line_has_bengali: bool = False, line_has_korean: bo
         or (0xFFA0 <= code <= 0xFFDC)
     ):
         return "korean"
+    # Hebrew (U+0590 - U+05FF, U+FB1D - U+FB4F)
+    if (0x0590 <= code <= 0x05FF) or (0xFB1D <= code <= 0xFB4F):
+        return "hebrew"
     # Arabic & Perso-Arabic (Urdu, Farsi, Pashto)
     if (0x0600 <= code <= 0x06FF) or (0x0750 <= code <= 0x077F) or (0x08A0 <= code <= 0x08FF) or (0xFB50 <= code <= 0xFDFF) or (0xFE70 <= code <= 0xFEFF):
         return "arabic"
     # Devanagari / Hindi / Marathi / Nepali
     if (0x0900 <= code <= 0x097F) or (0xA8E0 <= code <= 0xA8FF):
         return "devanagari"
+    # Gujarati
+    if 0x0A80 <= code <= 0x0AFF:
+        return "gujarati"
+    # Gurmukhi / Punjabi
+    if 0x0A00 <= code <= 0x0A7F:
+        return "gurmukhi"
+    # Oriya / Odia
+    if 0x0B00 <= code <= 0x0B7F:
+        return "oriya"
     # Tamil
     if 0x0B80 <= code <= 0x0BFF:
         return "tamil"
     # Telugu
     if 0x0C00 <= code <= 0x0C7F:
         return "telugu"
+    # Kannada
+    if 0x0C80 <= code <= 0x0CFF:
+        return "kannada"
+    # Malayalam
+    if 0x0D00 <= code <= 0x0D7F:
+        return "malayalam"
+    # Sinhala
+    if 0x0D80 <= code <= 0x0DFF:
+        return "sinhala"
     # Thai
     if 0x0E00 <= code <= 0x0E7F:
         return "thai"
+    # Lao
+    if 0x0E80 <= code <= 0x0EFF:
+        return "lao"
+    # Myanmar / Burmese
+    if (0x1000 <= code <= 0x109F) or (0xA9E0 <= code <= 0xA9FF) or (0xAA60 <= code <= 0xAA7F):
+        return "myanmar"
+    # Georgian
+    if (0x10A0 <= code <= 0x10FF) or (0x2D00 <= code <= 0x2D2F) or (0x1C90 <= code <= 0x1CBF):
+        return "georgian"
+    # Ethiopic / Ge'ez / Amharic
+    if (0x1200 <= code <= 0x137F) or (0x1380 <= code <= 0x139F) or (0x2D80 <= code <= 0x2DDF) or (0xAB00 <= code <= 0xAB2F):
+        return "ethiopic"
+    # Khmer
+    if (0x1780 <= code <= 0x17FF) or (0x19E0 <= code <= 0x19FF):
+        return "khmer"
+    # Armenian
+    if (0x0530 <= code <= 0x058F) or (0xFB13 <= code <= 0xFB17):
+        return "armenian"
     # CJK (Chinese Hanzi, Japanese Kana)
     if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0x3000 <= code <= 0x303F):
         return "cjk"
@@ -69,7 +108,6 @@ def get_char_script(ch: str, line_has_bengali: bool = False, line_has_korean: bo
 def detect_script(text: Optional[str]) -> str:
     """
     Detects the predominant international Unicode script in the given text.
-    Returns: 'bengali', 'korean', 'arabic', 'devanagari', 'tamil', 'telugu', 'thai', 'cjk', 'cyrillic', 'emoji', or 'latin'.
     """
     if not text:
         return "latin"
@@ -87,16 +125,42 @@ def detect_script(text: Optional[str]) -> str:
             or (0xFFA0 <= code <= 0xFFDC)
         ):
             return "korean"
+        if (0x0590 <= code <= 0x05FF) or (0xFB1D <= code <= 0xFB4F):
+            return "hebrew"
         if (0x0600 <= code <= 0x06FF) or (0x0750 <= code <= 0x077F) or (0x08A0 <= code <= 0x08FF) or (0xFB50 <= code <= 0xFDFF) or (0xFE70 <= code <= 0xFEFF):
             return "arabic"
         if (0x0900 <= code <= 0x097F) or (0xA8E0 <= code <= 0xA8FF):
             return "devanagari"
+        if 0x0A80 <= code <= 0x0AFF:
+            return "gujarati"
+        if 0x0A00 <= code <= 0x0A7F:
+            return "gurmukhi"
+        if 0x0B00 <= code <= 0x0B7F:
+            return "oriya"
         if 0x0B80 <= code <= 0x0BFF:
             return "tamil"
         if 0x0C00 <= code <= 0x0C7F:
             return "telugu"
+        if 0x0C80 <= code <= 0x0CFF:
+            return "kannada"
+        if 0x0D00 <= code <= 0x0D7F:
+            return "malayalam"
+        if 0x0D80 <= code <= 0x0DFF:
+            return "sinhala"
         if 0x0E00 <= code <= 0x0E7F:
             return "thai"
+        if 0x0E80 <= code <= 0x0EFF:
+            return "lao"
+        if (0x1000 <= code <= 0x109F) or (0xA9E0 <= code <= 0xA9FF) or (0xAA60 <= code <= 0xAA7F):
+            return "myanmar"
+        if (0x10A0 <= code <= 0x10FF) or (0x2D00 <= code <= 0x2D2F) or (0x1C90 <= code <= 0x1CBF):
+            return "georgian"
+        if (0x1200 <= code <= 0x137F) or (0x1380 <= code <= 0x139F) or (0x2D80 <= code <= 0x2DDF) or (0xAB00 <= code <= 0xAB2F):
+            return "ethiopic"
+        if (0x1780 <= code <= 0x17FF) or (0x19E0 <= code <= 0x19FF):
+            return "khmer"
+        if (0x0530 <= code <= 0x058F) or (0xFB13 <= code <= 0xFB17):
+            return "armenian"
         if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0x3000 <= code <= 0x303F):
             return "cjk"
         if (0x0400 <= code <= 0x052F) or (0x0370 <= code <= 0x03FF):
