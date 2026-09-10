@@ -43,12 +43,19 @@ from .layout import (
     wrap_segments,
 )
 
-from .renderer import (
+from .crop import (
     autocrop_whitespace,
+)
+
+from .renderer import (
     convert_image_to_bitmap,
     render_pdf_to_bitmap,
     render_text_to_bitmap,
     render_qr_to_bitmap,
+)
+
+from .photo import (
+    render_photo_to_bitmap,
 )
 
 __all__ = [
@@ -90,4 +97,5 @@ __all__ = [
     "render_pdf_to_bitmap",
     "render_text_to_bitmap",
     "render_qr_to_bitmap",
+    "render_photo_to_bitmap",
 ]

@@ -59,20 +59,28 @@ def encode_image_to_lsb_rows(img: Image.Image, threshold: int = 150) -> List[byt
     """
     Encodes image pixels into Bainiu row packets with LSB-first bit order:
     1 = black (burned pin), 0 = white (blank).
+    Supports both 1-bit dithered bitmaps (mode="1") and continuous grayscale (mode="L").
     """
-    gray = img.convert("L")
-    if gray.size[0] != PRINT_WIDTH:
-        from .renderer import convert_image_to_bitmap
-        gray = convert_image_to_bitmap(gray)
+    if img.mode == "1":
+        bitmap = img
+    else:
+        bitmap = img.convert("L")
 
-    w, h = gray.size
-    pixels = gray.load()
+    if bitmap.size[0] != PRINT_WIDTH:
+        from .renderer import convert_image_to_bitmap
+        bitmap = convert_image_to_bitmap(bitmap)
+
+    w, h = bitmap.size
+    pixels = bitmap.load()
     rows = []
+    is_1bit = (bitmap.mode == "1")
 
     for y in range(h):
         row_bytes = bytearray(w // 8)
         for x in range(w):
-            if pixels[x, y] < threshold:  # Black pixel -> burn pin
+            val = pixels[x, y]
+            is_black = (val == 0) if is_1bit else (val < threshold)
+            if is_black:  # Black pixel -> burn pin
                 byte_idx = x // 8
                 bit_idx = x % 8
                 row_bytes[byte_idx] |= (1 << bit_idx)  # LSB first

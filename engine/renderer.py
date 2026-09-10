@@ -12,34 +12,9 @@ except ImportError:
     pymupdf = None
 
 from .constants import PRINT_WIDTH
+from .crop import autocrop_whitespace
 from .fonts import load_multi_fonts
 from .layout import segment_line, wrap_segments
-
-
-def autocrop_whitespace(img: Image.Image, padding: int = 6, threshold: int = 240) -> Image.Image:
-    """
-    Trims empty whitespace margins around receipts/invoices.
-    Ensures text and tables fill the maximum printable width.
-    """
-    if img.mode != "RGB":
-        rgb = img.convert("RGB")
-    else:
-        rgb = img
-
-    gray = rgb.convert("L")
-    # Any pixel darker than threshold (240) is considered content
-    bw = gray.point(lambda p: 255 if p < threshold else 0, mode="1")
-    bbox = bw.getbbox()
-    if bbox:
-        w, h = img.size
-        left = max(0, bbox[0] - padding)
-        top = max(0, bbox[1] - padding)
-        right = min(w, bbox[2] + padding)
-        bottom = min(h, bbox[3] + padding)
-        # Only crop if bbox is valid and smaller than total area
-        if (right - left) > 20 and (bottom - top) > 20:
-            return img.crop((left, top, right, bottom))
-    return img
 
 
 def convert_image_to_bitmap(
@@ -47,11 +22,19 @@ def convert_image_to_bitmap(
     scale: float = 1.0,
     autocrop: bool = True,
     strength: int = 7,
+    mode: str = "text",
+    dither: bool = False,
 ) -> Image.Image:
     """
-    Processes an image into a 384-pixel wide grayscale image (mode="L").
-    Supports automatic margin whitespace trimming and user-defined zoom/scale multiplier.
+    Processes an image into a 384-pixel wide bitmap.
+    If mode == "photo" or dither is True, applies Floyd-Steinberg error-diffusion dithering
+    for photorealistic shading, soft gradients, and delicate skin tones.
+    Otherwise (default "text" mode), applies high-contrast binarization for receipts and invoices.
     """
+    if str(mode).lower() == "photo" or dither:
+        from .photo import render_photo_to_bitmap
+        return render_photo_to_bitmap(img, scale=scale, autocrop=autocrop, strength=strength)
+
     # 1. Flatten transparency against pure white background
     if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
         img = img.convert("RGBA")
@@ -121,10 +104,12 @@ def render_pdf_to_bitmap(
     scale: float = 1.0,
     autocrop: bool = True,
     strength: int = 7,
+    mode: str = "text",
+    dither: bool = False,
 ) -> Image.Image:
     """
     Renders a PDF (all pages combined vertically) to a 384px wide grayscale image.
-    Supports autocrop and scale zoom factors.
+    Supports autocrop, scale zoom factors, and photo dithering mode.
     """
     if not pymupdf:
         raise RuntimeError("PyMuPDF (pymupdf) is not installed")
@@ -151,7 +136,7 @@ def render_pdf_to_bitmap(
         stitched.paste(p, (0, curr_y))
         curr_y += p.height
 
-    return convert_image_to_bitmap(stitched, scale=scale, autocrop=autocrop, strength=strength)
+    return convert_image_to_bitmap(stitched, scale=scale, autocrop=autocrop, strength=strength, mode=mode, dither=dither)
 
 
 def render_text_to_bitmap(text: str, font_size: int = 22, strength: int = 7) -> Image.Image:

@@ -188,20 +188,28 @@ async def internal_print_file(
     scale: float = Form(1.0),
     autocrop: bool = Form(True),
     keep_job: bool = Form(True),
+    mode: str = Form("text"),
+    dither: Optional[bool] = Form(None),
 ):
     """Process and print uploaded PDF/image from the test console."""
     content = await file.read()
     if not content:
         return {"success": False, "message": "File is empty"}
 
+    use_photo_mode = (str(mode).lower() == "photo") or bool(dither)
+    active_mode = "photo" if use_photo_mode else "text"
     filename = (file.filename or "").lower()
     try:
         if filename.endswith(".pdf") or file.content_type == "application/pdf":
-            bitmap = printer_ble.render_pdf_to_bitmap(content, scale=scale, autocrop=autocrop, strength=strength)
+            bitmap = printer_ble.render_pdf_to_bitmap(
+                content, scale=scale, autocrop=autocrop, strength=strength, mode=active_mode, dither=use_photo_mode
+            )
             job_type = "pdf"
         else:
             raw_img = Image.open(io.BytesIO(content))
-            bitmap = printer_ble.convert_image_to_bitmap(raw_img, scale=scale, autocrop=autocrop, strength=strength)
+            bitmap = printer_ble.convert_image_to_bitmap(
+                raw_img, scale=scale, autocrop=autocrop, strength=strength, mode=active_mode, dither=use_photo_mode
+            )
             job_type = "image"
 
         job_id = str(uuid.uuid4())
@@ -219,7 +227,7 @@ async def internal_print_file(
         success, msg = await printer_ble.send_bitmap_to_printer(bitmap, strength=strength, job_id=job_id)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
-        return {"success": success, "message": msg, "job_id": job_id, "status": final_status}
+        return {"success": success, "message": msg, "job_id": job_id, "status": final_status, "mode": active_mode}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
@@ -230,19 +238,27 @@ async def internal_preview_file(
     strength: int = Form(7),
     scale: float = Form(1.0),
     autocrop: bool = Form(True),
+    mode: str = Form("text"),
+    dither: Optional[bool] = Form(None),
 ):
-    """Generate 384px PNG thermal preview for uploaded file with scale and autocrop."""
+    """Generate 384px PNG thermal preview for uploaded file with scale, autocrop, and dithering."""
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="File is empty")
 
+    use_photo_mode = (str(mode).lower() == "photo") or bool(dither)
+    active_mode = "photo" if use_photo_mode else "text"
     filename = (file.filename or "").lower()
     try:
         if filename.endswith(".pdf") or file.content_type == "application/pdf":
-            bitmap = printer_ble.render_pdf_to_bitmap(content, scale=scale, autocrop=autocrop, strength=strength)
+            bitmap = printer_ble.render_pdf_to_bitmap(
+                content, scale=scale, autocrop=autocrop, strength=strength, mode=active_mode, dither=use_photo_mode
+            )
         else:
             raw_img = Image.open(io.BytesIO(content))
-            bitmap = printer_ble.convert_image_to_bitmap(raw_img, scale=scale, autocrop=autocrop, strength=strength)
+            bitmap = printer_ble.convert_image_to_bitmap(
+                raw_img, scale=scale, autocrop=autocrop, strength=strength, mode=active_mode, dither=use_photo_mode
+            )
 
         buf = io.BytesIO()
         bitmap.save(buf, format="PNG")

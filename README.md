@@ -9,8 +9,10 @@ It runs seamlessly on macOS, Linux, Raspberry Pi, and Windows, exposing both a m
 ## Key Features
 
 - **100% Universal World Language & Emoji Support:** Print receipts in any living language on Earth — Bengali, Arabic, Urdu, English, Chinese, Hindi, Russian, Japanese, Telugu, Tamil, Korean, Thai, Gujarati, Kannada, Malayalam, Odia, Burmese, Punjabi, Ethiopic/Amharic, Lao, Khmer, Sinhala, Greek, Hebrew, Armenian, Georgian, and all Emojis — seamlessly mixed on the same line without missing glyph boxes.
+- **Photographic Dithering & Shading Engine:** Dedicated photo processor (`engine/photo.py`) with Floyd-Steinberg error-diffusion dithering and thermal dot-gain dynamic range compensation, reproducing smooth skin tones and soft gradients matching the official Tiny Print app.
 - **Direct 1-Step Printing:** Print formatted text, receipts, or PDF/image files immediately via REST API or the Web UI.
-- **Direct QR Code Printing:** Print razor-sharp, pixel-perfect 1-bit thermal QR codes (URLs, UPI/payments, Wi-Fi credentials, order tickets) with optional multilingual header and footer captions.
+- **Direct QR Code Generation & Printing:** Print thermal QR codes directly, or generate/stream 384px PNG QR codes on-the-fly via `/api/qr/generate` for embedding in web `<img>` tags or reports.
+- **Drag-and-Drop File Uploader:** Intuitive drag-and-drop dropzone on the web console with instant file size/type detection and auto-scaling to 384 dots.
 - **Live Job Cancellation:** Stop and abort active print jobs mid-stream from the dashboard or API to prevent paper waste.
 - **Receipt Auto-Scaling & Margin Cropping:** Automatically crop white borders and scale 80mm/A4 receipts to fit 57mm rolls cleanly.
 - **Adjustable Print Darkness (1–7):** Fine-tune thermal burn strength for faint or aged paper rolls.
@@ -98,9 +100,12 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image with auto-scaling, auto-cropping, and strength options. |
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image with auto-scaling, auto-cropping, and strength options. Supports `mode=photo` (or `dither=true`) for realistic Floyd-Steinberg photo dithering. |
 | `POST` | `/api/print/text` | **Direct Text Print:** Formatted receipt text supporting all languages and emojis with customizable font size and strength. |
-| `POST` | `/api/print/qr` | **Direct QR Code Print:** High-contrast thermal QR code with optional multilingual header and footer text. |
+| `POST` | `/api/print/qr` | **Direct QR Code Print:** High-contrast thermal QR code with optional multilingual header and footer text (supports `content` and `text`). |
+| `GET` / `POST` | `/api/qr/generate` | **Direct QR Generator:** Directly streams a 384px PNG QR code from query parameters or JSON body (no auth required, ideal for `<img>` tags). |
 | `POST` | `/api/print/stop` | **Immediate Stop:** Aborts whatever job is currently streaming to the thermal printer. |
 | `DELETE` / `POST` | `/api/print/cancel/{job_id}` | Cancels a pending job or aborts an active printing job by ID. |
 | `POST` | `/api/print/confirm/{job_id}` | Confirms a pending job (if submitted with `immediate=false`). |
@@ -112,8 +117,8 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 
 ## Integration Code Examples
 
-### 1. Direct 1-Step File Print (Laravel / PHP)
-Send invoice PDFs or images directly from Laravel to your printer:
+### 1. Direct 1-Step File & Photo Print (Laravel / PHP)
+Send invoice PDFs, receipts, or photos directly from Laravel to your printer. Use `'mode' => 'photo'` for realistic photographic shading:
 ```php
 <?php
 use Illuminate\Support\Facades\Http;
@@ -124,13 +129,14 @@ $baseUrl = 'https://pos.yourdomain.com'; // or http://localhost:8100
 $response = Http::withHeaders([
     'X-API-Key' => $apiKey,
 ])->attach(
-    'file', file_get_contents($pdfPath), 'invoice.pdf'
+    'file', file_get_contents($imagePath), 'portrait.jpg'
 )->post("{$baseUrl}/api/print/raw", [
-    'immediate' => 'true',  // Prints immediately in 1-step!
-    'scale'     => 1.25,    // 1.25x zoom for 80mm receipts (1.5x for A4)
-    'autocrop'  => 'true',  // Trims empty white margins
-    'strength'  => 7,       // 1-7: max thermal burn darkness
-    'keepjob'   => 'false', // Temporary (purged from SQLite after 5m)
+    'immediate' => 'true',   // Prints immediately in 1-step!
+    'mode'      => 'photo',  // 'photo' for Floyd-Steinberg dithering; 'text' for receipts
+    'scale'     => 1.0,      // 1.0 = fit 384px width; 1.25 = +25% zoom
+    'autocrop'  => 'true',   // Trims empty white borders
+    'strength'  => 7,        // 1-7 thermal darkness
+    'keepjob'   => 'false',  // Temporary (purged from SQLite after 5m)
 ]);
 
 $jobId = $response->json('job_id');
@@ -158,7 +164,7 @@ curl -X POST https://pos.yourdomain.com/api/print/qr \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "content": "https://pos.sayem.com/pay/inv_99812",
+    "text": "https://pos.sayem.com/pay/inv_99812",
     "header": "SCAN TO PAY ৳১৫০.০০",
     "footer": "TinyPOS Thermal Bridge",
     "qr_size": 260,
@@ -166,6 +172,12 @@ curl -X POST https://pos.yourdomain.com/api/print/qr \
     "immediate": true,
     "keepjob": false
   }'
+```
+
+### 4. Direct QR Code Image Generation (HTML / URL)
+Directly embed or stream a 384px thermal QR code PNG into any webpage, invoice, or application:
+```html
+<img src="https://pos.yourdomain.com/api/qr/generate?text=https://pos.sayem.com&header=TABLE+12&footer=THANK+YOU&size=260" alt="QR Code" />
 ```
 
 ### 4. Immediate Stop / Abort Job (cURL)

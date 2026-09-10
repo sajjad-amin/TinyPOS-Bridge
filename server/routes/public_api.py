@@ -32,14 +32,24 @@ class PrintTextRequest(BaseModel):
 
 
 class PrintQRRequest(BaseModel):
-    content: str = Field(..., description="QR code data payload (URL, text, WiFi, UPI, etc.)")
+    content: Optional[str] = Field(None, description="QR code data payload (URL, text, WiFi, UPI, etc.)")
+    text: Optional[str] = Field(None, description="Alias for content")
     header: Optional[str] = Field(None, description="Optional text displayed above the QR code")
     footer: Optional[str] = Field(None, description="Optional text displayed below the QR code")
-    qr_size: int = Field(280, ge=140, le=368, description="QR code pixel size (default 280, max 368)")
+    qr_size: int = Field(280, ge=64, le=384, description="QR code pixel size (default 280, max 368)")
+    size: Optional[int] = Field(None, description="Alias for qr_size")
     strength: int = Field(7, ge=1, le=7, description="Print strength/darkness 1-7")
     immediate: bool = Field(True, description="When true, directly prints in background without requiring /confirm")
     keep_job: Optional[bool] = Field(None, description="When true, permanently preserves job in database. Default false (temporary, purged after 5 minutes)")
     keepjob: Optional[bool] = Field(None, description="Alias for keep_job")
+
+    def get_content(self) -> str:
+        return (self.content or self.text or "").strip()
+
+    def get_size(self) -> int:
+        if self.size is not None and 64 <= self.size <= 384:
+            return self.size
+        return self.qr_size
 
     def should_keep(self) -> bool:
         if self.keep_job is not None:
@@ -47,6 +57,26 @@ class PrintQRRequest(BaseModel):
         if self.keepjob is not None:
             return bool(self.keepjob)
         return False
+
+
+class GenerateQRRequest(BaseModel):
+    text: Optional[str] = Field(None, description="Text or URL content to encode in QR")
+    content: Optional[str] = Field(None, description="Alias for text")
+    header: Optional[str] = Field(None, description="Optional text header above QR")
+    footer: Optional[str] = Field(None, description="Optional text footer below QR")
+    size: Optional[int] = Field(260, ge=64, le=384, description="QR code size in pixels (default 260)")
+    qr_size: Optional[int] = Field(None, description="Alias for size")
+    strength: int = Field(7, ge=1, le=7, description="Print strength/contrast (default 7)")
+
+    def get_text(self) -> str:
+        return (self.text or self.content or "").strip()
+
+    def get_pixel_size(self) -> int:
+        if self.qr_size is not None and 64 <= self.qr_size <= 384:
+            return self.qr_size
+        if self.size is not None and 64 <= self.size <= 384:
+            return self.size
+        return 260
 
 
 @public_api_router.get("/status")
@@ -62,6 +92,8 @@ async def print_raw_file(
     strength: int = Form(7, description="Print strength 1-7"),
     scale: float = Form(1.0, description="Scale zoom multiplier (e.g. 1.25 for 80mm receipts, 1.5 for A4)"),
     autocrop: bool = Form(True, description="Auto-crop whitespace margins before resizing"),
+    mode: str = Form("text", description="Rendering mode: 'text' (default) or 'photo' (Floyd-Steinberg error-diffusion dithering)"),
+    dither: Optional[bool] = Form(None, description="Optional boolean flag to enable photo dithering mode (equivalent to mode=photo)"),
     immediate: bool = Form(True, description="Directly execute and print immediately (default: true)"),
     keep_job: Optional[bool] = Form(None, description="When true, permanently preserves job in database. Default false (temporary, purged after 5 minutes)"),
     keepjob: Optional[bool] = Form(None, description="Alias for keep_job"),
@@ -71,19 +103,27 @@ async def print_raw_file(
     Upload and print an invoice PDF or image.
     If immediate=true (default), queues and immediately transmits the job to the printer.
     If keep_job=false (default), the job is temporary and removed from SQLite after 5 minutes.
+    Use mode='photo' or dither=true for photographic dithering with smooth shades.
     """
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
+    use_photo_mode = (str(mode).strip().lower() == "photo") or bool(dither)
+    active_mode = "photo" if use_photo_mode else "text"
+
     filename = (file.filename or "").lower()
     try:
         if filename.endswith(".pdf") or file.content_type == "application/pdf":
-            bitmap = printer_ble.render_pdf_to_bitmap(content, scale=scale, autocrop=autocrop, strength=strength)
+            bitmap = printer_ble.render_pdf_to_bitmap(
+                content, scale=scale, autocrop=autocrop, strength=strength, mode=active_mode, dither=use_photo_mode
+            )
             job_type = "pdf"
         else:
             raw_img = Image.open(io.BytesIO(content))
-            bitmap = printer_ble.convert_image_to_bitmap(raw_img, scale=scale, autocrop=autocrop, strength=strength)
+            bitmap = printer_ble.convert_image_to_bitmap(
+                raw_img, scale=scale, autocrop=autocrop, strength=strength, mode=active_mode, dither=use_photo_mode
+            )
             job_type = "image"
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process file: {str(e)}")
@@ -113,6 +153,7 @@ async def print_raw_file(
     return {
         "job_id": job_id,
         "status": job_status,
+        "mode": active_mode,
         "immediate": immediate,
         "keep_job": preserve,
         "width": bitmap.width,
@@ -187,6 +228,67 @@ async def print_text_job(
     }
 
 
+@public_api_router.get("/qr/generate")
+async def generate_qr_image_get(
+    text: Optional[str] = None,
+    content: Optional[str] = None,
+    header: Optional[str] = None,
+    footer: Optional[str] = None,
+    size: int = 260,
+    qr_size: Optional[int] = None,
+    strength: int = 7,
+):
+    """
+    Directly generates a 384px-wide thermal-optimized QR code PNG image from query text.
+    Can be embedded directly in HTML <img> tags, receipts, or downloaded.
+    """
+    qr_text = (text or content or "").strip()
+    if not qr_text:
+        raise HTTPException(status_code=400, detail="Missing required parameter: provide 'text' or 'content' in query.")
+
+    actual_size = qr_size if qr_size is not None else size
+    actual_size = max(64, min(384, actual_size))
+
+    try:
+        bitmap = printer_ble.render_qr_to_bitmap(
+            content=qr_text,
+            header_text=header,
+            footer_text=footer,
+            qr_size=actual_size,
+            strength=strength,
+        )
+        buf = io.BytesIO()
+        bitmap.save(buf, format="PNG")
+        return Response(content=buf.getvalue(), media_type="image/png")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to render QR code: {str(e)}")
+
+
+@public_api_router.post("/qr/generate")
+async def generate_qr_image_post(payload: GenerateQRRequest):
+    """
+    Directly generates a 384px-wide thermal-optimized QR code PNG image from JSON payload.
+    Returns binary PNG image stream.
+    """
+    qr_text = payload.get_text()
+    if not qr_text:
+        raise HTTPException(status_code=400, detail="Missing required field: provide 'text' or 'content'.")
+
+    try:
+        bitmap = printer_ble.render_qr_to_bitmap(
+            content=qr_text,
+            header_text=payload.header,
+            footer_text=payload.footer,
+            qr_size=payload.get_pixel_size(),
+            strength=payload.strength,
+        )
+        buf = io.BytesIO()
+        bitmap.save(buf, format="PNG")
+        return Response(content=buf.getvalue(), media_type="image/png")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to render QR code: {str(e)}")
+
+
 @public_api_router.post("/print/qr")
 async def print_qr_job(
     payload: PrintQRRequest,
@@ -197,15 +299,16 @@ async def print_qr_job(
     Queue a high-contrast QR code for printing.
     If immediate=true (default), queues and immediately transmits the job to the printer.
     """
-    if not payload.content.strip():
-        raise HTTPException(status_code=400, detail="Content field cannot be empty.")
+    qr_text = payload.get_content()
+    if not qr_text:
+        raise HTTPException(status_code=400, detail="Content or text field cannot be empty.")
 
     try:
         bitmap = printer_ble.render_qr_to_bitmap(
-            content=payload.content,
+            content=qr_text,
             header_text=payload.header,
             footer_text=payload.footer,
-            qr_size=payload.qr_size,
+            qr_size=payload.get_size(),
             strength=payload.strength,
         )
     except Exception as e:

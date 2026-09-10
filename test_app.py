@@ -599,6 +599,104 @@ def test_qr_code_rendering_and_api():
     db.delete_job(job_id)
 
 
+def test_photo_dithering_and_direct_qr():
+    print("--> Testing Photo Dithering Mode and Direct QR Generation API...")
+
+    # 1. Test render_photo_to_bitmap directly
+    test_img = Image.new("RGB", (200, 200), color=(128, 128, 128))
+    photo_bitmap = printer_ble.render_photo_to_bitmap(test_img, scale=1.0, autocrop=False, strength=7)
+    assert photo_bitmap.size[0] == 384
+    assert photo_bitmap.mode == "1"
+    print(" [OK] render_photo_to_bitmap produced valid 384px 1-bit dithered image")
+
+    # 2. Test protocol encoding with 1-bit dithered image
+    rows = printer_ble.encode_image_to_lsb_rows(photo_bitmap)
+    assert len(rows) == photo_bitmap.size[1]
+    assert all(len(r) == 384 // 8 for r in rows)
+    print(" [OK] encode_image_to_lsb_rows cleanly encoded 1-bit dithered rows")
+
+    # 3. Test public /api/print/raw with mode=photo
+    test_key = "sk_test_photo_dither_key"
+    db.delete_api_key(test_key)
+    db.insert_api_key(test_key, name="Photo Dither Test Client")
+
+    img_buf = io.BytesIO()
+    test_img.save(img_buf, format="PNG")
+    img_buf.seek(0)
+
+    res_photo = client.post(
+        "/api/print/raw",
+        headers={"X-API-Key": test_key},
+        files={"file": ("photo.png", img_buf.getvalue(), "image/png")},
+        data={"mode": "photo", "immediate": False, "keep_job": False},
+    )
+    assert res_photo.status_code == 200
+    data_photo = res_photo.json()
+    assert data_photo["mode"] == "photo"
+    assert data_photo["status"] == "pending"
+    job_id = data_photo["job_id"]
+    job = db.get_job(job_id)
+    assert job is not None
+    assert job["job_type"] == "image"
+    print(" [OK] POST /api/print/raw with mode=photo succeeded")
+    db.delete_job(job_id)
+
+    # 4. Test public /api/print/raw with dither=true
+    res_dither = client.post(
+        "/api/print/raw",
+        headers={"X-API-Key": test_key},
+        files={"file": ("portrait.png", img_buf.getvalue(), "image/png")},
+        data={"dither": "true", "immediate": False, "keep_job": False},
+    )
+    assert res_dither.status_code == 200
+    data_dither = res_dither.json()
+    assert data_dither["mode"] == "photo"
+    db.delete_job(data_dither["job_id"])
+    print(" [OK] POST /api/print/raw with dither=true succeeded")
+
+    # 5. Test direct QR generation: GET /api/qr/generate?text=...
+    res_qr_get = client.get("/api/qr/generate?text=https://pos.sayem.com/order/123&header=TABLE+5&footer=SCAN+TO+PAY&size=260")
+    assert res_qr_get.status_code == 200
+    assert res_qr_get.headers["content-type"] == "image/png"
+    qr_img = Image.open(io.BytesIO(res_qr_get.content))
+    assert qr_img.size[0] == 384
+    print(" [OK] GET /api/qr/generate returned valid 384px PNG QR code directly")
+
+    # 6. Test direct QR generation: POST /api/qr/generate (JSON payload)
+    res_qr_post = client.post(
+        "/api/qr/generate",
+        json={
+            "text": "WIFI:S:TinyPOS;T:WPA;P:password123;;",
+            "header": "FREE WI-FI",
+            "footer": "Password: password123",
+            "size": 240,
+        },
+    )
+    assert res_qr_post.status_code == 200
+    assert res_qr_post.headers["content-type"] == "image/png"
+    qr_post_img = Image.open(io.BytesIO(res_qr_post.content))
+    assert qr_post_img.size[0] == 384
+    print(" [OK] POST /api/qr/generate returned valid 384px PNG QR code directly")
+
+    # 7. Test /api/print/qr with text alias (instead of content)
+    res_qr_alias = client.post(
+        "/api/print/qr",
+        headers={"X-API-Key": test_key},
+        json={
+            "text": "https://example.com/invoice/999",
+            "header": "INVOICE #999",
+            "immediate": False,
+        },
+    )
+    assert res_qr_alias.status_code == 200
+    alias_job_id = res_qr_alias.json()["job_id"]
+    db.delete_job(alias_job_id)
+    print(" [OK] POST /api/print/qr with 'text' alias succeeded")
+
+    # Clean up
+    db.delete_api_key(test_key)
+
+
 if __name__ == "__main__":
     test_sqlite_api_keys()
     test_auth_and_ui_pages()
@@ -609,4 +707,5 @@ if __name__ == "__main__":
     test_universal_multilingual_printing()
     test_mixed_multi_script_rendering()
     test_qr_code_rendering_and_api()
-    print("\n🎉 ALL TESTS (MODULAR UI, QR CODE, MIXED SCRIPTS, UNIVERSAL MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
+    test_photo_dithering_and_direct_qr()
+    print("\n🎉 ALL TESTS (PHOTO DITHERING, DIRECT QR API, MODULAR UI, MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")

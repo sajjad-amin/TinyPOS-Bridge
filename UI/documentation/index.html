@@ -62,7 +62,12 @@
                         <tr>
                             <td><span class="badge bg-success">POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/print/qr</td>
-                            <td>Print high-contrast QR codes in 1-step! (Supports <code>content</code>, <code>header</code>, <code>footer</code>, <code>qr_size</code>, <code>strength</code>)</td>
+                            <td>Print high-contrast QR codes in 1-step! (Supports <code>content</code> / <code>text</code>, <code>header</code>, <code>footer</code>, <code>qr_size</code>, <code>strength</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-info text-dark">GET/POST</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/qr/generate</td>
+                            <td><strong>Direct QR Generator:</strong> Returns a 384px PNG QR code stream from text or URL directly (ideal for <code>&lt;img&gt;</code> tags or reports, no auth required).</td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-danger">POST</span></td>
@@ -90,6 +95,7 @@
                         <span class="fw-bold small text-uppercase text-secondary d-block mb-2">Parameters & Options</span>
                         <ul class="small text-muted mb-0 ps-3">
                             <li class="mb-1"><code>immediate</code> (boolean, default: <code>true</code>): <strong>Direct 1-Step Execution!</strong> When <code>true</code>, the job prints immediately in the background without needing a secondary <code>/confirm</code> request.</li>
+                            <li class="mb-1"><code>mode</code> (string, default: <code>text</code>): Rendering mode for <code>/api/print/raw</code>. Use <code>mode=photo</code> (or <code>dither=true</code>) for realistic Floyd-Steinberg error-diffusion dithering with thermal dot-gain compensation for photographs, portraits, and artworks.</li>
                             <li class="mb-1"><code>keepjob</code> / <code>keep_job</code> (boolean, default: <code>false</code>): <strong>Database Bloat Protection!</strong> By default, jobs are temporary and purged from SQLite after 5 minutes so high-volume POS invoicing doesn't bloat disk space. Pass <code>keepjob=true</code> or <code>keep_job=true</code> to permanently save the job and preview raster in history.</li>
                             <li class="mb-1"><code>scale</code> (float, default: <code>1.0</code>): Zoom/Scale multiplier (e.g. <code>1.25</code> = +25% zoom, <code>1.5</code> = +50% zoom). Expands 80mm or A4 receipts to make fonts crisp and readable on 57mm paper!</li>
                             <li class="mb-1"><code>autocrop</code> (boolean, default: <code>true</code>): Automatically strips empty white borders and margins so receipt text fills the full 384-dot width.</li>
