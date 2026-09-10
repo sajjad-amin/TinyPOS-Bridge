@@ -460,6 +460,33 @@ def test_bangla_unicode_text_printing():
     db.delete_api_key(test_key)
 
 
+def test_universal_multilingual_printing():
+    print("--> Testing Universal Multi-Language Text Rendering Pipeline...")
+
+    test_languages = {
+        "Bengali": "সাজ্জাদ স্টোর - চাল ৫ কেজি ৳৫০০",
+        "Arabic": "فاتورة ضريبية - ١٠٠ ريال",
+        "Devanagari": "कुल देय: ₹५०० (धन्यवाद)",
+        "Tamil": "வணக்கம் - ரூபாய் 100",
+        "Telugu": "ధన్యవాదాలు - ₹100",
+        "Thai": "ขอบคุณที่ใช้บริการ ฿100",
+        "Chinese": "简易收据 - 总计: ¥100",
+        "Japanese": "レシート合計: ¥1000",
+        "Korean": "영수증 합계: ₩10000",
+        "Russian": "Кассовый чек №1042 - 500 руб",
+        "Emoji": "Receipt 🧾 Total 💰 Star ⭐",
+        "English": "ACME STORE - TOTAL $25.00",
+    }
+
+    for lang, text in test_languages.items():
+        bmp = printer_ble.render_text_to_bitmap(text, font_size=22, strength=7)
+        assert bmp.size[0] == 384
+        black_count = sum(1 for p in bmp.getdata() if p < 128)
+        assert black_count > 300, f"Too few black pixels for {lang}"
+
+    print(f" [OK] All {len(test_languages)} international language scripts rendered cleanly with high contrast")
+
+
 if __name__ == "__main__":
     test_sqlite_api_keys()
     test_auth_and_ui_pages()
@@ -467,4 +494,5 @@ if __name__ == "__main__":
     test_api_printing_pipeline()
     test_stop_print_flow()
     test_bangla_unicode_text_printing()
-    print("\n🎉 ALL TESTS (BANGLA UNICODE, KEEPJOB LIFECYCLE, STOP API, UI CONTROLS & SQLITE) PASSED SUCCESSFULLY!")
+    test_universal_multilingual_printing()
+    print("\n🎉 ALL TESTS (UNIVERSAL MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")

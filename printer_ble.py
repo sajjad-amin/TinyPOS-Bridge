@@ -256,12 +256,68 @@ def contains_bangla(text: Optional[str]) -> bool:
     return any("\u0980" <= ch <= "\u09ff" for ch in text)
 
 
+def detect_script(text: Optional[str]) -> str:
+    """
+    Detects the predominant international Unicode script in the given text.
+    Returns: 'bengali', 'arabic', 'devanagari', 'tamil', 'telugu', 'thai', 'cjk', 'cyrillic', 'emoji', or 'latin'.
+    """
+    if not text:
+        return "latin"
+
+    for ch in text:
+        code = ord(ch)
+        # Bengali (U+0980 - U+09FF)
+        if 0x0980 <= code <= 0x09FF:
+            return "bengali"
+        # Arabic & Perso-Arabic (Urdu, Farsi, Pashto)
+        if (0x0600 <= code <= 0x06FF) or (0x0750 <= code <= 0x077F) or (0x08A0 <= code <= 0x08FF) or (0xFB50 <= code <= 0xFDFF) or (0xFE70 <= code <= 0xFEFF):
+            return "arabic"
+        # Devanagari / Hindi / Marathi / Nepali
+        if (0x0900 <= code <= 0x097F) or (0xA8E0 <= code <= 0xA8FF):
+            return "devanagari"
+        # Tamil
+        if 0x0B80 <= code <= 0x0BFF:
+            return "tamil"
+        # Telugu
+        if 0x0C00 <= code <= 0x0C7F:
+            return "telugu"
+        # Thai
+        if 0x0E00 <= code <= 0x0E7F:
+            return "thai"
+        # CJK (Chinese, Japanese, Korean)
+        if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0xAC00 <= code <= 0xD7AF) or (0x3000 <= code <= 0x303F):
+            return "cjk"
+        # Cyrillic / Greek
+        if (0x0400 <= code <= 0x052F) or (0x0370 <= code <= 0x03FF):
+            return "cyrillic"
+        # Emoji / Pictographs
+        if (0x1F300 <= code <= 0x1FAFF) or (0x2600 <= code <= 0x27BF):
+            return "emoji"
+
+    return "latin"
+
+
+# Maps script category to bundled font files
+SCRIPT_FONT_FILE = {
+    "bengali": "SolaimanLipi.ttf",
+    "arabic": "NotoSansArabic-Bold.ttf",
+    "devanagari": "NotoSansDevanagari-Bold.ttf",
+    "tamil": "NotoSansTamil-Bold.ttf",
+    "telugu": "NotoSansTelugu-Bold.ttf",
+    "thai": "NotoSansThai-Bold.ttf",
+    "cjk": "NotoSansSC-Bold.ttf",
+    "cyrillic": "NotoSans-Bold.ttf",
+    "emoji": "NotoEmoji-Regular.ttf",
+    "latin": "NotoSans-Bold.ttf",
+}
+
+
 def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) -> ImageFont.ImageFont:
     """
     Loads a scalable font cross-platform (Linux, Windows, macOS, Docker).
     Guaranteed to run cleanly on any PC with zero platform-specific hardcoding.
-    Automatically prioritizes Unicode Bengali fonts (bundled SolaimanLipi.ttf)
-    whenever Bengali text is detected or as primary Unicode font fallback.
+    Automatically detects language script (Bengali, Arabic, Hindi, CJK, etc.)
+    and selects the matching high-legibility bundled font.
     """
     # 1. User-configured font path via environment variable
     custom_path = os.getenv("TINYPOS_FONT_PATH")
@@ -275,42 +331,38 @@ def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) ->
     base_dir = os.path.dirname(os.path.abspath(__file__))
     bundled_fonts_dir = os.path.join(base_dir, "fonts")
 
-    is_bangla = contains_bangla(text)
+    script = detect_script(text)
 
-    # 2. If text contains Bengali, prioritize bundled SolaimanLipi and system Bengali fonts
-    if is_bangla:
-        bangla_font_candidates = [
-            os.path.join(bundled_fonts_dir, "SolaimanLipi.ttf"),
-            os.path.join(bundled_fonts_dir, "Kalpurush.ttf"),
-            "/Users/sayem/Works/Laravel/prm.sajjadamin.com/resources/fonts/SolaimanLipi.ttf",
-            # macOS native Bengali fonts
-            "/System/Library/Fonts/Supplemental/Bangla Sangam MN.ttc",
-            "/System/Library/Fonts/Supplemental/Bangla MN.ttc",
-            "/System/Library/Fonts/Supplemental/KohinoorBangla.ttc",
-            # Linux / Raspberry Pi Bengali fonts
-            "/usr/share/fonts/truetype/lohit-bengali/Lohit-Bengali.ttf",
-            "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-            # Windows Bengali fonts
-            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "vrinda.ttf"),
-            os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "Nirmala.ttf"),
-        ]
-        for path in bangla_font_candidates:
-            if os.path.exists(path):
-                try:
-                    return ImageFont.truetype(path, font_size)
-                except Exception:
-                    continue
+    # 2. If non-Latin international script detected, load mapped bundled font
+    if script != "latin" and script in SCRIPT_FONT_FILE:
+        target_font_file = SCRIPT_FONT_FILE[script]
+        bundled_script_font = os.path.join(bundled_fonts_dir, target_font_file)
+        if os.path.exists(bundled_script_font):
+            try:
+                return ImageFont.truetype(bundled_script_font, font_size)
+            except Exception:
+                pass
 
-        if os.path.isdir(bundled_fonts_dir):
-            for fname in os.listdir(bundled_fonts_dir):
-                if fname.lower().endswith((".ttf", ".otf")):
+        # Specific fallbacks for Bengali
+        if script == "bengali":
+            bangla_fallbacks = [
+                "/Users/sayem/Works/Laravel/prm.sajjadamin.com/resources/fonts/SolaimanLipi.ttf",
+                "/System/Library/Fonts/Supplemental/Bangla Sangam MN.ttc",
+                "/System/Library/Fonts/Supplemental/Bangla MN.ttc",
+                "/System/Library/Fonts/Supplemental/KohinoorBangla.ttc",
+                "/usr/share/fonts/truetype/lohit-bengali/Lohit-Bengali.ttf",
+                "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+                os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "Fonts", "vrinda.ttf"),
+            ]
+            for fb in bangla_fallbacks:
+                if os.path.exists(fb):
                     try:
-                        return ImageFont.truetype(os.path.join(bundled_fonts_dir, fname), font_size)
+                        return ImageFont.truetype(fb, font_size)
                     except Exception:
                         continue
 
-    # 3. For standard ASCII or non-Bangla:
-    # First try standard monospace fonts so column tabs and receipts align uniformly
+    # 3. For standard Latin / ASCII receipts:
+    # First try monospace fonts so tabular alignment spaces line up evenly
     font_names = [
         "DejaVuSansMono-Bold.ttf",
         "DejaVuSansMono.ttf",
@@ -346,13 +398,14 @@ def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) ->
             except Exception:
                 continue
 
-    # 4. Check bundled font directory (SolaimanLipi.ttf renders English and numbers cleanly)
-    bundled_solaiman = os.path.join(bundled_fonts_dir, "SolaimanLipi.ttf")
-    if os.path.exists(bundled_solaiman):
-        try:
-            return ImageFont.truetype(bundled_solaiman, font_size)
-        except Exception:
-            pass
+    # 4. Check bundled font directory (NotoSans-Bold or SolaimanLipi render clean English/numbers)
+    for bundled_candidate in ["NotoSans-Bold.ttf", "SolaimanLipi.ttf"]:
+        bp = os.path.join(bundled_fonts_dir, bundled_candidate)
+        if os.path.exists(bp):
+            try:
+                return ImageFont.truetype(bp, font_size)
+            except Exception:
+                pass
 
     # 5. Universal fallback: Pillow's built-in scalable FreeType font
     try:
