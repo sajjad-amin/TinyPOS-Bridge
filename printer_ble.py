@@ -413,72 +413,198 @@ def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) ->
         return ImageFont.load_default()
 
 
+def get_char_script(ch: str, line_has_bengali: bool = False) -> str:
+    """Classifies a single character into its script category."""
+    code = ord(ch)
+    # Emojis, Symbols, Pictographs, Dingbats, Stars, Regional Indicators, Variation Selectors
+    if (0x1F000 <= code <= 0x1FFFF) or (0x2600 <= code <= 0x27BF) or (0x2300 <= code <= 0x23FF) or (0x2B00 <= code <= 0x2BFF) or (0xFE00 <= code <= 0xFE0F):
+        return "emoji"
+    # Bengali (U+0980 - U+09FF)
+    if 0x0980 <= code <= 0x09FF:
+        return "bengali"
+    # Arabic & Perso-Arabic (Urdu, Farsi, Pashto)
+    if (0x0600 <= code <= 0x06FF) or (0x0750 <= code <= 0x077F) or (0x08A0 <= code <= 0x08FF) or (0xFB50 <= code <= 0xFDFF) or (0xFE70 <= code <= 0xFEFF):
+        return "arabic"
+    # Devanagari / Hindi / Marathi / Nepali
+    if (0x0900 <= code <= 0x097F) or (0xA8E0 <= code <= 0xA8FF):
+        return "devanagari"
+    # Tamil
+    if 0x0B80 <= code <= 0x0BFF:
+        return "tamil"
+    # Telugu
+    if 0x0C00 <= code <= 0x0C7F:
+        return "telugu"
+    # Thai
+    if 0x0E00 <= code <= 0x0E7F:
+        return "thai"
+    # CJK (Chinese, Japanese, Korean)
+    if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF) or (0x3040 <= code <= 0x30FF) or (0xAC00 <= code <= 0xD7AF) or (0x3000 <= code <= 0x303F):
+        return "cjk"
+    # Cyrillic / Greek
+    if (0x0400 <= code <= 0x052F) or (0x0370 <= code <= 0x03FF):
+        return "cyrillic"
+    # If the line contains Bengali, SolaimanLipi renders Latin letters & numbers seamlessly
+    if line_has_bengali and (ch.isascii() or ch.isdigit()):
+        return "bengali"
+    return "latin"
+
+
+def segment_line(line: str) -> List[Tuple[str, str]]:
+    """
+    Splits a single text line into consecutive segments of (text, script).
+    Spaces attach to the preceding script to preserve word spacing.
+    """
+    has_bengali = any(0x0980 <= ord(c) <= 0x09FF for c in line)
+    chunks = []
+    curr_script = None
+    curr_text = ""
+    for ch in line:
+        s = get_char_script(ch, line_has_bengali=has_bengali)
+        if ch.isspace() and curr_script is not None:
+            curr_text += ch
+            continue
+        if s == curr_script or curr_script is None:
+            curr_script = s
+            curr_text += ch
+        else:
+            if curr_text:
+                chunks.append((curr_text, curr_script))
+            curr_text = ch
+            curr_script = s
+    if curr_text:
+        chunks.append((curr_text, curr_script))
+    return chunks
+
+
+def tokenize_segments(segs: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """Tokenizes segments into word and space tokens for wrapping."""
+    tokens = []
+    for txt, scr in segs:
+        parts = txt.split(" ")
+        for i, p in enumerate(parts):
+            if p:
+                tokens.append((p, scr))
+            if i < len(parts) - 1:
+                tokens.append((" ", scr))
+    return tokens
+
+
+def wrap_segments(segs: List[Tuple[str, str]], fonts: Dict[str, ImageFont.ImageFont], max_width: int) -> List[List[Tuple[str, str]]]:
+    """Wraps mixed-script segments into lines fitting within max_width."""
+    tokens = tokenize_segments(segs)
+    lines = []
+    curr_line = []
+    curr_w = 0.0
+
+    for tok_txt, scr in tokens:
+        f = fonts.get(scr, fonts["latin"])
+        tok_w = f.getlength(tok_txt)
+
+        if not curr_line and tok_txt.isspace():
+            continue
+
+        if curr_w + tok_w <= max_width:
+            curr_line.append((tok_txt, scr))
+            curr_w += tok_w
+        else:
+            if curr_line:
+                lines.append(curr_line)
+                curr_line = []
+                curr_w = 0.0
+            if not tok_txt.isspace():
+                if tok_w > max_width:
+                    sub = ""
+                    for ch in tok_txt:
+                        ch_w = f.getlength(sub + ch)
+                        if ch_w <= max_width:
+                            sub += ch
+                        else:
+                            if sub:
+                                lines.append([(sub, scr)])
+                            sub = ch
+                    if sub:
+                        curr_line = [(sub, scr)]
+                        curr_w = f.getlength(sub)
+                else:
+                    curr_line = [(tok_txt, scr)]
+                    curr_w = tok_w
+
+    if curr_line:
+        lines.append(curr_line)
+
+    return lines
+
+
+def load_multi_fonts(font_size: int = 22) -> Dict[str, ImageFont.ImageFont]:
+    """Loads and caches bundled fonts for each script family at the requested font size."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    bundled = os.path.join(base_dir, "fonts")
+
+    custom_path = os.getenv("TINYPOS_FONT_PATH")
+    custom_font = None
+    if custom_path and os.path.exists(custom_path):
+        try:
+            custom_font = ImageFont.truetype(custom_path, font_size)
+        except Exception:
+            pass
+
+    fonts = {}
+    for script, filename in SCRIPT_FONT_FILE.items():
+        if custom_font and script in ("latin", "bengali"):
+            fonts[script] = custom_font
+            continue
+        fpath = os.path.join(bundled, filename)
+        if os.path.exists(fpath):
+            try:
+                fonts[script] = ImageFont.truetype(fpath, font_size)
+                continue
+            except Exception:
+                pass
+        # Fallback to load_default
+        try:
+            fonts[script] = ImageFont.load_default(size=font_size)
+        except TypeError:
+            fonts[script] = ImageFont.load_default()
+
+    return fonts
+
+
 def render_text_to_bitmap(text: str, font_size: int = 22, strength: int = 7) -> Image.Image:
     """
     Renders receipt text cleanly onto a 384px wide canvas with auto-wrapping.
     Enforces bold stroke weight when strength >= 5 to boost legibility on weak paper.
-    Supports full Unicode Bangla script, conjuncts, and thermal divider lines.
+    Supports seamless multi-script mixing: English, Bengali, Arabic, CJK, and Emojis
+    can all appear on the exact same line without missing glyph boxes.
     """
-    font = load_cross_platform_font(font_size, text=text)
+    fonts = load_multi_fonts(font_size)
 
     margin = 16
     max_text_width = PRINT_WIDTH - (margin * 2)
 
-    dummy_img = Image.new("RGB", (PRINT_WIDTH, 100), (255, 255, 255))
-    dummy_draw = ImageDraw.Draw(dummy_img)
-
-    wrapped_lines = []
+    wrapped_rows: List[List[Tuple[str, str]]] = []
     for raw_line in text.splitlines():
         trimmed = raw_line.strip()
         if not trimmed:
-            wrapped_lines.append("")
+            wrapped_rows.append([("", "latin")])
             continue
 
         # Preserve horizontal divider lines (e.g. ---, ===) as dedicated line tokens
         if trimmed.startswith("---") or trimmed.startswith("==="):
-            wrapped_lines.append(trimmed[:3])
+            wrapped_rows.append([(trimmed[:3], "divider")])
             continue
 
-        # If the line already fits within receipt printable width, preserve spaces for columns
-        bbox = dummy_draw.textbbox((0, 0), raw_line, font=font)
-        if (bbox[2] - bbox[0]) <= max_text_width:
-            wrapped_lines.append(raw_line)
-            continue
+        segs = segment_line(raw_line)
+        total_w = sum(fonts.get(s, fonts["latin"]).getlength(t) for t, s in segs)
 
-        # Otherwise wrap words to fit within max_text_width
-        words = raw_line.split(" ")
-        current_line = ""
-        for word in words:
-            candidate = f"{current_line} {word}".strip() if current_line else word
-            bbox = dummy_draw.textbbox((0, 0), candidate, font=font)
-            line_w = bbox[2] - bbox[0]
-            if line_w <= max_text_width:
-                current_line = candidate
-            else:
-                if current_line:
-                    wrapped_lines.append(current_line)
-                    current_line = ""
-                # If word alone is longer than max_text_width, break it into fitting chunks
-                w_bbox = dummy_draw.textbbox((0, 0), word, font=font)
-                if (w_bbox[2] - w_bbox[0]) <= max_text_width:
-                    current_line = word
-                else:
-                    sub = ""
-                    for ch in word:
-                        sub_w = dummy_draw.textbbox((0, 0), sub + ch, font=font)[2] - dummy_draw.textbbox((0, 0), sub + ch, font=font)[0]
-                        if sub_w <= max_text_width:
-                            sub += ch
-                        else:
-                            if sub:
-                                wrapped_lines.append(sub)
-                            sub = ch
-                    current_line = sub
-        if current_line:
-            wrapped_lines.append(current_line)
+        # If the line already fits within receipt printable width, keep segments intact (preserves column spaces)
+        if total_w <= max_text_width:
+            wrapped_rows.append(segs)
+        else:
+            wrapped_rows.extend(wrap_segments(segs, fonts, max_text_width))
 
     line_spacing = int(font_size * 0.35)
     line_height = int(font_size * 1.3)
-    total_height = margin * 2 + len(wrapped_lines) * (line_height + line_spacing)
+    total_height = margin * 2 + len(wrapped_rows) * (line_height + line_spacing)
 
     canvas = Image.new("L", (PRINT_WIDTH, total_height), 255)
     draw = ImageDraw.Draw(canvas)
@@ -487,11 +613,15 @@ def render_text_to_bitmap(text: str, font_size: int = 22, strength: int = 7) -> 
     stroke = 1 if strength >= 5 else 0
 
     y = margin
-    for line in wrapped_lines:
-        if line.startswith("---") or line.startswith("==="):
+    for row in wrapped_rows:
+        if len(row) == 1 and row[0][1] == "divider":
             draw.line([(margin, y + line_height // 2), (PRINT_WIDTH - margin, y + line_height // 2)], fill=0, width=2)
         else:
-            draw.text((margin, y), line, font=font, fill=0, stroke_width=stroke)
+            curr_x = float(margin)
+            for txt, scr in row:
+                f = fonts.get(scr, fonts["latin"])
+                draw.text((curr_x, y), txt, font=f, fill=0, stroke_width=stroke)
+                curr_x += f.getlength(txt)
         y += line_height + line_spacing
 
     return canvas

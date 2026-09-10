@@ -487,6 +487,23 @@ def test_universal_multilingual_printing():
     print(f" [OK] All {len(test_languages)} international language scripts rendered cleanly with high contrast")
 
 
+def test_mixed_multi_script_rendering():
+    print("--> Testing Mixed Multi-Script & Emoji Rendering Pipeline...")
+    mixed_samples = [
+        "Receipt 🧾 Express Print 🚀 Rating ⭐⭐⭐⭐⭐ Success ✔️",
+        "সাজ্জাদ স্টোর 🇧🇩 - চাল ৫ কেজি 🌾 ৳৫০০ • Rating ⭐⭐⭐",
+        "Coffee ☕ $5.00 | 欢迎光临 • شكراً لزيارتكم",
+    ]
+
+    for line in mixed_samples:
+        bmp = printer_ble.render_text_to_bitmap(line, font_size=22, strength=7)
+        assert bmp.size[0] == 384
+        black_count = sum(1 for p in bmp.getdata() if p < 128)
+        assert black_count > 1000, f"Too few black pixels for mixed line: {line}"
+
+    print(" [OK] Mixed script text (English + Emoji + Bengali + Arabic + CJK) rendered cleanly without missing boxes")
+
+
 if __name__ == "__main__":
     test_sqlite_api_keys()
     test_auth_and_ui_pages()
@@ -495,4 +512,5 @@ if __name__ == "__main__":
     test_stop_print_flow()
     test_bangla_unicode_text_printing()
     test_universal_multilingual_printing()
-    print("\n🎉 ALL TESTS (UNIVERSAL MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
+    test_mixed_multi_script_rendering()
+    print("\n🎉 ALL TESTS (MIXED SCRIPTS, UNIVERSAL MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
