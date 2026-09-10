@@ -343,10 +343,9 @@ def load_cross_platform_font(font_size: int = 22, text: Optional[str] = None) ->
             except Exception:
                 pass
 
-        # Specific fallbacks for Bengali
+        # Fallbacks for Bengali (system font locations on macOS, Linux, Windows)
         if script == "bengali":
             bangla_fallbacks = [
-                "/Users/sayem/Works/Laravel/prm.sajjadamin.com/resources/fonts/SolaimanLipi.ttf",
                 "/System/Library/Fonts/Supplemental/Bangla Sangam MN.ttc",
                 "/System/Library/Fonts/Supplemental/Bangla MN.ttc",
                 "/System/Library/Fonts/Supplemental/KohinoorBangla.ttc",
