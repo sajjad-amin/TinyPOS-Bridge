@@ -50,10 +50,29 @@
             </div>
             <div class="card-body p-4">
                 <div class="mb-3">
-                    <label for="receipt-text" class="form-label small fw-bold text-muted text-uppercase">Receipt Content</label>
-                    <textarea id="receipt-text" class="form-control font-monospace" rows="5" style="font-size: 0.85rem;">TinyPOS Thermal Bridge
-বাংলা টেস্ট প্রিন্ট সফল হয়েছে!
-Order #1001 • ৳৫০০</textarea>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label for="receipt-text" class="form-label small fw-bold text-muted text-uppercase mb-0">Receipt Content</label>
+                        <div class="d-flex align-items-center gap-1">
+                            <label for="sample-lang-select" class="small text-muted mb-0 me-1" style="font-size: 0.78rem;">
+                                <i class="bi bi-translate text-primary me-1"></i>Language:
+                            </label>
+                            <select id="sample-lang-select" class="form-select form-select-sm py-0 ps-2 pe-4" style="font-size: 0.78rem; width: auto;" onchange="loadLanguageSample(this.value)">
+                                <option value="bengali" selected>Bengali (বাংলা)</option>
+                                <option value="english">English (Latin)</option>
+                                <option value="arabic">Arabic (العربية)</option>
+                                <option value="hindi">Hindi / Devanagari (हिन्दी)</option>
+                                <option value="chinese">Chinese (中文)</option>
+                                <option value="japanese">Japanese (日本語)</option>
+                                <option value="korean">Korean (한국어)</option>
+                                <option value="russian">Russian / Cyrillic (Русский)</option>
+                                <option value="thai">Thai (ไทย)</option>
+                                <option value="tamil">Tamil (தமிழ்)</option>
+                                <option value="telugu">Telugu (తెలుగు)</option>
+                                <option value="emoji">Symbols & Emojis</option>
+                            </select>
+                        </div>
+                    </div>
+                    <textarea id="receipt-text" class="form-control font-monospace" rows="4" style="font-size: 0.85rem;">আমার সোনার বাংলা, আমি তোমায় ভালোবাসি</textarea>
                 </div>
 
                 <div class="row g-3 mb-3">
@@ -496,6 +515,27 @@ Order #1001 • ৳৫০০</textarea>
             }
         } catch (e) {
             showToast('Error sending feed command', 'text-bg-danger');
+        }
+    }
+
+    const LANGUAGE_SAMPLES = {
+        bengali: "আমার সোনার বাংলা, আমি তোমায় ভালোবাসি",
+        english: "To be, or not to be, that is the question.",
+        arabic: "خير الكلام ما قل ودل",
+        hindi: "सारे जहाँ से अच्छा, हिन्दोसितां हमारा",
+        chinese: "千里之行，始于足下",
+        japanese: "七転び八起き、明日は明日の風が吹く",
+        korean: "시작이 반이다, 고생 끝에 낙이 온다",
+        russian: "Красота спасёт мир — Фёдор Достоевский",
+        thai: "ความพยายามอยู่ที่ไหน ความสำเร็จอยู่ที่นั่น",
+        tamil: "யாதும் ஊரே யாவரும் கேளிர்",
+        telugu: "దేశభాషలందు తెలుగు లెస్స",
+        emoji: "Receipt 🧾 Express Print 🚀 Rating ⭐⭐⭐⭐⭐ Success ✔️"
+    };
+
+    function loadLanguageSample(lang) {
+        if (LANGUAGE_SAMPLES[lang]) {
+            document.getElementById('receipt-text').value = LANGUAGE_SAMPLES[lang];
         }
     }
 
