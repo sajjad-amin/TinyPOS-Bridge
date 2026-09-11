@@ -1,44 +1,78 @@
-# Python Virtual Environments
+# ==============================================================================
+# Python & Virtual Environments
+# ==============================================================================
 .venv/
 venv/
 env/
 ENV/
+*.egg-info/
+.eggs/
 
-# Python Cache & Bytecode
+# ==============================================================================
+# Bytecode & Caches
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.coverage
+htmlcov/
 
-# Environment Variables & Secrets
+# ==============================================================================
+# Environment Configuration & Secrets
+# ==============================================================================
 .env
 .env.*
 !.env.example
 
-# SQLite Databases & Local Storage
+# ==============================================================================
+# Databases & Local Storage
+# ==============================================================================
 tinypos.db
 *.db
 *.sqlite
 *.sqlite3
 api_keys.json
 
-# Operating System & IDE
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Temporary Files & Logs
-*.log
-temp_*
-sample.txt
-
-# PyInstaller & Build Artifacts
+# ==============================================================================
+# Build Artifacts & Standalone Packages
+# ==============================================================================
 build/
 dist/
 *.spec
 client-app/build/
 client-app/dist/
 client-app/*.spec
+client-app/icon/*.iconset/
+client-app/icon/preview_*.png
+.pyinstaller/
+client-app/.pyinstaller/
+*.app/
+*.exe
+*.dmg
+*.pkg
+
+# ==============================================================================
+# Operating System & Editors
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==============================================================================
+# Logs & Temporary Files
+# ==============================================================================
+*.log
+client-app/logs/
+temp_*
+sample.txt

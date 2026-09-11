@@ -27,17 +27,24 @@ It runs seamlessly on macOS, Linux, Raspberry Pi, and Windows, exposing both a m
 TinyPOS/
 ├── .env                # Local configuration (ADMIN_USERNAME, ADMIN_PASSWORD, PORT, HOST)
 ├── .env.example        # Environment configuration template
-├── .gitignore          # Rules for venv, caches, SQLite DBs, logs, and secrets
-├── requirements.txt    # Python dependencies
+├── .gitignore          # Rules for venv, caches, build artifacts, SQLite DBs, and logs
+├── requirements.txt    # Server Python dependencies (FastAPI, uvicorn, bleak, Pillow, etc.)
 ├── main.py             # FastAPI entrypoint & background cleaner lifecycle
-├── printer_ble.py      # BLE printer connection & hardware transport driver
+├── printer_ble.py      # Direct BLE printer connection & hardware transport driver
 ├── engine/             # Printing engine (text layout, fonts, protocol, bitmap rendering)
 ├── fonts/              # Cross-platform bundled fonts for universal script support
 ├── test_app.py         # Comprehensive automated test suite
 ├── tinypos.db          # SQLite database (auto-created on launch)
 ├── ecosystem.config.js # PM2 process manager configuration
 ├── server/             # Modular server core (auth, database, print service, routes)
-└── UI/                 # Web Dashboard (console, API keys, login, docs)
+├── UI/                 # Modern Web Dashboard (console, API keys, settings, docs)
+└── client-app/         # Native Desktop Menu Bar / System Tray client for Cloud Relay
+    ├── build.py        # Automated cross-platform standalone builder (macOS/Win/Linux)
+    ├── run.sh          # Quick launch script for desktop client
+    ├── requirements.txt# Client dependencies (bleak, websockets, Pillow, pyobjc/pystray)
+    ├── main.py         # Client launcher & platform selector
+    ├── icon/           # Squircle app icon assets (icon.icns, icon.ico, icon.png)
+    └── core/           # Tray UI, Bluetooth LE driver, and WebSocket relay worker
 ```
 
 ---
@@ -111,6 +118,7 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 | `GET` | `/api/print/preview/{job_id}` | Returns a 384px monochrome PNG preview of the rasterized receipt. |
 | `GET` | `/api/status` | Probes printer BLE connectivity and returns active transmission status (`is_printing`). |
 | `GET` | `/api/queue` | Returns paginated recent job history. |
+| `WebSocket` | `/ws/client` | **Cloud Relay Bridge:** Real-time bidirectional WebSocket stream for store client machines (authenticates via `?api_key=...&client_name=...`). |
 
 ---
 
@@ -253,6 +261,79 @@ curl -X POST https://pos.yourdomain.com/api/print/stop \
 - `strength` *(integer 1–7, default: `7`)*: Thermal head burning energy. Level `7` ensures high contrast and dark characters even on weak, aging, or thin thermal paper.
 - `font_size` *(integer, default: `22`)*: Size in points for text printing (recommended: 20–26pt for receipts).
 - `keepjob` / `keep_job` *(boolean, default: `false`)*: When `false`, job records and stored preview bitmaps are auto-purged from SQLite after 5 minutes, keeping disk footprint minimal. Set to `true` to preserve records permanently in history.
+
+---
+
+## Dual Bridge Architecture
+
+TinyPOS supports two distinct operational deployment modes:
+
+```
+MODE 1: Direct Local Bluetooth
+┌─────────────────────────┐      Direct BLE      ┌───────────────────────┐
+│ Web POS / Local Server  │ ───────────────────> │ Portable BLE Printer  │
+└─────────────────────────┘                      └───────────────────────┘
+
+MODE 2: Cloud Relay Mesh (Remote VPS Deployment)
+┌─────────────────────────┐
+│ Cloud Server (VPS)      │
+│ e.g. pos.sayem.top      │
+└────────────┬────────────┘
+             │  Bidirectional WebSocket (WSS)
+             ▼
+┌─────────────────────────┐      Local BLE       ┌───────────────────────┐
+│ TinyPOS Desktop Client  │ ───────────────────> │ Portable BLE Printer  │
+│ (Mac / Windows / Linux) │   Presence & RSSI    └───────────────────────┘
+└─────────────────────────┘
+```
+
+1. **Direct Local Bluetooth Mode:** Used when the TinyPOS server runs directly on the local store machine (e.g. Raspberry Pi, Mac Mini, Windows POS terminal) that has Bluetooth hardware in physical range of the printer.
+2. **Cloud Relay Mode:** Used when TinyPOS is hosted remotely on a VPS or cloud infrastructure (e.g. AWS, DigitalOcean, Ubuntu server) without local Bluetooth hardware:
+   - Remote store PCs run the lightweight **TinyPOS Desktop Client** (`client-app/`).
+   - Multiple store PCs can connect simultaneously across terminal groups.
+   - The cloud relay automatically detects which terminal is closest to the printer via BLE RSSI signal strength and routes jobs without collisions.
+
+---
+
+## TinyPOS Desktop Client (`client-app/`)
+
+The desktop client is a native Menu Bar / System Tray application designed to run quietly in the background on store machines.
+
+### Key Capabilities
+- **Native Look & Feel**: Uses native Cocoa AppKit on macOS (`NSStatusBar`, `NSMenu`, dynamic colored circle status badges) and `pystray` on Windows/Linux.
+- **1-Click Quick Setup**: Copy the WebSocket Connection URL from your TinyPOS server's **Settings** page and click the **📋 Paste** button (or press `Cmd+V` / `Ctrl+V`) to automatically populate Server URL, API Key, and Terminal Name.
+- **Dynamic Status Icons**:
+  - 🟢 **Green**: Connected to Cloud Relay & Bluetooth Printer Ready.
+  - 🟡 **Yellow**: Connected to Cloud Relay, but Printer is Offline or Out of Bluetooth Range.
+  - 🔴 **Red**: Disconnected from Cloud Relay / Reconnecting.
+  - ⚪ **Gray**: Unconfigured.
+- **BLE Resiliency**: Built-in 4-scan debouncing, 25-second post-print cooldown grace period, and device memory to prevent false offline drops on macOS CoreBluetooth duplicate filtering.
+
+### Running in Development
+```bash
+./client-app/run.sh
+```
+*or directly:*
+```bash
+./.venv/bin/python client-app/main.py
+```
+
+### Packaging Standalone Binaries (`build.py`)
+
+You can compile TinyPOS into a single standalone application without needing Python installed on the target machine:
+
+```bash
+cd client-app
+python3 build.py
+```
+
+| Platform | Output Artifact | Description |
+|---|---|---|
+| **macOS** | `dist/TinyPOS.app` | Native macOS Application Bundle with Retina `icon.icns`, background menu bar mode, and Cocoa Edit shortcuts. |
+| **Windows** | `dist/TinyPOS.exe` | Single-file standalone executable with embedded `icon.ico` and no console window. |
+| **Linux** | `dist/TinyPOS` | Single-file standalone binary with `icon.png` and system tray integration. |
+
+*Note: All intermediate build caches (`build/`, `.spec` files, `__pycache__`) are automatically removed immediately upon build completion.*
 
 ---
 
