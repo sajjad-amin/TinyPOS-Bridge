@@ -16,10 +16,10 @@ pillow==12.3.0
 pydantic==2.13.5
 pydantic_core==2.46.5
 pymupdf==1.28.2
-pyobjc-core==12.2.2
-pyobjc-framework-Cocoa==12.2.2
-pyobjc-framework-CoreBluetooth==12.2.2
-pyobjc-framework-libdispatch==12.2.2
+pyobjc-core==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-Cocoa==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-CoreBluetooth==12.2.2; sys_platform == 'darwin'
+pyobjc-framework-libdispatch==12.2.2; sys_platform == 'darwin'
 python-dotenv==1.2.3
 python-multipart==0.0.32
 PyYAML==6.0.3

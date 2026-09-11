@@ -3,7 +3,7 @@ Image, PDF, and text rasterization rendering into 384px thermal bitmaps.
 """
 
 import io
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from PIL import Image, ImageDraw, ImageEnhance
 
 try:
