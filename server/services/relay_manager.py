@@ -314,6 +314,11 @@ class RelayManager:
             if fut and not fut.done():
                 fut.set_result((False, f"Terminal {client['client_name']} error: {error}"))
 
+        elif msg_type == "feed_paper_result":
+            success = bool(data.get("success", False))
+            msg = data.get("message", "Paper fed")
+            logger.info(f"Terminal '{client['client_name']}' feed_paper result: success={success}, msg={msg}")
+
     async def dispatch_job_to_client(
         self,
         job_id: str,
@@ -444,14 +449,18 @@ class RelayManager:
 
     async def feed_paper(self, group: Optional[str] = None) -> Tuple[bool, str]:
         """Send feed paper command through active roaming terminal in group."""
-        target = self.get_active_printing_client(group=group)
+        target = self._get_raw_active_client(group=group)
         if not target:
             group_label = f" in group '{group}'" if group else ""
             return False, f"No active terminal{group_label} with thermal printer online."
 
+        target_ws: WebSocket = target.get("ws")
+        if not target_ws:
+            return False, "Active terminal WebSocket is disconnected."
+
         try:
-            await target["ws"].send_json({"type": "feed_paper"})
-            return True, f"Feed paper command sent to {target.get('client_name')}."
+            await target_ws.send_json({"type": "feed_paper"})
+            return True, f"Feed paper command sent to {target.get('client_name', 'Terminal')}."
         except Exception as e:
             return False, str(e)
 
