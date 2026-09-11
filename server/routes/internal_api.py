@@ -9,31 +9,30 @@ from PIL import Image
 import printer_ble
 from server.auth import require_login
 import server.db as db
+from server.services.print_service import (
+    dispatch_bitmap_print,
+    feed_paper_cmd,
+    get_system_printer_status,
+    stop_print_job,
+)
+from server.services.relay_manager import relay_manager
 
 internal_api_router = APIRouter(prefix="/api/internal", dependencies=[Depends(require_login)])
 
 
 @internal_api_router.get("/status")
 async def internal_status():
-    """Probe BLE thermal printer online/offline status."""
-    return await printer_ble.get_printer_status()
+    """Probe printer status (local BLE or Cloud Relay depending on active mode)."""
+    return await get_system_printer_status()
 
 
 @internal_api_router.post("/feed")
 async def internal_feed():
-    """Trigger manual paper feed command."""
-    try:
-        device = await printer_ble.scan_for_printer(timeout=4.0)
-        if not device:
-            return {"success": False, "error": "Printer not found"}
-
-        from bleak import BleakClient
-        async with BleakClient(device) as client:
-            tx_char = "0000ae01-0000-1000-8000-00805f9b34fb"
-            await client.write_gatt_char(tx_char, printer_ble.CMD_FEED_PAPER, response=False)
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    """Trigger manual paper feed command (Bluetooth or Cloud Relay)."""
+    success, err_or_msg = await feed_paper_cmd()
+    if success:
+        return {"success": True, "message": err_or_msg}
+    return {"success": False, "error": err_or_msg}
 
 
 class InternalPrintTextRequest(BaseModel):
@@ -67,7 +66,7 @@ async def internal_print_text(payload: InternalPrintTextRequest):
             autocrop=True,
             keep_job=payload.keep_job,
         )
-        success, msg = await printer_ble.send_bitmap_to_printer(bitmap, strength=payload.strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=payload.strength, job_id=job_id)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status}
@@ -78,8 +77,8 @@ async def internal_print_text(payload: InternalPrintTextRequest):
 @internal_api_router.post("/stop")
 async def internal_stop_print():
     """Stop the currently transmitting print job immediately."""
-    active_id = printer_ble.get_active_job_id()
-    stopped, msg = printer_ble.stop_printing()
+    active_id = printer_ble.get_active_job_id() or relay_manager.get_active_job_id()
+    stopped, msg = await stop_print_job(active_id)
     if active_id:
         db.update_job_status(active_id, "cancelled", error="Stopped by user from test console")
     return {"success": stopped, "message": msg, "job_id": active_id}
@@ -88,9 +87,9 @@ async def internal_stop_print():
 @internal_api_router.post("/jobs/{job_id}/stop")
 async def internal_stop_job(job_id: str):
     """Stop a specific print job if it is currently printing or pending."""
-    active_id = printer_ble.get_active_job_id()
-    if active_id == job_id or (printer_ble.is_printing() and not active_id):
-        stopped, msg = printer_ble.stop_printing()
+    active_id = printer_ble.get_active_job_id() or relay_manager.get_active_job_id()
+    if active_id == job_id or (printer_ble.is_printing() and not active_id) or (relay_manager.is_printing() and not active_id):
+        stopped, msg = await stop_print_job(job_id)
         db.update_job_status(job_id, "cancelled", error="Stopped by user from test console")
         return {"success": True, "message": "Print job stopped successfully"}
 
@@ -99,7 +98,7 @@ async def internal_stop_job(job_id: str):
         db.update_job_status(job_id, "cancelled", error="Cancelled by user before printing")
         return {"success": True, "message": "Pending print job cancelled"}
     elif job and job["status"] == "printing":
-        printer_ble.stop_printing()
+        await stop_print_job(job_id)
         db.update_job_status(job_id, "cancelled", error="Stopped by user")
         return {"success": True, "message": "Print job marked stopped"}
 
@@ -173,7 +172,7 @@ async def internal_print_qr(payload: InternalPrintQRRequest):
             autocrop=False,
             keep_job=payload.keep_job,
         )
-        success, msg = await printer_ble.send_bitmap_to_printer(bitmap, strength=payload.strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=payload.strength, job_id=job_id)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status}
@@ -224,7 +223,7 @@ async def internal_print_file(
             autocrop=autocrop,
             keep_job=keep_job,
         )
-        success, msg = await printer_ble.send_bitmap_to_printer(bitmap, strength=strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=strength, job_id=job_id)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status, "mode": active_mode}
@@ -312,7 +311,7 @@ async def internal_print_photo(
             autocrop=autocrop,
             keep_job=keep_job,
         )
-        success, msg = await printer_ble.send_bitmap_to_printer(bitmap, strength=strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=strength, job_id=job_id)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status, "preset": preset}
@@ -383,3 +382,119 @@ async def internal_clear_jobs(api_key: Optional[str] = Form(None)):
     """Bulk delete jobs, optionally filtered by api_key."""
     count = db.delete_jobs_by_filter(api_key=api_key)
     return {"success": True, "count": count, "message": f"Successfully deleted {count} jobs"}
+
+
+# ==========================================
+# Settings & Cloud Relay Control
+# ==========================================
+
+class UpdateModeRequest(BaseModel):
+    mode: str
+
+
+@internal_api_router.get("/settings")
+async def internal_get_settings():
+    """Retrieve system bridge settings and relay connection state."""
+    settings = db.get_all_settings()
+    mode = settings.get("bridge_mode", "bluetooth")
+    client_key = settings.get("client_api_key", "any")
+    clients = relay_manager.get_connected_clients_summary()
+    active_client = relay_manager.get_active_printing_client()
+    return {
+        "bridge_mode": mode,
+        "client_api_key": client_key,
+        "client_count": len(clients),
+        "clients": clients,
+        "active_client": active_client,
+        "is_client_connected": len(clients) > 0,
+        "is_printer_online": active_client is not None,
+    }
+
+
+@internal_api_router.post("/settings/mode")
+async def internal_set_mode(payload: UpdateModeRequest):
+    """Switch operating bridge mode ('bluetooth' or 'relay')."""
+    cleaned = payload.mode.lower().strip()
+    if cleaned not in ("bluetooth", "relay"):
+        return JSONResponse(status_code=400, content={"success": False, "message": "Mode must be 'bluetooth' or 'relay'"})
+    db.set_setting("bridge_mode", cleaned)
+    return {"success": True, "mode": cleaned, "message": f"Bridge mode switched to {cleaned}"}
+
+
+class UpdateClientKeyRequest(BaseModel):
+    client_api_key: str
+
+
+class CreateClientKeyRequest(BaseModel):
+    name: str
+    key: Optional[str] = None
+
+
+@internal_api_router.get("/client-keys")
+async def internal_list_client_keys():
+    """List all dedicated client terminal keys and their live connection status."""
+    keys = db.list_client_api_keys()
+    connected_keys = relay_manager.get_connected_api_keys()
+    result = []
+    for k in keys:
+        key_str = k["key"]
+        conn_info = connected_keys.get(key_str)
+        result.append({
+            "key": key_str,
+            "name": k["name"],
+            "created_at": k["created_at"],
+            "is_connected": conn_info is not None,
+            "client": conn_info,
+        })
+    return {"success": True, "client_keys": result}
+
+
+@internal_api_router.post("/client-keys")
+async def internal_create_client_key(payload: CreateClientKeyRequest):
+    """Create a new authorized Client API Key for store PC terminals."""
+    name = (payload.name or "").strip() or "Store Terminal"
+    key = (payload.key or "").strip()
+    if not key:
+        import secrets
+        key = "sk_client_" + secrets.token_hex(12)
+    created = db.insert_client_api_key(key, name)
+    return {"success": True, "client_key": created}
+
+
+@internal_api_router.delete("/client-keys/{key}")
+async def internal_delete_client_key(key: str):
+    """Delete a Client API Key and disconnect any active terminal using it."""
+    clean_key = (key or "").strip()
+    if not clean_key:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Key is required"})
+    await relay_manager.disconnect_by_api_key(clean_key)
+    deleted = db.delete_client_api_key(clean_key)
+    return {"success": deleted, "message": f"Client key '{clean_key}' deleted"}
+
+
+@internal_api_router.post("/settings/client-key")
+async def internal_set_client_key(payload: UpdateClientKeyRequest):
+    """Set the API key authorized for store client connection (backward compatibility)."""
+    key = payload.client_api_key.strip()
+    db.set_setting("client_api_key", key)
+    return {"success": True, "client_api_key": key, "message": "Client API key authorization updated"}
+
+
+@internal_api_router.get("/relay/status")
+async def internal_relay_status():
+    """Live status probe of Cloud Relay WebSocket client terminals & roaming presence."""
+    client_count = relay_manager.get_client_count()
+    clients = relay_manager.get_connected_clients_summary()
+    active_client = relay_manager.get_active_printing_client()
+    is_printer_online = active_client is not None
+    return {
+        "connected": client_count > 0,
+        "client_count": client_count,
+        "clients": clients,
+        "active_client": active_client,
+        "is_printer_online": is_printer_online,
+        "is_printing": relay_manager.is_printing(),
+        "active_job_id": relay_manager.get_active_job_id(),
+        # Backward compatibility with existing UI
+        "client": active_client or (clients[0] if clients else None),
+    }

@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from server.auth import get_current_user, require_login
 from server.config import get_admin_password, get_admin_username, templates
 import server.db as db
+from server.services.relay_manager import relay_manager
 
 web_router = APIRouter()
 
@@ -260,4 +261,103 @@ async def documentation_control_view(request: Request, _: str = Depends(require_
             "request_url_base": base_url,
         },
     )
+
+
+def get_websocket_url(request: Request, api_key: str = "") -> str:
+    """Construct WebSocket connection URL respecting reverse proxy scheme and host."""
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    ws_proto = "wss" if proto == "https" else "ws"
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if not host:
+        host = f"{request.url.hostname}:{request.url.port}" if request.url.port else (request.url.hostname or "localhost")
+    url = f"{ws_proto}://{host}/ws/client"
+    if api_key:
+        url += f"?api_key={api_key}"
+    return url
+
+
+# --- 4. Settings Routes ---
+@web_router.get("/settings", response_class=HTMLResponse)
+async def settings_view(request: Request, _: str = Depends(require_login)):
+    keys = db.list_api_keys()
+    client_keys = db.list_client_api_keys()
+    connected_keys = relay_manager.get_connected_api_keys()
+
+    # Enrich client keys with live connection info & WebSocket URL
+    for ck in client_keys:
+        k = ck["key"]
+        conn_info = connected_keys.get(k)
+        ck["is_connected"] = conn_info is not None
+        ck["connected_client"] = conn_info
+        ck["ws_url"] = get_websocket_url(request, api_key=k)
+
+    settings = db.get_all_settings()
+    bridge_mode = settings.get("bridge_mode", "bluetooth")
+
+    base_url = get_request_base_url(request)
+    first_client_key = client_keys[0]["key"] if client_keys else ""
+    ws_url = get_websocket_url(request, api_key=first_client_key)
+
+    is_client_connected = relay_manager.is_any_client_connected()
+    client_info = relay_manager.get_client_info()
+    clients = relay_manager.get_connected_clients_summary()
+    active_client = relay_manager.get_active_printing_client()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="settings/index.html",
+        context={
+            "active_page": "settings",
+            "title": "Settings | TinyPOS",
+            "bridge_mode": bridge_mode,
+            "client_keys": client_keys,
+            "api_keys": keys,
+            "request_url_base": base_url,
+            "ws_url": ws_url,
+            "is_client_connected": is_client_connected,
+            "client_info": client_info,
+            "clients": clients,
+            "active_client": active_client,
+            "client_count": len(clients),
+        },
+    )
+
+
+@web_router.post("/settings/mode")
+async def settings_mode_action(
+    mode: str = Form(...),
+    _: str = Depends(require_login),
+):
+    cleaned = mode.lower().strip()
+    if cleaned in ("bluetooth", "relay"):
+        db.set_setting("bridge_mode", cleaned)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/settings/client-keys/create")
+async def settings_create_client_key_action(
+    name: str = Form(...),
+    key: Optional[str] = Form(None),
+    _: str = Depends(require_login),
+):
+    clean_name = name.strip() or "Store Terminal"
+    clean_key = (key or "").strip()
+    if not clean_key:
+        clean_key = "sk_client_" + secrets.token_hex(12)
+    db.insert_client_api_key(clean_key, clean_name)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/settings/client-keys/delete")
+async def settings_delete_client_key_action(
+    key_to_delete: str = Form(...),
+    _: str = Depends(require_login),
+):
+    clean_key = key_to_delete.strip()
+    if clean_key:
+        await relay_manager.disconnect_by_api_key(clean_key)
+        db.delete_client_api_key(clean_key)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 

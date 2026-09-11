@@ -10,7 +10,11 @@ from PIL import Image
 import printer_ble
 from server.auth import verify_api_key
 import server.db as db
-from server.services.print_service import execute_print_job, schedule_job_cleanup
+from server.services.print_service import (
+    execute_print_job,
+    get_system_printer_status,
+    schedule_job_cleanup,
+)
 
 public_api_router = APIRouter(prefix="/api")
 
@@ -82,7 +86,7 @@ class GenerateQRRequest(BaseModel):
 @public_api_router.get("/status")
 async def check_status(_: str = Depends(verify_api_key)):
     """Probe thermal printer online/offline status."""
-    return await printer_ble.get_printer_status()
+    return await get_system_printer_status()
 
 
 @public_api_router.post("/print/raw")

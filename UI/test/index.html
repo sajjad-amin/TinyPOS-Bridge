@@ -16,8 +16,8 @@
 {% endblock %}
 
 {% block page_actions %}
-<button class="btn btn-outline-primary btn-sm" onclick="checkPrinterStatus(true)">
-    <i class="bi bi-arrow-repeat me-1" id="refresh-icon"></i> Scan Printer
+<button class="btn btn-outline-primary btn-sm" id="btn-scan-printer" onclick="checkPrinterStatus(true)">
+    <i class="bi bi-arrow-repeat me-1" id="refresh-icon"></i> <span id="scan-btn-text">Scan Printer</span>
 </button>
 {% endblock %}
 

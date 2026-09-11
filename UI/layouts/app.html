@@ -201,19 +201,29 @@
                                     </ul>
                                 </div>
                             </li>
+                            <li class="nav-item">
+                                <a href="/settings" class="nav-link {% if active_page == 'settings' %}active{% endif %}">
+                                    <i class="bi bi-gear me-2"></i>
+                                    Settings
+                                </a>
+                            </li>
                         </ul>
                     </div>
 
-                    <!-- Fixed / Sticky Bottom Section -->
-                    <div class="sidebar-footer p-3 border-top bg-body mt-auto">
+                    <!-- Fixed / Sticky Dynamic Bottom Section -->
+                    <div class="sidebar-footer p-3 border-top bg-body mt-auto" id="sidebar-footer-box">
                         <div class="small text-muted">
                             <div class="d-flex align-items-center justify-content-between mb-1">
-                                <span class="fw-medium">Hardware:</span>
-                                <span class="badge bg-primary-subtle text-primary">Bainiu / X6</span>
+                                <span class="fw-medium">Mode:</span>
+                                <span id="sidebar-mode-badge" class="badge bg-secondary-subtle text-secondary">Checking...</span>
                             </div>
-                            <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="fw-medium">Printer:</span>
+                                <span id="sidebar-printer-badge" class="badge bg-secondary-subtle text-secondary">Disconnected</span>
+                            </div>
+                            <div id="sidebar-width-row" class="d-flex align-items-center justify-content-between" style="display: none !important;">
                                 <span class="fw-medium">Width:</span>
-                                <span class="badge bg-secondary-subtle text-secondary">384 Dots (57mm)</span>
+                                <span id="sidebar-width-badge" class="badge bg-secondary-subtle text-secondary">384 Dots (57mm)</span>
                             </div>
                         </div>
                     </div>
@@ -258,6 +268,54 @@
                     localStorage.setItem('theme', newTheme);
                 });
             }
+
+            // Dynamic Sidebar Hardware & Mode Status Updater
+            async function updateSidebarStatus() {
+                try {
+                    const res = await fetch('/api/internal/status');
+                    const data = await res.json();
+                    const modeBadge = document.getElementById('sidebar-mode-badge');
+                    const printerBadge = document.getElementById('sidebar-printer-badge');
+                    const widthRow = document.getElementById('sidebar-width-row');
+
+                    if (!modeBadge || !printerBadge) return;
+
+                    if (data.mode === 'relay') {
+                        modeBadge.className = 'badge bg-info-subtle text-info border border-info-subtle';
+                        modeBadge.innerHTML = '<i class="bi bi-cloud-arrow-up me-1"></i>Cloud Relay';
+
+                        if (data.status === 'online') {
+                            const targetName = data.active_client ? (data.active_client.client_name || 'In Range') : 'Online';
+                            printerBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                            printerBadge.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>${targetName}`;
+                            if (widthRow) widthRow.setAttribute('style', 'display: flex !important;');
+                        } else {
+                            printerBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
+                            printerBadge.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Offline';
+                            if (widthRow) widthRow.setAttribute('style', 'display: none !important;');
+                        }
+                    } else {
+                        // Direct Bluetooth Mode
+                        modeBadge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle';
+                        modeBadge.innerHTML = '<i class="bi bi-bluetooth me-1"></i>Direct BLE';
+
+                        if (data.status === 'online') {
+                            printerBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                            printerBadge.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Bainiu / X6';
+                            if (widthRow) widthRow.setAttribute('style', 'display: flex !important;');
+                        } else {
+                            printerBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle';
+                            printerBadge.innerHTML = '<i class="bi bi-x-circle me-1"></i>Disconnected';
+                            if (widthRow) widthRow.setAttribute('style', 'display: none !important;');
+                        }
+                    }
+                } catch (err) {
+                    // Silently ignore during transient reloads
+                }
+            }
+
+            updateSidebarStatus();
+            setInterval(updateSidebarStatus, 4000);
         });
     </script>
     {% block scripts %}{% endblock %}

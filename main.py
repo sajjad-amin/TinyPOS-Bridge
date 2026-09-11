@@ -8,6 +8,7 @@ from server.config import HOST, PORT
 from server.routes.web import web_router
 from server.routes.internal_api import internal_api_router
 from server.routes.public_api import public_api_router
+from server.routes.websocket_api import websocket_api_router
 import server.db as db
 
 
@@ -54,6 +55,7 @@ app.add_middleware(
 app.include_router(web_router)
 app.include_router(internal_api_router)
 app.include_router(public_api_router)
+app.include_router(websocket_api_router)
 
 if __name__ == "__main__":
     print(f"Starting TinyPOS on http://{HOST}:{PORT}")

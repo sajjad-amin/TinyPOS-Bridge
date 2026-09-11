@@ -54,6 +54,24 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """)
+
+        # 3. Settings Table
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
+        # 4. Dedicated Client API Keys Table (Authorized Store PC Terminals)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS client_api_keys (
+                key TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
         conn.commit()
 
     # Clean up any expired temporary jobs on startup
@@ -61,6 +79,12 @@ def init_db():
 
     # Migrate any existing keys from api_keys.json
     migrate_api_keys_from_json()
+
+    # Ensure default settings exist
+    init_default_settings()
+
+    # Ensure default client API keys exist
+    init_default_client_api_keys()
 
 
 def migrate_api_keys_from_json():
@@ -87,15 +111,19 @@ def migrate_api_keys_from_json():
 
 
 # ==========================================
-# API Keys Operations
+# API Keys Operations (POS & External Software)
 # ==========================================
 
 def insert_api_key(key: str, name: str) -> Dict[str, Any]:
-    """Insert a new API key into SQLite."""
+    """Insert or update an API key in SQLite."""
     created_at = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y %I:%M %p")
     with get_connection() as conn:
         conn.execute(
-            "INSERT INTO api_keys (key, name, created_at) VALUES (?, ?, ?)",
+            """
+            INSERT INTO api_keys (key, name, created_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET name = excluded.name
+            """,
             (key, name, created_at),
         )
         conn.commit()
@@ -132,6 +160,138 @@ def is_valid_api_key(key: Optional[str]) -> bool:
     with get_connection() as conn:
         cur = conn.execute("SELECT 1 FROM api_keys WHERE key = ?", (key,))
         return cur.fetchone() is not None
+
+
+# ==========================================
+# Client API Keys Operations (Store Terminals)
+# ==========================================
+
+def insert_client_api_key(key: str, name: str) -> Dict[str, Any]:
+    """Insert or update an authorized Client API key for store terminals."""
+    created_at = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y %I:%M %p")
+    clean_key = (key or "").strip()
+    clean_name = (name or "").strip() or "Store Terminal"
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO client_api_keys (key, name, created_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET name = excluded.name
+            """,
+            (clean_key, clean_name, created_at),
+        )
+        conn.commit()
+    return {"key": clean_key, "name": clean_name, "created_at": created_at}
+
+
+def list_client_api_keys() -> List[Dict[str, Any]]:
+    """List all authorized Client API keys."""
+    with get_connection() as conn:
+        cur = conn.execute("SELECT key, name, created_at FROM client_api_keys ORDER BY created_at DESC")
+        return [dict(r) for r in cur.fetchall()]
+
+
+def get_client_api_key(key: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Retrieve a single Client API key by string."""
+    if not key:
+        return None
+    with get_connection() as conn:
+        cur = conn.execute("SELECT key, name, created_at FROM client_api_keys WHERE key = ?", (key.strip(),))
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
+def delete_client_api_key(key: str) -> bool:
+    """Delete a Client API key by string."""
+    if not key:
+        return False
+    with get_connection() as conn:
+        cur = conn.execute("DELETE FROM client_api_keys WHERE key = ?", (key.strip(),))
+        conn.commit()
+        return cur.rowcount > 0
+
+
+def is_valid_client_api_key(key: Optional[str]) -> bool:
+    """Check if key is authorized for client terminal WebSocket connections."""
+    if not key:
+        return False
+    with get_connection() as conn:
+        cur = conn.execute("SELECT 1 FROM client_api_keys WHERE key = ?", (key.strip(),))
+        return cur.fetchone() is not None
+
+
+def init_default_client_api_keys():
+    """Ensure baseline client API keys exist for initial setup."""
+    with get_connection() as conn:
+        cur = conn.execute("SELECT COUNT(*) as cnt FROM client_api_keys")
+        count = cur.fetchone()["cnt"]
+        if count == 0:
+            now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y %I:%M %p")
+            # If user already used a key in testing, pre-populate it so their command works
+            cur2 = conn.execute("SELECT key, name FROM api_keys LIMIT 2")
+            existing = cur2.fetchall()
+            if existing:
+                for row in existing:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO client_api_keys (key, name, created_at) VALUES (?, ?, ?)",
+                        (row["key"], row["name"], now_str),
+                    )
+            else:
+                conn.execute(
+                    "INSERT INTO client_api_keys (key, name, created_at) VALUES (?, ?, ?)",
+                    ("sk_client_office_live_key", "Office", now_str),
+                )
+            conn.commit()
+
+
+# ==========================================
+# Application Settings Operations
+# ==========================================
+
+def init_default_settings():
+    """Ensure baseline system settings exist."""
+    current_mode = get_setting("bridge_mode")
+    if current_mode is None:
+        set_setting("bridge_mode", "bluetooth")
+
+    # If client_api_key not set, pick the first existing key or leave empty
+    client_key = get_setting("client_api_key")
+    if client_key is None:
+        keys = list_api_keys()
+        if keys:
+            set_setting("client_api_key", keys[0]["key"])
+
+
+def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Retrieve a setting string value by key."""
+    with get_connection() as conn:
+        cur = conn.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        row = cur.fetchone()
+        return row["value"] if row else default
+
+
+def set_setting(key: str, value: str) -> None:
+    """Insert or update a setting value."""
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO settings (key, value, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at
+            """,
+            (key, str(value), now_iso),
+        )
+        conn.commit()
+
+
+def get_all_settings() -> Dict[str, str]:
+    """Return all settings as a dictionary."""
+    with get_connection() as conn:
+        cur = conn.execute("SELECT key, value FROM settings")
+        return {row["key"]: row["value"] for row in cur.fetchall()}
 
 
 # ==========================================

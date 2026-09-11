@@ -133,7 +133,7 @@ def test_auth_and_ui_pages():
     for path, title_snippet, endpoint_snippet in subpages:
         sub_res = client.get(path, cookies=cookies)
         assert sub_res.status_code == 200
-        assert title_snippet in sub_res.text
+        assert (title_snippet in sub_res.text or title_snippet.replace("&", "&amp;") in sub_res.text)
         assert endpoint_snippet in sub_res.text
         assert "docSubmenu" in sub_res.text
         print(f" [OK] {path} rendered cleanly with submenu and {endpoint_snippet}")
@@ -750,6 +750,180 @@ def test_photo_dithering_and_direct_qr():
     db.delete_api_key(test_key)
 
 
+def test_settings_and_cloud_relay():
+    print("--> Testing Settings UI, Mode Switching & Cloud Relay WebSocket...")
+    from starlette.websockets import WebSocketDisconnect
+    from server.services.relay_manager import relay_manager
+
+    # 1. Ensure test API key and client API key exist
+    test_key = "sk_test_relay_key_456"
+    db.insert_api_key(key=test_key, name="Relay Store PC")
+    db.insert_client_api_key(key=test_key, name="Relay Store PC")
+
+    # 2. Test database settings & client keys operations
+    db.set_setting("bridge_mode", "bluetooth")
+    assert db.get_setting("bridge_mode") == "bluetooth"
+    all_s = db.get_all_settings()
+    assert all_s["bridge_mode"] == "bluetooth"
+
+    # Dedicated client keys CRUD test
+    ck_list = db.list_client_api_keys()
+    assert any(k["key"] == test_key for k in ck_list)
+    assert db.is_valid_client_api_key(test_key) is True
+    assert db.is_valid_client_api_key("non_existent_key") is False
+    print(" [OK] Database settings and dedicated client_api_keys CRUD verified")
+
+    # 3. Test unauthenticated access to /settings redirects to login
+    client.cookies.clear()
+    res_unauth = client.get("/settings", follow_redirects=False)
+    assert res_unauth.status_code in (302, 307)
+    assert res_unauth.headers["location"] == "/login"
+
+    # 4. Authenticate session
+    auth_cookies = {"tinypos_session": "admin_authenticated"}
+    res_ui = client.get("/settings", cookies=auth_cookies)
+    assert res_ui.status_code == 200
+    assert "Bridge &amp; Relay Settings" in res_ui.text or "Bridge & Relay Settings" in res_ui.text
+    assert "Direct Bluetooth" in res_ui.text
+    assert "Cloud Relay" in res_ui.text
+    assert "Client Terminal Authorization Keys" in res_ui.text
+    assert test_key in res_ui.text
+    print(" [OK] GET /settings UI view rendered with dedicated Client Keys table")
+
+    # Test create client key via UI route
+    new_test_ck = "sk_client_office_test_888"
+    create_ck_res = client.post(
+        "/settings/client-keys/create",
+        data={"name": "Office Register", "key": new_test_ck},
+        cookies=auth_cookies,
+        follow_redirects=False,
+    )
+    assert create_ck_res.status_code == 303
+    assert db.is_valid_client_api_key(new_test_ck) is True
+    print(" [OK] POST /settings/client-keys/create created new client key into SQLite")
+
+    # Test delete client key via UI route
+    del_ck_res = client.post(
+        "/settings/client-keys/delete",
+        data={"key_to_delete": new_test_ck},
+        cookies=auth_cookies,
+        follow_redirects=False,
+    )
+    assert del_ck_res.status_code == 303
+    assert db.is_valid_client_api_key(new_test_ck) is False
+    print(" [OK] POST /settings/client-keys/delete deleted client key cleanly")
+
+    # 5. Test internal settings API endpoints
+    res_get_set = client.get("/api/internal/settings", cookies=auth_cookies)
+    assert res_get_set.status_code == 200
+    assert res_get_set.json()["bridge_mode"] == "bluetooth"
+
+    # Test internal client-keys API
+    res_int_ck = client.get("/api/internal/client-keys", cookies=auth_cookies)
+    assert res_int_ck.status_code == 200
+    assert res_int_ck.json()["success"] is True
+    assert any(k["key"] == test_key for k in res_int_ck.json()["client_keys"])
+
+    # Switch mode via API
+    res_mode = client.post("/api/internal/settings/mode", json={"mode": "relay"}, cookies=auth_cookies)
+    assert res_mode.status_code == 200
+    assert res_mode.json()["success"] is True
+    assert db.get_setting("bridge_mode") == "relay"
+    print(" [OK] Switched bridge mode to 'relay' via internal API")
+
+    # Check /api/status respects relay mode without client
+    res_status = client.get("/api/status", headers={"X-API-Key": test_key})
+    assert res_status.status_code == 200
+    status_data = res_status.json()
+    assert status_data["status"] == "offline"
+    assert status_data["mode"] == "relay"
+    print(" [OK] /api/status reports 'relay' mode without attempting BLE scan")
+
+    # 6. Test WebSocket client connection rejection on bad API key
+    try:
+        with client.websocket_connect("/ws/client?api_key=bad_key_xyz") as ws:
+            pass
+        assert False, "Should have rejected bad API key"
+    except WebSocketDisconnect as e:
+        assert e.code == 1008
+        print(" [OK] WebSocket connection rejected unauthorized key with code 1008")
+
+    # 7. Test successful WebSocket connection with valid key
+    with client.websocket_connect(f"/ws/client?api_key={test_key}&client_name=Store_POS_Terminal_1") as ws:
+        # Welcome message
+        welcome = ws.receive_json()
+        assert welcome["type"] == "welcome"
+        assert relay_manager.is_client_connected() is True
+        print(" [OK] WebSocket client connected and received welcome packet")
+
+        # Live status probe
+        client_info = relay_manager.get_client_info()
+        assert client_info is not None
+        assert client_info["client_name"] == "Store_POS_Terminal_1"
+
+        # Ping-Pong heartbeat
+        ws.send_json({"type": "ping"})
+        pong = ws.receive_json()
+        assert pong["type"] == "pong"
+        print(" [OK] Ping-pong heartbeat over WebSocket verified")
+
+        # Client printer status reporting
+        ws.send_json({
+            "type": "printer_status",
+            "status": "online",
+            "printer_name": "X6 Portable Thermal",
+            "address": "DC:0D:30:11:22:33",
+        })
+
+        # Internal relay status probe
+        res_relay_stat = client.get("/api/internal/relay/status", cookies=auth_cookies)
+        assert res_relay_stat.status_code == 200
+        relay_json = res_relay_stat.json()
+        assert relay_json["connected"] is True
+        assert relay_json["client"]["printer_status"]["device_name"] == "X6 Portable Thermal"
+        print(" [OK] Live relay status probe and printer status telemetry verified")
+
+        # 8. Test Multi-Terminal Roaming Proximity & Mesh Resolution
+        # Create second authorized client key for Office Mac
+        key_office = "sk_client_office_mac_999"
+        db.insert_client_api_key(key=key_office, name="Office Mac")
+        with client.websocket_connect(f"/ws/client?api_key={key_office}&client_name=Office_Mac_Mini") as ws2:
+            welcome2 = ws2.receive_json()
+            assert welcome2["type"] == "welcome"
+            assert relay_manager.get_client_count() == 2
+            print(" [OK] Connected second client terminal simultaneously (Office_Mac_Mini)")
+
+            # Terminal 2 reports closer signal (RSSI: -42 dBm) than Terminal 1 (RSSI: -70 dBm)
+            ws.send_json({"type": "printer_status", "status": "online", "printer_name": "X6 Thermal", "rssi": -70})
+            ws2.send_json({"type": "printer_status", "status": "online", "printer_name": "X6 Thermal", "rssi": -42})
+
+            res_roam1 = client.get("/api/internal/relay/status", cookies=auth_cookies)
+            assert res_roam1.status_code == 200
+            roam1_json = res_roam1.json()
+            assert roam1_json["client_count"] == 2
+            assert roam1_json["active_client"]["client_name"] == "Office_Mac_Mini"
+            print(" [OK] Roaming Mesh correctly selected closest terminal (Office_Mac_Mini at -42 dBm vs -70 dBm)")
+
+            # Now portable printer moves closer to Terminal 1 (RSSI: -35 dBm)
+            ws.send_json({"type": "printer_status", "status": "online", "printer_name": "X6 Thermal", "rssi": -35})
+            res_roam2 = client.get("/api/internal/relay/status", cookies=auth_cookies)
+            roam2_json = res_roam2.json()
+            assert roam2_json["active_client"]["client_name"] == "Store_POS_Terminal_1"
+            print(" [OK] Roaming Mesh automatically shifted active target to Store_POS_Terminal_1 as printer moved")
+
+        db.delete_client_api_key(key_office)
+
+    # 9. After client disconnects, status updates
+    assert relay_manager.is_client_connected() is False
+    print(" [OK] Client disconnection cleanly detected and unregistered")
+
+    # 10. Reset bridge mode back to bluetooth
+    db.set_setting("bridge_mode", "bluetooth")
+    db.delete_api_key(test_key)
+    db.delete_client_api_key(test_key)
+    print(" [OK] Reset operating mode back to default 'bluetooth'")
+
+
 if __name__ == "__main__":
     test_sqlite_api_keys()
     test_auth_and_ui_pages()
@@ -761,4 +935,6 @@ if __name__ == "__main__":
     test_mixed_multi_script_rendering()
     test_qr_code_rendering_and_api()
     test_photo_dithering_and_direct_qr()
-    print("\n🎉 ALL TESTS (PHOTO DITHERING, DIRECT QR API, MODULAR UI, MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
+    test_settings_and_cloud_relay()
+    print("\n🎉 ALL TESTS (SETTINGS, CLOUD RELAY, WEBSOCKET, PHOTO DITHERING, DIRECT QR API, MODULAR UI, MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
+
