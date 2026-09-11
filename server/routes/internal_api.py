@@ -20,16 +20,53 @@ from server.services.relay_manager import relay_manager
 internal_api_router = APIRouter(prefix="/api/internal", dependencies=[Depends(require_login)])
 
 
+def validate_admin_printer_group() -> tuple[Optional[str], Optional[str]]:
+    """
+    Mandatory check: Ensures Cloud Relay mode has an assigned Admin Printer group
+    before executing jobs from the web test console, preventing prints from routing to other users' printers.
+    Returns (target_group, error_message).
+    """
+    mode = db.get_setting("bridge_mode", "bluetooth")
+    if mode == "relay":
+        admin_group = (db.get_setting("admin_printer_group") or "").strip()
+        if not admin_group:
+            return None, "Admin Printer group is not configured. Please assign an Admin Printer group in Settings before executing test page jobs."
+        groups = {g["name"] for g in db.list_client_groups()}
+        if admin_group not in groups:
+            return None, f"Configured Admin Printer group '{admin_group}' does not exist. Please assign an existing group in Settings."
+        return admin_group, None
+    return None, None
+
+
 @internal_api_router.get("/status")
 async def internal_status():
-    """Probe printer status (local BLE or Cloud Relay depending on active mode)."""
+    """Probe printer status (local BLE or Cloud Relay scoped strictly to the Admin Printer group)."""
+    mode = db.get_setting("bridge_mode", "bluetooth")
+    if mode == "relay":
+        admin_group = (db.get_setting("admin_printer_group") or "").strip()
+        if not admin_group:
+            return {
+                "status": "offline",
+                "mode": "relay",
+                "is_printing": False,
+                "printer_name": "Admin Printer Not Configured",
+                "address": "Unassigned",
+                "active_job_id": None,
+                "client_count": 0,
+                "group": None,
+                "message": "Admin Printer group is not configured. Please assign an Admin Printer group in Settings.",
+            }
+        return await get_system_printer_status(group=admin_group)
     return await get_system_printer_status()
 
 
 @internal_api_router.post("/feed")
 async def internal_feed():
-    """Trigger manual paper feed command (Bluetooth or Cloud Relay)."""
-    success, err_or_msg = await feed_paper_cmd()
+    """Trigger manual paper feed command (Bluetooth or Cloud Relay scoped to Admin Printer group)."""
+    target_group, err = validate_admin_printer_group()
+    if err:
+        return {"success": False, "error": err}
+    success, err_or_msg = await feed_paper_cmd(group=target_group)
     if success:
         return {"success": True, "message": err_or_msg}
     return {"success": False, "error": err_or_msg}
@@ -47,6 +84,10 @@ async def internal_print_text(payload: InternalPrintTextRequest):
     """Render and print text from the test console."""
     if not payload.text.strip():
         return {"success": False, "message": "Text is empty"}
+
+    target_group, err = validate_admin_printer_group()
+    if err:
+        return {"success": False, "message": err}
 
     try:
         bitmap = printer_ble.render_text_to_bitmap(
@@ -66,7 +107,7 @@ async def internal_print_text(payload: InternalPrintTextRequest):
             autocrop=True,
             keep_job=payload.keep_job,
         )
-        success, msg = await dispatch_bitmap_print(bitmap, strength=payload.strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=payload.strength, job_id=job_id, target_group=target_group)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status}
@@ -152,6 +193,10 @@ async def internal_print_qr(payload: InternalPrintQRRequest):
     if not payload.content.strip():
         return {"success": False, "message": "QR content cannot be empty"}
 
+    target_group, err = validate_admin_printer_group()
+    if err:
+        return {"success": False, "message": err}
+
     try:
         bitmap = printer_ble.render_qr_to_bitmap(
             content=payload.content,
@@ -172,7 +217,7 @@ async def internal_print_qr(payload: InternalPrintQRRequest):
             autocrop=False,
             keep_job=payload.keep_job,
         )
-        success, msg = await dispatch_bitmap_print(bitmap, strength=payload.strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=payload.strength, job_id=job_id, target_group=target_group)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status}
@@ -194,6 +239,10 @@ async def internal_print_file(
     content = await file.read()
     if not content:
         return {"success": False, "message": "File is empty"}
+
+    target_group, err = validate_admin_printer_group()
+    if err:
+        return {"success": False, "message": err}
 
     use_photo_mode = (str(mode).lower() == "photo") or bool(dither)
     active_mode = "photo" if use_photo_mode else "text"
@@ -223,7 +272,7 @@ async def internal_print_file(
             autocrop=autocrop,
             keep_job=keep_job,
         )
-        success, msg = await dispatch_bitmap_print(bitmap, strength=strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=strength, job_id=job_id, target_group=target_group)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status, "mode": active_mode}
@@ -285,6 +334,10 @@ async def internal_print_photo(
     if not content:
         return {"success": False, "message": "Uploaded photo file is empty"}
 
+    target_group, err = validate_admin_printer_group()
+    if err:
+        return {"success": False, "message": err}
+
     try:
         raw_img = Image.open(io.BytesIO(content))
         bitmap = printer_ble.render_photo_to_bitmap(
@@ -311,7 +364,7 @@ async def internal_print_photo(
             autocrop=autocrop,
             keep_job=keep_job,
         )
-        success, msg = await dispatch_bitmap_print(bitmap, strength=strength, job_id=job_id)
+        success, msg = await dispatch_bitmap_print(bitmap, strength=strength, job_id=job_id, target_group=target_group)
         final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
         db.update_job_status(job_id, final_status, error=None if success else msg)
         return {"success": success, "message": msg, "job_id": job_id, "status": final_status, "preset": preset}
@@ -398,11 +451,13 @@ async def internal_get_settings():
     settings = db.get_all_settings()
     mode = settings.get("bridge_mode", "bluetooth")
     client_key = settings.get("client_api_key", "any")
-    clients = relay_manager.get_connected_clients_summary()
-    active_client = relay_manager.get_active_printing_client()
+    admin_group = settings.get("admin_printer_group", "default")
+    clients = relay_manager.get_connected_clients_summary(group=admin_group if mode == "relay" else None)
+    active_client = relay_manager.get_active_printing_client(group=admin_group if mode == "relay" else None)
     return {
         "bridge_mode": mode,
         "client_api_key": client_key,
+        "admin_printer_group": admin_group,
         "client_count": len(clients),
         "clients": clients,
         "active_client": active_client,
@@ -419,6 +474,28 @@ async def internal_set_mode(payload: UpdateModeRequest):
         return JSONResponse(status_code=400, content={"success": False, "message": "Mode must be 'bluetooth' or 'relay'"})
     db.set_setting("bridge_mode", cleaned)
     return {"success": True, "mode": cleaned, "message": f"Bridge mode switched to {cleaned}"}
+
+
+class UpdateAdminGroupRequest(BaseModel):
+    admin_printer_group: str
+
+
+@internal_api_router.post("/settings/admin-group")
+async def internal_set_admin_group(payload: UpdateAdminGroupRequest):
+    """Assign which client terminal group can print admin jobs from the web test page."""
+    group_name = payload.admin_printer_group.strip()
+    groups = {g["name"] for g in db.list_client_groups()}
+    if group_name not in groups:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": f"Group '{group_name}' does not exist."}
+        )
+    db.set_setting("admin_printer_group", group_name)
+    return {
+        "success": True,
+        "admin_printer_group": group_name,
+        "message": f"Admin Printer assigned strictly to group '{group_name}'"
+    }
 
 
 class UpdateClientKeyRequest(BaseModel):
@@ -442,6 +519,7 @@ async def internal_list_client_keys():
         result.append({
             "key": key_str,
             "name": k["name"],
+            "group_name": k.get("group_name"),
             "created_at": k["created_at"],
             "is_connected": conn_info is not None,
             "client": conn_info,

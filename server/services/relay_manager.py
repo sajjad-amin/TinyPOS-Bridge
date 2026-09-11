@@ -35,8 +35,10 @@ class RelayManager:
         """Alias for is_any_client_connected for backward compatibility."""
         return self.is_any_client_connected()
 
-    def get_client_count(self) -> int:
-        """Return the number of connected store terminals."""
+    def get_client_count(self, group: Optional[str] = None) -> int:
+        """Return the number of connected store terminals (optionally filtered by group)."""
+        if group:
+            return len([c for c in self._clients.values() if c.get("group") == group])
         return len(self._clients)
 
     def is_printing(self) -> bool:
@@ -55,6 +57,7 @@ class RelayManager:
         return {
             "client_id": c.get("client_id"),
             "client_name": c.get("client_name", "Terminal"),
+            "group": c.get("group"),
             "ip": c.get("ip", "unknown"),
             "api_key": c.get("api_key", ""),
             "connected_at": c.get("connected_at", ""),
@@ -72,9 +75,12 @@ class RelayManager:
             },
         }
 
-    def _get_raw_active_client(self) -> Optional[Dict[str, Any]]:
-        """Internal resolver: returns raw client dict including ws object."""
-        candidates = [c for c in self._clients.values() if c.get("printer_online")]
+    def _get_raw_active_client(self, group: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Internal resolver: returns raw client dict including ws object, optionally scoped by group."""
+        candidates = [
+            c for c in self._clients.values()
+            if c.get("printer_online") and (group is None or c.get("group") == group)
+        ]
         if not candidates:
             return None
 
@@ -86,30 +92,31 @@ class RelayManager:
         sorted_candidates = sorted(candidates, key=sort_key, reverse=True)
         return sorted_candidates[0]
 
-    def get_active_printing_client(self) -> Optional[Dict[str, Any]]:
+    def get_active_printing_client(self, group: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Roaming Resolver: Finds the client terminal that currently has the portable
-        printer in Bluetooth range. If multiple PCs see the printer (e.g. in the same room),
-        selects the one with the strongest signal strength (highest RSSI / closest proximity).
-        Returns a sanitized JSON-serializable dictionary.
+        printer in Bluetooth range (optionally scoped to a client API group).
+        If multiple PCs see the printer, selects the one with strongest signal strength.
         """
-        raw = self._get_raw_active_client()
+        raw = self._get_raw_active_client(group=group)
         return self._sanitize_client(raw, is_active=True)
 
-    def is_printer_available(self) -> bool:
+    def is_printer_available(self, group: Optional[str] = None) -> bool:
         """Check if any connected terminal currently detects the thermal printer online."""
-        return self._get_raw_active_client() is not None
+        return self._get_raw_active_client(group=group) is not None
 
-    def get_connected_clients_summary(self) -> List[Dict[str, Any]]:
+    def get_connected_clients_summary(self, group: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Return a JSON-serializable list of all connected terminals, marking
         the one currently designated as the active roaming target.
         """
-        raw_target = self._get_raw_active_client()
+        raw_target = self._get_raw_active_client(group=group)
         active_id = raw_target.get("client_id") if raw_target else None
 
         results = []
         for cid, c in self._clients.items():
+            if group is not None and c.get("group") != group:
+                continue
             results.append(self._sanitize_client(c, is_active=(cid == active_id)))
         return results
 
@@ -189,6 +196,7 @@ class RelayManager:
         client_ip: str = "unknown",
         api_key: str = "",
         key_name: str = "",
+        group: Optional[str] = None,
         client_id: Optional[str] = None,
     ) -> str:
         """Register a new active client terminal WebSocket connection."""
@@ -200,6 +208,7 @@ class RelayManager:
                 "client_id": cid,
                 "client_name": client_name,
                 "key_name": key_name or client_name,
+                "group": group,
                 "ip": client_ip,
                 "api_key": api_key,
                 "ws": websocket,
@@ -210,7 +219,7 @@ class RelayManager:
                 "printer_address": None,
                 "rssi": None,
             }
-            logger.info(f"Relay client registered: '{client_name}' (Key: {key_name}, ID: {cid}) from {client_ip} [Total: {len(self._clients)}]")
+            logger.info(f"Relay client registered: '{client_name}' (Group: {group}, Key: {key_name}, ID: {cid}) from {client_ip} [Total: {len(self._clients)}]")
             return cid
 
     async def unregister(self, websocket: WebSocket):
@@ -312,33 +321,58 @@ class RelayManager:
         strength: int = 7,
         timeout: float = 60.0,
         preferred_client_id: Optional[str] = None,
+        target_group: Optional[str] = None,
     ) -> Tuple[bool, str]:
         """
         Smart Roaming Dispatcher:
         Resolves which connected terminal currently has the portable thermal printer
         in Bluetooth range and transmits the print job strictly to that terminal.
+        If target_group is specified, dispatches strictly within that client API group.
         """
-        if not self.is_any_client_connected():
-            return (
-                False,
-                "Cloud Relay mode is active, but no store terminals are currently connected. "
-                "Please run TinyPOS client software on your store machine.",
-            )
+        if target_group:
+            group_clients = [c for c in self._clients.values() if c.get("group") == target_group]
+            if not group_clients:
+                return (
+                    False,
+                    f"Cloud Relay: No store terminals connected in group '{target_group}'. Please connect a client terminal assigned to this group.",
+                )
+            target = None
+            if preferred_client_id:
+                for c in group_clients:
+                    if c.get("client_id") == preferred_client_id:
+                        target = c
+                        break
+            if not target:
+                target = self._get_raw_active_client(group=target_group)
 
-        # Select destination terminal
-        target = None
-        if preferred_client_id and preferred_client_id in self._clients:
-            target = self._clients[preferred_client_id]
+            if not target:
+                names = ", ".join(c.get("client_name", "Terminal") for c in group_clients)
+                return (
+                    False,
+                    f"Cloud Relay: {len(group_clients)} terminal(s) in group '{target_group}' connected ({names}), but portable printer is turned off or out of Bluetooth range."
+                )
         else:
-            target = self.get_active_printing_client()
+            if not self.is_any_client_connected():
+                return (
+                    False,
+                    "Cloud Relay mode is active, but no store terminals are currently connected. "
+                    "Please run TinyPOS client software on your store machine.",
+                )
 
-        if not target:
-            client_count = len(self._clients)
-            names = ", ".join(c.get("client_name", "Terminal") for c in self._clients.values())
-            return (
-                False,
-                f"Cloud Relay: {client_count} terminal(s) connected ({names}), but your portable printer is currently turned off or out of Bluetooth range."
-            )
+            # Select destination terminal across all connected terminals
+            target = None
+            if preferred_client_id and preferred_client_id in self._clients:
+                target = self._clients[preferred_client_id]
+            else:
+                target = self._get_raw_active_client()
+
+            if not target:
+                client_count = len(self._clients)
+                names = ", ".join(c.get("client_name", "Terminal") for c in self._clients.values())
+                return (
+                    False,
+                    f"Cloud Relay: {client_count} terminal(s) connected ({names}), but your portable printer is currently turned off or out of Bluetooth range."
+                )
 
         target_ws: WebSocket = target["ws"]
         target_name = target.get("client_name", "Store Terminal")
@@ -408,11 +442,12 @@ class RelayManager:
         self._active_job_id = None
         return True, "Stop command dispatched to terminals."
 
-    async def feed_paper(self) -> Tuple[bool, str]:
-        """Send feed paper command through active roaming terminal."""
-        target = self.get_active_printing_client()
+    async def feed_paper(self, group: Optional[str] = None) -> Tuple[bool, str]:
+        """Send feed paper command through active roaming terminal in group."""
+        target = self.get_active_printing_client(group=group)
         if not target:
-            return False, "No active terminal with thermal printer online."
+            group_label = f" in group '{group}'" if group else ""
+            return False, f"No active terminal{group_label} with thermal printer online."
 
         try:
             await target["ws"].send_json({"type": "feed_paper"})

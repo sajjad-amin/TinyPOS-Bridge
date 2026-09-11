@@ -72,6 +72,26 @@ def init_db():
                 created_at TEXT NOT NULL
             )
         """)
+
+        # 5. Client API Groups Table (Multi-Tenant Terminal Groups)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS client_groups (
+                name TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        # Ensure group_name column exists on client_api_keys and api_keys
+        cur = conn.execute("PRAGMA table_info(client_api_keys)")
+        existing_cols = [row["name"] for row in cur.fetchall()]
+        if "group_name" not in existing_cols:
+            conn.execute("ALTER TABLE client_api_keys ADD COLUMN group_name TEXT")
+
+        cur = conn.execute("PRAGMA table_info(api_keys)")
+        existing_cols = [row["name"] for row in cur.fetchall()]
+        if "group_name" not in existing_cols:
+            conn.execute("ALTER TABLE api_keys ADD COLUMN group_name TEXT")
+
         conn.commit()
 
     # Clean up any expired temporary jobs on startup
@@ -83,7 +103,8 @@ def init_db():
     # Ensure default settings exist
     init_default_settings()
 
-    # Ensure default client API keys exist
+    # Ensure default groups & keys exist
+    init_default_groups()
     init_default_client_api_keys()
 
 
@@ -114,33 +135,34 @@ def migrate_api_keys_from_json():
 # API Keys Operations (POS & External Software)
 # ==========================================
 
-def insert_api_key(key: str, name: str) -> Dict[str, Any]:
+def insert_api_key(key: str, name: str, group_name: Optional[str] = None) -> Dict[str, Any]:
     """Insert or update an API key in SQLite."""
     created_at = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y %I:%M %p")
+    clean_group = (group_name or "").strip() or None
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO api_keys (key, name, created_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET name = excluded.name
+            INSERT INTO api_keys (key, name, group_name, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET name = excluded.name, group_name = excluded.group_name
             """,
-            (key, name, created_at),
+            (key, name, clean_group, created_at),
         )
         conn.commit()
-    return {"key": key, "name": name, "created_at": created_at}
+    return {"key": key, "name": name, "group_name": clean_group, "created_at": created_at}
 
 
 def list_api_keys() -> List[Dict[str, Any]]:
     """List all active API keys."""
     with get_connection() as conn:
-        cur = conn.execute("SELECT key, name, created_at FROM api_keys ORDER BY created_at DESC")
+        cur = conn.execute("SELECT key, name, group_name, created_at FROM api_keys ORDER BY created_at DESC")
         return [dict(r) for r in cur.fetchall()]
 
 
 def get_api_key(key: str) -> Optional[Dict[str, Any]]:
     """Retrieve a single API key by key string."""
     with get_connection() as conn:
-        cur = conn.execute("SELECT key, name, created_at FROM api_keys WHERE key = ?", (key,))
+        cur = conn.execute("SELECT key, name, group_name, created_at FROM api_keys WHERE key = ?", (key,))
         row = cur.fetchone()
         return dict(row) if row else None
 
@@ -153,6 +175,18 @@ def delete_api_key(key: str) -> bool:
         return cur.rowcount > 0
 
 
+def assign_api_key_to_group(key: str, group_name: Optional[str]) -> bool:
+    """Assign or bind an API key to a client terminal group (or None to unbind)."""
+    clean_k = (key or "").strip()
+    clean_g = (group_name or "").strip() or None
+    if not clean_k:
+        return False
+    with get_connection() as conn:
+        conn.execute("UPDATE api_keys SET group_name = ? WHERE key = ?", (clean_g, clean_k))
+        conn.commit()
+    return True
+
+
 def is_valid_api_key(key: Optional[str]) -> bool:
     """Validate whether an API key exists in SQLite."""
     if not key:
@@ -163,31 +197,130 @@ def is_valid_api_key(key: Optional[str]) -> bool:
 
 
 # ==========================================
+# Client API Groups Operations (Multi-Tenant)
+# ==========================================
+
+def list_client_groups() -> List[Dict[str, Any]]:
+    """List all client terminal groups with key counts."""
+    with get_connection() as conn:
+        cur = conn.execute("""
+            SELECT g.name, g.created_at, COUNT(c.key) as key_count
+            FROM client_groups g
+            LEFT JOIN client_api_keys c ON g.name = c.group_name
+            GROUP BY g.name, g.created_at
+            ORDER BY g.created_at ASC
+        """)
+        return [dict(r) for r in cur.fetchall()]
+
+
+def create_client_group(name: str, key_list: Optional[List[str]] = None) -> bool:
+    """Create a new client API group and optionally assign unassigned client keys."""
+    clean_name = (name or "").strip()
+    if not clean_name:
+        return False
+    now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y %I:%M %p")
+    with get_connection() as conn:
+        conn.execute("INSERT OR IGNORE INTO client_groups (name, created_at) VALUES (?, ?)", (clean_name, now_str))
+        if key_list:
+            for k in key_list:
+                clean_k = (k or "").strip()
+                if clean_k:
+                    conn.execute("UPDATE client_api_keys SET group_name = ? WHERE key = ?", (clean_name, clean_k))
+        conn.commit()
+    return True
+
+
+def delete_client_group(name: str) -> bool:
+    """Delete a client API group. Keys assigned to it become unassigned."""
+    clean_name = (name or "").strip()
+    if not clean_name:
+        return False
+    with get_connection() as conn:
+        conn.execute("DELETE FROM client_groups WHERE name = ?", (clean_name,))
+        conn.execute("UPDATE client_api_keys SET group_name = NULL WHERE group_name = ?", (clean_name,))
+        conn.execute("UPDATE api_keys SET group_name = NULL WHERE group_name = ?", (clean_name,))
+        conn.commit()
+
+    current_admin_group = get_setting("admin_printer_group")
+    if current_admin_group == clean_name:
+        set_setting("admin_printer_group", "")
+    return True
+
+
+def assign_client_key_to_group(key: str, group_name: Optional[str]) -> bool:
+    """Assign a client API key to a group."""
+    clean_k = (key or "").strip()
+    clean_g = (group_name or "").strip() or None
+    if not clean_k:
+        return False
+    with get_connection() as conn:
+        conn.execute("UPDATE client_api_keys SET group_name = ? WHERE key = ?", (clean_g, clean_k))
+        conn.commit()
+    return True
+
+
+def remove_client_key_from_group(key: str) -> bool:
+    """Remove a client API key from its group (sets group_name to NULL)."""
+    clean_k = (key or "").strip()
+    if not clean_k:
+        return False
+    with get_connection() as conn:
+        conn.execute("UPDATE client_api_keys SET group_name = NULL WHERE key = ?", (clean_k,))
+        conn.commit()
+    return True
+
+
+def list_unassigned_client_api_keys() -> List[Dict[str, Any]]:
+    """List client API keys that are not assigned to any group."""
+    with get_connection() as conn:
+        cur = conn.execute("""
+            SELECT key, name, group_name, created_at
+            FROM client_api_keys
+            WHERE group_name IS NULL OR group_name = ''
+            ORDER BY created_at DESC
+        """)
+        return [dict(r) for r in cur.fetchall()]
+
+
+def init_default_groups():
+    """Remove automatically injected 'default' group so user manages groups manually."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM client_groups WHERE name = 'default'")
+        conn.execute("UPDATE client_api_keys SET group_name = NULL WHERE group_name = 'default'")
+        conn.execute("UPDATE api_keys SET group_name = NULL WHERE group_name = 'default'")
+        conn.commit()
+    admin_group = get_setting("admin_printer_group")
+    if admin_group == "default":
+        set_setting("admin_printer_group", "")
+
+
+# ==========================================
 # Client API Keys Operations (Store Terminals)
 # ==========================================
 
-def insert_client_api_key(key: str, name: str) -> Dict[str, Any]:
+def insert_client_api_key(key: str, name: str, group_name: Optional[str] = None) -> Dict[str, Any]:
     """Insert or update an authorized Client API key for store terminals."""
     created_at = datetime.datetime.now(datetime.timezone.utc).strftime("%b %d, %Y %I:%M %p")
     clean_key = (key or "").strip()
     clean_name = (name or "").strip() or "Store Terminal"
+    clean_group = (group_name or "").strip() or None
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO client_api_keys (key, name, created_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET name = excluded.name
+            INSERT INTO client_api_keys (key, name, group_name, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET name = excluded.name, group_name = COALESCE(excluded.group_name, client_api_keys.group_name)
             """,
-            (clean_key, clean_name, created_at),
+            (clean_key, clean_name, clean_group, created_at),
         )
         conn.commit()
-    return {"key": clean_key, "name": clean_name, "created_at": created_at}
+    return {"key": clean_key, "name": clean_name, "group_name": clean_group, "created_at": created_at}
 
 
 def list_client_api_keys() -> List[Dict[str, Any]]:
     """List all authorized Client API keys."""
     with get_connection() as conn:
-        cur = conn.execute("SELECT key, name, created_at FROM client_api_keys ORDER BY created_at DESC")
+        cur = conn.execute("SELECT key, name, group_name, created_at FROM client_api_keys ORDER BY created_at DESC")
         return [dict(r) for r in cur.fetchall()]
 
 
@@ -196,7 +329,7 @@ def get_client_api_key(key: Optional[str]) -> Optional[Dict[str, Any]]:
     if not key:
         return None
     with get_connection() as conn:
-        cur = conn.execute("SELECT key, name, created_at FROM client_api_keys WHERE key = ?", (key.strip(),))
+        cur = conn.execute("SELECT key, name, group_name, created_at FROM client_api_keys WHERE key = ?", (key.strip(),))
         row = cur.fetchone()
         return dict(row) if row else None
 
@@ -260,6 +393,11 @@ def init_default_settings():
         keys = list_api_keys()
         if keys:
             set_setting("client_api_key", keys[0]["key"])
+
+    # Ensure admin_printer_group exists
+    admin_group = get_setting("admin_printer_group")
+    if admin_group is None:
+        set_setting("admin_printer_group", "")
 
 
 def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:

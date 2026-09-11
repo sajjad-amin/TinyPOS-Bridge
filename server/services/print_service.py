@@ -31,15 +31,22 @@ async def dispatch_bitmap_print(
     img: Image.Image,
     strength: int = 7,
     job_id: Optional[str] = None,
+    target_group: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """
     Unified print dispatcher. Routes print stream either to local BLE hardware
     or to the remote store client over Cloud Relay WebSocket depending on system mode.
+    If target_group is specified, routes strictly to terminals within that group.
     """
     mode = db.get_setting("bridge_mode", "bluetooth")
     if mode == "relay":
-        logger.info(f"Dispatching print job {job_id} via Cloud Relay WebSocket...")
-        return await relay_manager.dispatch_job_to_client(job_id=job_id or "adhoc_job", img=img, strength=strength)
+        logger.info(f"Dispatching print job {job_id} via Cloud Relay WebSocket (Group: {target_group})...")
+        return await relay_manager.dispatch_job_to_client(
+            job_id=job_id or "adhoc_job",
+            img=img,
+            strength=strength,
+            target_group=target_group,
+        )
     else:
         logger.info(f"Dispatching print job {job_id} via local Bluetooth LE...")
         return await printer_ble.send_bitmap_to_printer(img, strength=strength, job_id=job_id)
@@ -54,11 +61,11 @@ async def stop_print_job(job_id: Optional[str] = None) -> Tuple[bool, str]:
         return printer_ble.stop_printing()
 
 
-async def feed_paper_cmd() -> Tuple[bool, str]:
+async def feed_paper_cmd(group: Optional[str] = None) -> Tuple[bool, str]:
     """Trigger paper feed across either Bluetooth or Cloud Relay mode."""
     mode = db.get_setting("bridge_mode", "bluetooth")
     if mode == "relay":
-        return await relay_manager.feed_paper()
+        return await relay_manager.feed_paper(group=group)
     else:
         try:
             device = await printer_ble.scan_for_printer(timeout=4.0)
@@ -73,31 +80,34 @@ async def feed_paper_cmd() -> Tuple[bool, str]:
             return False, str(e)
 
 
-async def get_system_printer_status() -> dict:
+async def get_system_printer_status(group: Optional[str] = None) -> dict:
     """
     Returns system printer health and connectivity.
+    If group is specified, scopes status strictly to terminals within that group.
     If Cloud Relay mode is active:
-      - Automatically detects which terminal has the portable printer in Bluetooth range.
+      - Automatically detects which terminal in group has the portable printer in Bluetooth range.
       - If printer is off, accurately reports terminals connected but printer off.
     If Bluetooth mode is active:
       - Performs local BLE discovery on host machine.
     """
     mode = db.get_setting("bridge_mode", "bluetooth")
     if mode == "relay":
-        client_count = relay_manager.get_client_count()
+        client_count = relay_manager.get_client_count(group=group)
+        group_label = f" in group '{group}'" if group else ""
         if client_count == 0:
             return {
                 "status": "offline",
                 "mode": "relay",
                 "is_printing": False,
-                "printer_name": "Cloud Relay (No Terminals Connected)",
+                "printer_name": f"Cloud Relay (No Terminals Connected{group_label})",
                 "address": "Disconnected",
                 "active_job_id": None,
                 "client_count": 0,
-                "message": "Cloud Relay mode is active, but no store terminals are currently connected.",
+                "group": group,
+                "message": f"Cloud Relay mode is active, but no store terminals{group_label} are currently connected.",
             }
 
-        active = relay_manager.get_active_printing_client()
+        active = relay_manager.get_active_printing_client(group=group)
         if active:
             client_name = active.get("client_name", "Terminal")
             client_ip = active.get("ip", "unknown")
@@ -110,6 +120,7 @@ async def get_system_printer_status() -> dict:
                 "address": f"Relayed via {client_name} ({client_ip})",
                 "active_job_id": relay_manager.get_active_job_id(),
                 "client_count": client_count,
+                "group": group,
                 "active_client": active,
                 "message": f"Portable printer is online at '{client_name}' (RSSI: {active.get('rssi')} dBm)",
             }
@@ -118,11 +129,12 @@ async def get_system_printer_status() -> dict:
                 "status": "offline",
                 "mode": "relay",
                 "is_printing": False,
-                "printer_name": f"{client_count} Terminal(s) Connected (Printer Off)",
+                "printer_name": f"{client_count} Terminal(s) Connected (Printer Off{group_label})",
                 "address": "Printer out of Bluetooth range",
                 "active_job_id": None,
                 "client_count": client_count,
-                "message": f"{client_count} terminal(s) connected to relay, but printer is turned off or out of Bluetooth range.",
+                "group": group,
+                "message": f"{client_count} terminal(s){group_label} connected to relay, but printer is turned off or out of Bluetooth range.",
             }
     else:
         ble_status = await printer_ble.get_printer_status()
@@ -133,7 +145,7 @@ async def get_system_printer_status() -> dict:
 async def execute_print_job(job_id: str):
     """
     Background worker task to stream a queued job's raster.
-    Automatically respects active mode (Bluetooth vs Cloud Relay).
+    Automatically respects active mode (Bluetooth vs Cloud Relay) and scopes to API key's group.
     """
     job = db.get_job(job_id)
     if not job or job["status"] != "printing":
@@ -147,9 +159,29 @@ async def execute_print_job(job_id: str):
             asyncio.create_task(schedule_job_cleanup(job_id, delay_seconds=300))
         return
 
+    # Resolve target group from API key or admin printer setting
+    target_group = None
+    job_api_key = job.get("api_key")
+    if job_api_key and job_api_key not in ("web_ui", "test_page"):
+        key_data = db.get_api_key(job_api_key)
+        if key_data:
+            target_group = key_data.get("group_name")
+    elif job_api_key in ("web_ui", "test_page"):
+        target_group = db.get_setting("admin_printer_group")
+
+    mode = db.get_setting("bridge_mode", "bluetooth")
+    if mode == "relay" and job_api_key in ("web_ui", "test_page") and not target_group:
+        db.update_job_status(job_id, "failed", error="Admin Printer group is not configured in Settings.")
+        return
+
     try:
         strength = job.get("strength", 7)
-        success, message = await dispatch_bitmap_print(img, strength=strength, job_id=job_id)
+        success, message = await dispatch_bitmap_print(
+            img,
+            strength=strength,
+            job_id=job_id,
+            target_group=target_group,
+        )
         if success:
             db.update_job_status(job_id, "completed")
             logger.info(f"Job {job_id} printed successfully.")

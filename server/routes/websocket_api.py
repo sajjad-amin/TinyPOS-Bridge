@@ -38,8 +38,9 @@ async def websocket_client_endpoint(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized: Invalid Client API key")
         return
 
-    # 3. Resolve client display name using key label
+    # 3. Resolve client display name and assigned group
     key_name = client_entry["name"]
+    client_group = client_entry.get("group_name")
     resolved_name = client_name.strip() if (client_name and client_name.strip() and client_name != "Store POS Client") else key_name
 
     # 4. Resolve client IP (support reverse proxy headers)
@@ -56,16 +57,18 @@ async def websocket_client_endpoint(
         key_name=key_name,
         client_ip=client_ip,
         api_key=api_key,
+        group=client_group,
     )
 
-    # 6. Send welcome acknowledgement with client_id
+    # 6. Send welcome acknowledgement with client_id and group
     try:
         await websocket.send_json({
             "type": "welcome",
             "client_id": client_id,
             "client_name": resolved_name,
             "key_name": key_name,
-            "message": f"Successfully authenticated with TinyPOS Cloud Relay as '{resolved_name}'",
+            "group": client_group,
+            "message": f"Successfully authenticated with TinyPOS Cloud Relay as '{resolved_name}'" + (f" (Group: {client_group})" if client_group else ""),
             "server_version": "1.3.0",
             "server_time": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         })

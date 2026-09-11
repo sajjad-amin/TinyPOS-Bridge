@@ -78,10 +78,12 @@ async def test_view(request: Request, _: str = Depends(require_login)):
 @web_router.get("/api-keys", response_class=HTMLResponse)
 async def api_keys_view(request: Request, _: str = Depends(require_login)):
     keys = db.list_api_keys()
+    client_groups = db.list_client_groups()
     counts = db.get_job_counts_by_api_keys()
     for k in keys:
         k["job_count"] = counts.get(k.get("key"), 0)
 
+    mode = db.get_setting("bridge_mode", "bluetooth")
     return templates.TemplateResponse(
         request=request,
         name="api_keys/index.html",
@@ -89,6 +91,8 @@ async def api_keys_view(request: Request, _: str = Depends(require_login)):
             "active_page": "api_keys",
             "title": "API Keys | TinyPOS",
             "api_keys": keys,
+            "client_groups": client_groups,
+            "bridge_mode": mode,
         },
     )
 
@@ -127,6 +131,7 @@ async def api_key_history_view(
 async def create_api_key_action(
     name: str = Form(...),
     key: str = Form(...),
+    group_name: Optional[str] = Form(None),
     _: str = Depends(require_login),
 ):
     clean_key = key.strip()
@@ -134,7 +139,8 @@ async def create_api_key_action(
         clean_key = "sk_live_" + secrets.token_hex(16)
 
     clean_name = name.strip() or "Unnamed Key"
-    db.insert_api_key(clean_key, clean_name)
+    clean_group = (group_name or "").strip() or None
+    db.insert_api_key(clean_key, clean_name, group_name=clean_group)
     return RedirectResponse(url="/api-keys", status_code=303)
 
 
@@ -144,6 +150,30 @@ async def delete_api_key_action(
     _: str = Depends(require_login),
 ):
     db.delete_api_key(key_to_delete)
+    return RedirectResponse(url="/api-keys", status_code=303)
+
+
+@web_router.post("/api-keys/assign-group")
+async def assign_api_key_group_action(
+    key: str = Form(...),
+    group_name: Optional[str] = Form(None),
+    _: str = Depends(require_login),
+):
+    clean_key = key.strip()
+    clean_group = (group_name or "").strip() or None
+    if clean_key:
+        db.assign_api_key_to_group(clean_key, clean_group)
+    return RedirectResponse(url="/api-keys", status_code=303)
+
+
+@web_router.post("/api-keys/remove-group")
+async def remove_api_key_group_action(
+    key: str = Form(...),
+    _: str = Depends(require_login),
+):
+    clean_key = key.strip()
+    if clean_key:
+        db.assign_api_key_to_group(clean_key, None)
     return RedirectResponse(url="/api-keys", status_code=303)
 
 
@@ -281,6 +311,7 @@ def get_websocket_url(request: Request, api_key: str = "") -> str:
 async def settings_view(request: Request, _: str = Depends(require_login)):
     keys = db.list_api_keys()
     client_keys = db.list_client_api_keys()
+    client_groups = db.list_client_groups()
     connected_keys = relay_manager.get_connected_api_keys()
 
     # Enrich client keys with live connection info & WebSocket URL
@@ -291,6 +322,22 @@ async def settings_view(request: Request, _: str = Depends(require_login)):
         ck["connected_client"] = conn_info
         ck["ws_url"] = get_websocket_url(request, api_key=k)
 
+    # Group client keys by group
+    grouped_client_keys = []
+    for g in client_groups:
+        g_name = g["name"]
+        keys_in_group = [ck for ck in client_keys if ck.get("group_name") == g_name]
+        grouped_client_keys.append({
+            "name": g_name,
+            "created_at": g.get("created_at"),
+            "key_count": len(keys_in_group),
+            "connected_count": sum(1 for k in keys_in_group if k["is_connected"]),
+            "terminal_keys": keys_in_group,
+        })
+
+    # Keys that are not assigned to any group
+    unassigned_client_keys = [ck for ck in client_keys if not ck.get("group_name")]
+
     settings = db.get_all_settings()
     bridge_mode = settings.get("bridge_mode", "bluetooth")
 
@@ -300,8 +347,9 @@ async def settings_view(request: Request, _: str = Depends(require_login)):
 
     is_client_connected = relay_manager.is_any_client_connected()
     client_info = relay_manager.get_client_info()
-    clients = relay_manager.get_connected_clients_summary()
-    active_client = relay_manager.get_active_printing_client()
+    admin_printer_group = db.get_setting("admin_printer_group", "default")
+    clients = relay_manager.get_connected_clients_summary(group=admin_printer_group if bridge_mode == "relay" else None)
+    active_client = relay_manager.get_active_printing_client(group=admin_printer_group if bridge_mode == "relay" else None)
 
     return templates.TemplateResponse(
         request=request,
@@ -310,7 +358,11 @@ async def settings_view(request: Request, _: str = Depends(require_login)):
             "active_page": "settings",
             "title": "Settings | TinyPOS",
             "bridge_mode": bridge_mode,
+            "admin_printer_group": admin_printer_group,
             "client_keys": client_keys,
+            "client_groups": client_groups,
+            "grouped_client_keys": grouped_client_keys,
+            "unassigned_client_keys": unassigned_client_keys,
             "api_keys": keys,
             "request_url_base": base_url,
             "ws_url": ws_url,
@@ -334,17 +386,30 @@ async def settings_mode_action(
     return RedirectResponse(url="/settings", status_code=303)
 
 
+@web_router.post("/settings/admin-group")
+async def settings_admin_group_action(
+    admin_printer_group: str = Form(...),
+    _: str = Depends(require_login),
+):
+    clean_group = admin_printer_group.strip()
+    if clean_group:
+        db.set_setting("admin_printer_group", clean_group)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
 @web_router.post("/settings/client-keys/create")
 async def settings_create_client_key_action(
     name: str = Form(...),
     key: Optional[str] = Form(None),
+    group_name: Optional[str] = Form(None),
     _: str = Depends(require_login),
 ):
     clean_name = name.strip() or "Store Terminal"
     clean_key = (key or "").strip()
     if not clean_key:
         clean_key = "sk_client_" + secrets.token_hex(12)
-    db.insert_client_api_key(clean_key, clean_name)
+    clean_group = (group_name or "").strip() or None
+    db.insert_client_api_key(clean_key, clean_name, group_name=clean_group)
     return RedirectResponse(url="/settings", status_code=303)
 
 
@@ -357,6 +422,55 @@ async def settings_delete_client_key_action(
     if clean_key:
         await relay_manager.disconnect_by_api_key(clean_key)
         db.delete_client_api_key(clean_key)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/settings/groups/create")
+async def settings_create_group_action(
+    request: Request,
+    name: str = Form(...),
+    _: str = Depends(require_login),
+):
+    form = await request.form()
+    clean_name = name.strip()
+    key_list = form.getlist("keys")
+    if clean_name:
+        db.create_client_group(clean_name, key_list=key_list)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/settings/groups/delete")
+async def settings_delete_group_action(
+    group_to_delete: str = Form(...),
+    _: str = Depends(require_login),
+):
+    clean_group = group_to_delete.strip()
+    if clean_group:
+        db.delete_client_group(clean_group)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/settings/client-keys/remove-group")
+async def settings_remove_client_key_group_action(
+    key: str = Form(...),
+    _: str = Depends(require_login),
+):
+    clean_key = key.strip()
+    if clean_key:
+        db.remove_client_key_from_group(clean_key)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@web_router.post("/settings/client-keys/assign-group")
+async def settings_assign_client_key_group_action(
+    key: str = Form(...),
+    group_name: str = Form(...),
+    _: str = Depends(require_login),
+):
+    clean_key = key.strip()
+    clean_group = group_name.strip()
+    if clean_key and clean_group:
+        db.assign_client_key_to_group(clean_key, clean_group)
     return RedirectResponse(url="/settings", status_code=303)
 
 

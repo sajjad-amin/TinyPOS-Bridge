@@ -113,6 +113,62 @@
                         <i class="bi bi-save me-1"></i> Apply Mode
                     </button>
                 </div>
+
+                <!-- Admin Printer (Mandatory Group Selection for Test Console) -->
+                <div class="mt-4 pt-3 border-top" id="adminPrinterSection">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <div>
+                            <h6 class="fw-bold mb-0 text-body d-flex align-items-center">
+                                <i class="bi bi-printer-fill text-primary me-2 fs-5"></i>Admin Printer (Test Console Group)
+                            </h6>
+                            <small class="text-muted">
+                                Mandatory: Select which client terminal group executes print jobs sent from the Web Test console.
+                            </small>
+                        </div>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-semibold">Mandatory</span>
+                    </div>
+
+                    <form method="POST" action="/settings/admin-group" id="formAdminGroup" class="row g-2 align-items-center mt-1">
+                        <div class="col-12 col-sm-8 col-md-7">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary text-muted">
+                                    <i class="bi bi-folder-symlink"></i>
+                                </span>
+                                <select class="form-select" name="admin_printer_group" id="selectAdminGroup" required>
+                                    <option value="" disabled {% if not admin_printer_group %}selected{% endif %}>-- Select Admin Group --</option>
+                                    {% for g in client_groups %}
+                                    <option value="{{ g.name }}" {% if admin_printer_group == g.name %}selected{% endif %}>
+                                        Group: {{ g.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-4 col-md-5">
+                            <button type="button" class="btn btn-primary btn-sm w-100" id="btnSaveAdminGroup" onclick="applyAdminGroupSave()">
+                                <i class="bi bi-check2-circle me-1"></i> Save Admin Printer
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-2 small" id="adminGroupNotice">
+                        {% if admin_printer_group %}
+                        <div class="alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2 small">
+                            <i class="bi bi-shield-check fs-5 text-success"></i>
+                            <div>
+                                Admin test jobs are strictly routed to terminals in group: <strong id="currentAdminGroupName">{{ admin_printer_group }}</strong>. Jobs will never route to other groups.
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center gap-2 small">
+                            <i class="bi bi-exclamation-triangle-fill fs-5 text-warning"></i>
+                            <div>
+                                <strong>Warning:</strong> No Admin Printer group is assigned! Web test console prints will be rejected until a group is assigned.
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -197,15 +253,22 @@
 <div class="row g-4">
     <div class="col-12">
         <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold">
-                    <i class="bi bi-shield-lock-fill me-2 text-primary"></i>Client Terminal Authorization Keys
-                </h6>
-                <span class="badge bg-primary-subtle text-primary small">Security Control</span>
+            <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-shield-lock-fill me-2 text-primary"></i>Client Terminal Authorization Keys
+                    </h6>
+                    <span class="badge bg-primary-subtle text-primary small">Security Control</span>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-primary btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                        <i class="bi bi-folder-plus me-1"></i> Create Group
+                    </button>
+                </div>
             </div>
             <div class="card-body p-4">
                 <p class="text-muted small mb-3">
-                    Authorize store machines (e.g. <strong>Office</strong>, <strong>Home</strong>, <strong>Shop 1</strong>) to connect to the cloud relay. No client can connect without an authorized key registered here. When client software connects, the relay server identifies which terminal is online.
+                    Authorize store machines (e.g. <strong>Office</strong>, <strong>Home</strong>, <strong>Shop 1</strong>) to connect to the cloud relay. Client keys are organized into <strong>API Groups</strong> to isolate print queues and roaming presence between different accounts and stores.
                 </p>
 
                 <!-- Create New Client Key Box -->
@@ -214,11 +277,20 @@
                         <i class="bi bi-plus-circle-fill text-primary me-1"></i> Add New Client Terminal Key
                     </h6>
                     <form action="/settings/client-keys/create" method="POST" class="row g-2 align-items-end">
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-3">
                             <label class="form-label small fw-semibold mb-1">Terminal / Location Name</label>
                             <input type="text" name="name" class="form-control form-control-sm" placeholder="e.g. Office, Home, Shop POS" required>
                         </div>
-                        <div class="col-12 col-md-6">
+                        <div class="col-12 col-md-3">
+                            <label class="form-label small fw-semibold mb-1">Assign to Group <span class="text-muted fw-normal">(optional)</span></label>
+                            <select name="group_name" class="form-select form-select-sm">
+                                <option value="" selected>-- Unassigned --</option>
+                                {% for g in client_groups %}
+                                <option value="{{ g.name }}">{{ g.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
                             <label class="form-label small fw-semibold mb-1">
                                 Client API Key <span class="text-muted fw-normal">(leave blank to auto-generate)</span>
                             </label>
@@ -237,23 +309,53 @@
                     </form>
                 </div>
 
-                <!-- List of Authorized Client Keys: Full Width & Dark-Mode Friendly Subtle Header -->
+                <!-- List of Authorized Client Keys Grouped by API Group -->
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-body-secondary text-body-secondary small">
+                    <table class="table align-middle mb-0">
+                        <thead class="bg-secondary-subtle text-secondary-emphasis small">
                             <tr>
-                                <th class="ps-3 py-2">Terminal Name</th>
-                                <th class="py-2">Client API Key</th>
-                                <th class="py-2">WebSocket Connection URL</th>
-                                <th class="py-2">Status</th>
-                                <th class="text-end pe-3 py-2">Actions</th>
+                                <th class="ps-3 py-2.5">Terminal Name</th>
+                                <th class="py-2.5">Client API Key</th>
+                                <th class="py-2.5">WebSocket Connection URL</th>
+                                <th class="py-2.5">Status</th>
+                                <th class="text-end pe-3 py-2.5">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="clientKeysTableBody">
-                            {% if client_keys %}
-                            {% for ck in client_keys %}
+
+                        {% if grouped_client_keys %}
+                        {% for g in grouped_client_keys %}
+                        <!-- Group Header Row -->
+                        <tbody class="border-top">
+                            <tr class="bg-secondary-subtle text-body border-top">
+                                <td colspan="5" class="py-2.5 px-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center gap-2 cursor-pointer text-body text-decoration-none" onclick="toggleGroupCollapse('group-tbody-{{ loop.index }}', 'chevron-{{ loop.index }}')" style="cursor: pointer; user-select: none;">
+                                            <i class="bi bi-chevron-down text-primary transition-transform" id="chevron-{{ loop.index }}"></i>
+                                            <i class="bi bi-folder2-open-fill text-primary fs-5"></i>
+                                            <span class="fw-bold fs-6">Group: {{ g.name }}</span>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill small">
+                                                {{ g.key_count }} terminal{{ 's' if g.key_count != 1 else '' }}
+                                            </span>
+                                            {% if g.connected_count > 0 %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill small">
+                                                <i class="bi bi-circle-fill me-1" style="font-size: 0.45rem;"></i> {{ g.connected_count }} online
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2.5 small" onclick="openDeleteGroupModal('{{ g.name }}', {{ g.key_count }})" title="Delete Group">
+                                                <i class="bi bi-trash me-1"></i> Delete Group
+                                            </button>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tbody id="group-tbody-{{ loop.index }}" class="group-collapse-body">
+                            {% if g.terminal_keys %}
+                            {% for ck in g.terminal_keys %}
                             <tr id="row-ck-{{ ck.key }}">
-                                <td class="ps-3">
+                                <td class="ps-4">
                                     <div class="d-flex align-items-center">
                                         <i class="bi bi-pc-display text-primary me-2 fs-5"></i>
                                         <div class="text-truncate" style="max-width: 160px;">
@@ -290,10 +392,10 @@
                                     </span>
                                 </td>
                                 <td class="text-end pe-3 text-nowrap">
-                                    <button type="button" class="btn btn-sm btn-outline-primary me-1 px-2" onclick="openViewModal('{{ ck.name }}', '{{ ck.key }}', '{{ ck.ws_url }}')" title="View Full Details">
-                                        <i class="bi bi-eye"></i> View
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="openViewModal('{{ ck.name }}', '{{ ck.key }}', '{{ ck.ws_url }}', '{{ g.name }}')" title="View Full Details">
+                                        <i class="bi bi-eye me-1"></i> View
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger px-2" onclick="openDeleteModal('{{ ck.key }}', '{{ ck.name }}')" title="Revoke & Delete Key">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="openDeleteModal('{{ ck.key }}', '{{ ck.name }}')" title="Revoke &amp; Delete Key">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </td>
@@ -301,9 +403,86 @@
                             {% endfor %}
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">
-                                    <i class="bi bi-shield-x fs-3 d-block mb-2"></i>
-                                    No client keys authorized yet. Add one above to allow store terminals to connect.
+                                <td colspan="5" class="text-center py-3 text-muted small fst-italic ps-4">
+                                    No terminals in this group yet. Use the form above or create a group with terminals.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                        {% endfor %}
+                        {% endif %}
+
+                        <!-- Unassigned Terminal Keys (Shown after the groups) -->
+                        <tbody class="border-top">
+                            <tr class="bg-secondary-subtle text-body border-top">
+                                <td colspan="5" class="py-2.5 px-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-tag-fill text-secondary fs-5"></i>
+                                            <span class="fw-bold fs-6">Unassigned Client Keys</span>
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill small">
+                                                {{ unassigned_client_keys|length }} terminal{{ 's' if unassigned_client_keys|length != 1 else '' }}
+                                            </span>
+                                        </div>
+                                        <span class="text-muted small">Not assigned to any group</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tbody id="unassigned-tbody">
+                            {% if unassigned_client_keys %}
+                            {% for ck in unassigned_client_keys %}
+                            <tr id="row-ck-{{ ck.key }}">
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-pc-display text-secondary me-2 fs-5"></i>
+                                        <div class="text-truncate" style="max-width: 160px;">
+                                            <span class="fw-bold text-body" title="{{ ck.name }}">{{ ck.name }}</span>
+                                            <div class="text-muted small" style="font-size: 0.75rem;">Added {{ ck.created_at }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="white-space: nowrap;">
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        <code class="font-monospace small text-primary bg-primary-subtle px-2 py-1 rounded text-truncate d-inline-block" style="max-width: 140px; vertical-align: middle;" title="{{ ck.key }}">{{ ck.key }}</code>
+                                        <button class="btn btn-sm btn-link text-muted p-1" onclick="copyToClipboard('{{ ck.key }}', 'Key copied!')" title="Copy Key">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td style="white-space: nowrap;">
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        <span class="font-monospace small text-muted text-truncate d-inline-block" style="max-width: 260px; vertical-align: middle;" title="{{ ck.ws_url }}">
+                                            {{ ck.ws_url }}
+                                        </span>
+                                        <button class="btn btn-sm btn-link text-muted p-1" onclick="copyToClipboard('{{ ck.ws_url }}', 'WebSocket URL copied!')" title="Copy WebSocket URL">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span id="badge-ck-{{ ck.key }}" class="badge {% if ck.is_connected %}bg-success-subtle text-success border border-success-subtle{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                        {% if ck.is_connected %}
+                                        <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Connected
+                                        {% else %}
+                                        <i class="bi bi-circle me-1" style="font-size: 0.5rem;"></i> Disconnected
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-3 text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="openViewModal('{{ ck.name }}', '{{ ck.key }}', '{{ ck.ws_url }}', '')" title="View &amp; Manage">
+                                        <i class="bi bi-eye me-1"></i> View
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="openDeleteModal('{{ ck.key }}', '{{ ck.name }}')" title="Revoke &amp; Delete Key">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3 text-muted small fst-italic ps-4">
+                                    No unassigned client keys. All terminals are assigned to groups.
                                 </td>
                             </tr>
                             {% endif %}
@@ -341,6 +520,62 @@
                     <label class="form-label small fw-bold text-uppercase text-muted">Terminal / Location</label>
                     <input type="text" class="form-control" id="viewModalNameInput" readonly>
                 </div>
+
+                <!-- Client API Group Management Box -->
+                <div class="p-3 mb-3 rounded-3 border bg-body-tertiary">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <label class="form-label small fw-bold text-uppercase text-muted mb-0">
+                            <i class="bi bi-folder2-open me-1 text-primary"></i> Client Terminal Group
+                        </label>
+                        <span id="viewModalGroupBadgeContainer"></span>
+                    </div>
+
+                    <!-- State A: Currently Assigned to a Group -->
+                    <div id="viewModalAssignedBox" class="d-none">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 p-2 rounded border bg-body">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                                <div>
+                                    <span class="small text-muted d-block" style="font-size: 0.75rem;">Assigned to Group:</span>
+                                    <strong id="viewModalCurrentGroupText" class="text-primary font-monospace"></strong>
+                                </div>
+                            </div>
+                            <form action="/settings/client-keys/remove-group" method="POST" class="d-inline mb-0">
+                                <input type="hidden" name="key" id="removeGroupKeyInput">
+                                <button type="submit" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-folder-minus me-1"></i> Remove from Group
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- State B: Currently Unassigned -->
+                    <div id="viewModalUnassignedBox" class="d-none">
+                        <p class="small text-muted mb-2">
+                            This client terminal key is not assigned to any group. Choose a group below to assign it.
+                        </p>
+                        {% if client_groups %}
+                        <form action="/settings/client-keys/assign-group" method="POST" class="d-flex flex-wrap gap-2 align-items-center">
+                            <input type="hidden" name="key" id="assignGroupKeyInput">
+                            <select name="group_name" class="form-select form-select-sm" style="max-width: 240px;" required>
+                                <option value="" disabled selected>-- Choose Group to Assign --</option>
+                                {% for g in client_groups %}
+                                <option value="{{ g.name }}">Group: {{ g.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-folder-check me-1"></i> Assign to Group
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="alert alert-warning py-2 px-3 small mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                            <span>No groups created yet. Please create a group first using the <strong>Create Group</strong> button above.</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
                 <!-- Client API Key -->
                 <div class="mb-3">
                     <label class="form-label small fw-bold text-uppercase text-muted">Client Authorization API Key</label>
@@ -371,13 +606,100 @@
                 </div>
             </div>
             <div class="modal-footer bg-body-tertiary py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-secondary btn-sm ms-auto" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal 2: Delete Confirmation Modal (NO js confirm) -->
+<!-- Modal 2: Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" aria-labelledby="createGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-secondary-subtle py-3">
+                <h6 class="modal-title fw-bold" id="createGroupModalLabel">
+                    <i class="bi bi-folder-plus text-primary me-2"></i>Create Client API Group
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/settings/groups/create" method="POST">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted">Group Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. friend1, office, branch2" required autofocus pattern="[a-zA-Z0-9_\-]+" title="Letters, numbers, hyphens, and underscores only">
+                        <div class="form-text small">Use a unique identifier (e.g. <code>friend1</code> or <code>warehouse</code>).</div>
+                    </div>
+                    <div>
+                        <label class="form-label small fw-bold text-uppercase text-muted mb-2">Assign Unassigned Client Keys</label>
+                        {% if unassigned_client_keys %}
+                        <div class="border rounded-3 bg-body-tertiary p-2" style="max-height: 220px; overflow-y: auto;">
+                            <div class="list-group list-group-flush gap-1">
+                                {% for ck in unassigned_client_keys %}
+                                <label class="list-group-item list-group-item-action border rounded-2 py-2 px-3 d-flex align-items-center justify-content-between cursor-pointer" for="chk-group-{{ loop.index }}" style="cursor: pointer;">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <input class="form-check-input mt-0 flex-shrink-0" type="checkbox" name="keys" value="{{ ck.key }}" id="chk-group-{{ loop.index }}">
+                                        <div>
+                                            <span class="fw-bold text-body d-block small">{{ ck.name }}</span>
+                                            <span class="text-muted small" style="font-size: 0.75rem;">Added {{ ck.created_at }}</span>
+                                        </div>
+                                    </div>
+                                    <code class="font-monospace text-muted small bg-secondary-subtle px-2 py-1 rounded" style="font-size: 0.75rem;">{{ ck.key[:16] }}...</code>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="form-text small mt-1">Check all terminal keys that belong to this group.</div>
+                        {% else %}
+                        <div class="p-3 text-center border rounded-3 bg-body-tertiary text-muted small">
+                            <i class="bi bi-check2-circle text-success fs-4 d-block mb-1"></i>
+                            All existing client keys are already assigned to groups. You can create this group now and assign new keys to it later.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer bg-body-tertiary py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold">
+                        <i class="bi bi-folder-check me-1"></i> Create Group
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Delete Group Modal -->
+<div class="modal fade" id="deleteGroupModal" tabindex="-1" aria-labelledby="deleteGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger-subtle text-danger py-3">
+                <h6 class="modal-title fw-bold" id="deleteGroupModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Delete Group
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/settings/groups/delete" method="POST">
+                <div class="modal-body p-3">
+                    <input type="hidden" name="group_to_delete" id="deleteGroupInput">
+                    <p class="small mb-1">
+                        Are you sure you want to delete group <strong id="deleteGroupNameText" class="text-danger"></strong>?
+                    </p>
+                    <p class="small text-muted mb-0">
+                        Terminals in this group will become unassigned. Any API keys bound to this group will lose access until rebound.
+                    </p>
+                </div>
+                <div class="modal-footer bg-body-tertiary py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="bi bi-trash me-1"></i> Delete Group
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 4: Delete Confirmation Modal for Key -->
 <div class="modal fade" id="deleteKeyModal" tabindex="-1" aria-labelledby="deleteKeyModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content border-0 shadow">
@@ -435,14 +757,60 @@
         });
     }
 
-    function openViewModal(name, key, wsUrl) {
+    function openViewModal(name, key, wsUrl, groupName = '') {
         document.getElementById('viewModalNameText').innerText = name;
         document.getElementById('viewModalNameInput').value = name;
         document.getElementById('viewModalKeyInput').value = key;
         document.getElementById('viewModalWsInput').value = wsUrl;
         document.getElementById('viewModalCmdText').innerText = `python client.py --url ${wsUrl}`;
+
+        const badgeContainer = document.getElementById('viewModalGroupBadgeContainer');
+        const assignedBox = document.getElementById('viewModalAssignedBox');
+        const unassignedBox = document.getElementById('viewModalUnassignedBox');
+        const currentGroupText = document.getElementById('viewModalCurrentGroupText');
+        const removeKeyInput = document.getElementById('removeGroupKeyInput');
+        const assignKeyInput = document.getElementById('assignGroupKeyInput');
+
+        if (groupName && groupName.trim() !== '') {
+            if (badgeContainer) {
+                badgeContainer.innerHTML = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6 py-1 px-3"><i class="bi bi-collection me-1"></i>${groupName}</span>`;
+            }
+            if (currentGroupText) currentGroupText.innerText = groupName;
+            if (removeKeyInput) removeKeyInput.value = key;
+            if (assignedBox) assignedBox.classList.remove('d-none');
+            if (unassignedBox) unassignedBox.classList.add('d-none');
+        } else {
+            if (badgeContainer) {
+                badgeContainer.innerHTML = `<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-6 py-1 px-3"><i class="bi bi-tag me-1"></i>Unassigned</span>`;
+            }
+            if (assignKeyInput) assignKeyInput.value = key;
+            if (assignedBox) assignedBox.classList.add('d-none');
+            if (unassignedBox) unassignedBox.classList.remove('d-none');
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('viewKeyModal'));
         modal.show();
+    }
+
+    function openDeleteGroupModal(groupName, keyCount) {
+        document.getElementById('deleteGroupInput').value = groupName;
+        document.getElementById('deleteGroupNameText').innerText = groupName;
+        const modal = new bootstrap.Modal(document.getElementById('deleteGroupModal'));
+        modal.show();
+    }
+
+    function toggleGroupCollapse(tbodyId, chevronId) {
+        const el = document.getElementById(tbodyId);
+        const chev = document.getElementById(chevronId);
+        if (!el) return;
+
+        if (el.classList.contains('d-none')) {
+            el.classList.remove('d-none');
+            if (chev) chev.className = 'bi bi-chevron-down text-primary transition-transform';
+        } else {
+            el.classList.add('d-none');
+            if (chev) chev.className = 'bi bi-chevron-right text-muted transition-transform';
+        }
     }
 
     function copyModalField(elementId, msg) {
@@ -507,6 +875,48 @@
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-save me-1"></i> Apply Mode';
+        }
+    }
+
+    async function applyAdminGroupSave() {
+        const select = document.getElementById('selectAdminGroup');
+        const selectedGroup = select ? select.value : '';
+        if (!selectedGroup) {
+            showToast('Please select a group first.', true);
+            return;
+        }
+        const btn = document.getElementById('btnSaveAdminGroup');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+
+        try {
+            const resp = await fetch('/api/internal/settings/admin-group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ admin_printer_group: selectedGroup })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                showToast(data.message || 'Admin printer group updated successfully!');
+                const noticeEl = document.getElementById('adminGroupNotice');
+                if (noticeEl) {
+                    noticeEl.innerHTML = `
+                        <div class="alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2 small">
+                            <i class="bi bi-shield-check fs-5 text-success"></i>
+                            <div>
+                                Admin test jobs are strictly routed to terminals in group: <strong>${selectedGroup}</strong>. Jobs will never route to other groups.
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                showToast(data.message || 'Failed to save admin group.', true);
+            }
+        } catch (e) {
+            showToast('Network error while saving admin printer group.', true);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Save Admin Printer';
         }
     }
 
@@ -592,6 +1002,7 @@
                             <div class="fw-bold d-flex align-items-center text-truncate">
                                 <i class="bi bi-display me-2 ${isTarget ? 'text-success' : 'text-secondary'}"></i>
                                 <span>${c.client_name || 'Store Terminal'}</span>
+                                ${c.group ? `<span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace ms-2" style="font-size: 0.7rem;"><i class="bi bi-collection me-1"></i>${c.group}</span>` : ''}
                             </div>
                             <div>
                                 ${isTarget ? 

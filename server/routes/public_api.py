@@ -84,9 +84,11 @@ class GenerateQRRequest(BaseModel):
 
 
 @public_api_router.get("/status")
-async def check_status(_: str = Depends(verify_api_key)):
-    """Probe thermal printer online/offline status."""
-    return await get_system_printer_status()
+async def check_status(api_key: str = Depends(verify_api_key)):
+    """Probe thermal printer online/offline status for the authorized API group."""
+    key_data = db.get_api_key(api_key)
+    target_group = key_data.get("group_name") if key_data else None
+    return await get_system_printer_status(group=target_group)
 
 
 @public_api_router.post("/print/raw")
