@@ -217,6 +217,32 @@ def build_app(keep_cache: bool = False):
     if cfg["os_name"] == "Darwin":
         out_target = DIST_DIR / f"{APP_NAME}.app"
         if out_target.exists():
+            # Inject macOS TCC Bluetooth privacy permissions & LSUIElement into Info.plist
+            import plistlib
+            plist_path = out_target / "Contents" / "Info.plist"
+            if plist_path.exists():
+                try:
+                    with open(plist_path, "rb") as fp:
+                        pl = plistlib.load(fp)
+                    pl["NSBluetoothAlwaysUsageDescription"] = (
+                        "TinyPOS requires Bluetooth access to discover, connect to, and send print jobs to your portable thermal receipt printer."
+                    )
+                    pl["NSBluetoothPeripheralUsageDescription"] = (
+                        "TinyPOS requires Bluetooth access to connect to your portable thermal printer."
+                    )
+                    pl["CFBundleShortVersionString"] = APP_VERSION
+                    pl["CFBundleVersion"] = APP_VERSION
+                    pl["NSHighResolutionCapable"] = True
+                    pl["LSUIElement"] = True  # Native Menu Bar agent app (runs as status item without Dock clutter)
+                    with open(plist_path, "wb") as fp:
+                        plistlib.dump(pl, fp)
+
+                    # Re-sign ad-hoc so macOS TCC subsystem accepts the modified Info.plist
+                    subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(out_target)], capture_output=True)
+                    print_success("Injected Bluetooth privacy permissions & signed macOS bundle.")
+                except Exception as e:
+                    print_warning(f"Failed to post-process Info.plist: {e}")
+
             print_success(f"Application Bundle: \033[1m{out_target}\033[0m")
             print(f"  To run: open \"{out_target}\"")
             print(f"  To install: cp -R \"{out_target}\" /Applications/")
