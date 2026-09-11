@@ -61,3 +61,22 @@ On first launch, the **Settings** window will open automatically.
 
 * Bainiu / Tiny Print 57mm BLE thermal printers (X6, X5, GB01, MX0, iPrint, etc.)
 * Any ESC/POS Bluetooth Low Energy printer using service UUIDs `0xAE30`, `0xAF30`, or `0xFF00`.
+
+---
+
+## Building Standalone Application
+
+You can package TinyPOS as a standalone native binary without needing Python installed on the target machine:
+
+```bash
+cd client-app
+python3 build.py
+```
+
+* **macOS**: Generates `dist/TinyPOS.app` with native Retina icon (`icon.icns`), background menu bar mode, and Cocoa integration.
+  * To run: `open dist/TinyPOS.app`
+  * To install: Drag `dist/TinyPOS.app` into `/Applications/`
+* **Windows**: Generates `dist/TinyPOS.exe` with embedded icon (`icon.ico`) and no background console window.
+* **Linux**: Generates a single standalone binary `dist/TinyPOS` with system tray support.
+* **Automatic Cache Cleanup**: All intermediate build caches (`build/`, `.spec`, `__pycache__`) are automatically pruned after building.
+

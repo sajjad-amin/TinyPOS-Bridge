@@ -34,3 +34,11 @@ Thumbs.db
 *.log
 temp_*
 sample.txt
+
+# PyInstaller & Build Artifacts
+build/
+dist/
+*.spec
+client-app/build/
+client-app/dist/
+client-app/*.spec

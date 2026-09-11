@@ -56,7 +56,7 @@ def run_crossplatform_app():
     icon = pystray.Icon("TinyPOS Client", icon=icon_gray, title="TinyPOS Cloud Bridge")
 
     def on_feed(item):
-        threading.Thread(target=lambda: asyncio.run(ble_driver.feed_paper()), daemon=True).start()
+        relay_worker.feed_paper()
 
     def on_reconnect(item):
         relay_worker.trigger_reconnect()
