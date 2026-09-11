@@ -1,17 +1,68 @@
 <!-- Tab 2: QR Code -->
 <div class="tab-pane" id="tab-qr-pane" role="tabpanel" aria-labelledby="tab-qr-btn">
     <div>
-        <div class="mb-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <label for="qr-content" class="form-label small fw-bold text-muted text-uppercase mb-0">QR Code Content / Payload</label>
-                <div class="d-flex gap-1">
-                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" onclick="setQRPreset('url')">URL</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" onclick="setQRPreset('wifi')">Wi-Fi</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" onclick="setQRPreset('upi')">Payment</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.72rem;" onclick="setQRPreset('text')">Text</button>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label small fw-bold text-muted text-uppercase mb-0">QR Code Type &amp; Payload</label>
+            <div class="btn-group btn-group-sm" role="group" aria-label="QR Type">
+                <button type="button" class="btn btn-primary btn-sm py-0 px-2 fw-semibold" id="qr-type-url" onclick="switchQRType('url')">
+                    <i class="bi bi-link-45deg me-1"></i>URL
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="qr-type-wifi" onclick="switchQRType('wifi')">
+                    <i class="bi bi-wifi me-1"></i>Wi-Fi
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="qr-type-text" onclick="switchQRType('text')">
+                    <i class="bi bi-fonts me-1"></i>Plain Text
+                </button>
+            </div>
+        </div>
+
+        <!-- 1. URL Mode -->
+        <div id="qr-pane-url" class="mb-3">
+            <label for="qr-input-url" class="form-label small fw-semibold text-muted mb-1">
+                <i class="bi bi-globe me-1"></i> Target Website / URL:
+            </label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-body-secondary"><i class="bi bi-link"></i></span>
+                <input type="url" id="qr-input-url" class="form-control font-monospace" placeholder="https://example.com/order/101" autocomplete="off" oninput="onQRFieldChange()">
+            </div>
+            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Opens directly in smartphone browsers when scanned.</small>
+        </div>
+
+        <!-- 2. Wi-Fi Mode -->
+        <div id="qr-pane-wifi" class="mb-3 d-none">
+            <div class="row g-2">
+                <div class="col-12 col-sm-6">
+                    <label for="qr-wifi-ssid" class="form-label small fw-semibold text-muted mb-1">
+                        <i class="bi bi-router me-1"></i> Wi-Fi Name (SSID):
+                    </label>
+                    <input type="text" id="qr-wifi-ssid" class="form-control form-control-sm" placeholder="e.g. MyWiFiNetwork" autocomplete="off" oninput="onQRFieldChange()">
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label for="qr-wifi-pass" class="form-label small fw-semibold text-muted mb-1">
+                        <i class="bi bi-key me-1"></i> Password:
+                    </label>
+                    <input type="text" id="qr-wifi-pass" class="form-control form-control-sm font-monospace" placeholder="Network password" autocomplete="off" oninput="onQRFieldChange()">
+                </div>
+                <div class="col-12">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="qr-wifi-sec" class="form-label small fw-semibold text-muted mb-0 text-nowrap">Security:</label>
+                        <select id="qr-wifi-sec" class="form-select form-select-sm" onchange="onQRFieldChange()">
+                            <option value="WPA" selected>WPA / WPA2 / WPA3 (Standard)</option>
+                            <option value="WEP">WEP (Legacy)</option>
+                            <option value="nopass">Open Network (No Password)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <textarea id="qr-content" class="form-control font-monospace" rows="6" style="font-size: 0.85rem;" placeholder="Enter URL, payment link, Wi-Fi info, or any text to encode in QR...">https://pos.sayem.com</textarea>
+            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Phones automatically connect to this Wi-Fi network without typing passwords.</small>
+        </div>
+
+        <!-- 3. Plain Text Mode -->
+        <div id="qr-pane-text" class="mb-3 d-none">
+            <label for="qr-content" class="form-label small fw-semibold text-muted mb-1">
+                <i class="bi bi-fonts me-1"></i> Plain Text Message:
+            </label>
+            <textarea id="qr-content" class="form-control font-monospace" rows="10" style="font-size: 0.85rem;" placeholder="Type any plain text message or receipt note..." oninput="onQRFieldChange()"></textarea>
         </div>
 
         <div class="row g-2 mb-3">
@@ -19,13 +70,13 @@
                 <label for="qr-header" class="form-label small fw-semibold text-muted mb-1">
                     <i class="bi bi-type-h1 me-1"></i> Header Text (Optional):
                 </label>
-                <input type="text" id="qr-header" class="form-control form-control-sm" placeholder="e.g., SCAN TO PAY / VISIT" value="SCAN TO VISIT">
+                <input type="text" id="qr-header" class="form-control form-control-sm" placeholder="Optional top header text" autocomplete="off">
             </div>
             <div class="col-12 col-sm-6">
                 <label for="qr-footer" class="form-label small fw-semibold text-muted mb-1">
                     <i class="bi bi-type me-1"></i> Footer Text (Optional):
                 </label>
-                <input type="text" id="qr-footer" class="form-control form-control-sm" placeholder="e.g., https://pos.sayem.com" value="https://pos.sayem.com">
+                <input type="text" id="qr-footer" class="form-control form-control-sm" placeholder="Optional bottom footer text" autocomplete="off">
             </div>
         </div>
 

@@ -1,37 +1,83 @@
-function setQRPreset(type) {
-    const contentEl = document.getElementById('qr-content');
+/**
+ * QR Code Printing and Preview Logic.
+ * Supports URL, Wi-Fi (SSID, Password, Security), and Plain Text.
+ */
+
+let currentQRType = 'url';
+
+function switchQRType(type) {
+    currentQRType = type;
+    const btnUrl = document.getElementById('qr-type-url');
+    const btnWifi = document.getElementById('qr-type-wifi');
+    const btnText = document.getElementById('qr-type-text');
+
+    const paneUrl = document.getElementById('qr-pane-url');
+    const paneWifi = document.getElementById('qr-pane-wifi');
+    const paneText = document.getElementById('qr-pane-text');
+
     const headerEl = document.getElementById('qr-header');
     const footerEl = document.getElementById('qr-footer');
-    if (!contentEl || !headerEl || !footerEl) return;
+
+    // Reset button states
+    [btnUrl, btnWifi, btnText].forEach(btn => {
+        if (btn) btn.className = 'btn btn-outline-secondary btn-sm py-0 px-2';
+    });
+    // Hide all panels
+    [paneUrl, paneWifi, paneText].forEach(pane => {
+        if (pane) pane.classList.add('d-none');
+    });
 
     if (type === 'url') {
-        contentEl.value = 'https://pos.sayem.com';
-        headerEl.value = 'SCAN TO VISIT';
-        footerEl.value = 'https://pos.sayem.com';
+        if (btnUrl) btnUrl.className = 'btn btn-primary btn-sm py-0 px-2 fw-semibold';
+        if (paneUrl) paneUrl.classList.remove('d-none');
     } else if (type === 'wifi') {
-        contentEl.value = 'WIFI:S:TinyPOS_Guest;T:WPA;P:pos123456;;';
-        headerEl.value = 'CONNECT TO WI-FI';
-        footerEl.value = 'SSID: TinyPOS_Guest';
-    } else if (type === 'upi') {
-        contentEl.value = 'upi://pay?pa=merchant@pos&pn=TinyPOS%20Store&am=150.00&cu=INR';
-        headerEl.value = 'SCAN TO PAY';
-        footerEl.value = 'UPI Payment Accepted';
+        if (btnWifi) btnWifi.className = 'btn btn-primary btn-sm py-0 px-2 fw-semibold';
+        if (paneWifi) paneWifi.classList.remove('d-none');
     } else if (type === 'text') {
-        contentEl.value = 'Thank you for your visit! Table #12';
-        headerEl.value = 'ORDER TICKET';
-        footerEl.value = 'TinyPOS Thermal Bridge';
+        if (btnText) btnText.className = 'btn btn-primary btn-sm py-0 px-2 fw-semibold';
+        if (paneText) paneText.classList.remove('d-none');
+    }
+}
+
+// Backward compatibility alias
+function setQRPreset(type) {
+    switchQRType(type);
+}
+
+function onQRFieldChange() {
+    // Left empty: no automatic header/footer overwrite
+}
+
+function getQRPayload() {
+    if (currentQRType === 'url') {
+        return (document.getElementById('qr-input-url')?.value || '').trim();
+    } else if (currentQRType === 'wifi') {
+        const ssid = (document.getElementById('qr-wifi-ssid')?.value || '').trim();
+        const pass = document.getElementById('qr-wifi-pass')?.value || '';
+        const sec = document.getElementById('qr-wifi-sec')?.value || 'WPA';
+        if (!ssid) return '';
+        if (sec === 'nopass' || !pass) {
+            return `WIFI:S:${ssid};;`;
+        }
+        return `WIFI:S:${ssid};T:${sec};P:${pass};;`;
+    } else {
+        return (document.getElementById('qr-content')?.value || '').trim();
     }
 }
 
 async function printQRNow() {
-    const content = document.getElementById('qr-content').value;
-    const header = document.getElementById('qr-header').value;
-    const footer = document.getElementById('qr-footer').value;
-    const qrSize = parseInt(document.getElementById('qr-size').value) || 260;
-    const strength = parseInt(document.getElementById('qr-strength').value) || 7;
+    const content = getQRPayload();
+    const header = document.getElementById('qr-header')?.value || '';
+    const footer = document.getElementById('qr-footer')?.value || '';
+    const qrSize = parseInt(document.getElementById('qr-size')?.value) || 260;
+    const strength = parseInt(document.getElementById('qr-strength')?.value) || 7;
 
-    if (!content.trim()) {
-        showToast('Please enter QR code content', 'text-bg-warning');
+    if (!content) {
+        if (currentQRType === 'wifi') {
+            showToast('Please enter Wi-Fi Network Name (SSID)', 'text-bg-warning');
+        } else {
+            showToast('Please enter QR code content', 'text-bg-warning');
+        }
         return;
     }
 
@@ -68,14 +114,18 @@ async function printQRNow() {
 }
 
 async function previewQRBitmap() {
-    const content = document.getElementById('qr-content').value;
-    const header = document.getElementById('qr-header').value;
-    const footer = document.getElementById('qr-footer').value;
-    const qrSize = parseInt(document.getElementById('qr-size').value) || 260;
-    const strength = parseInt(document.getElementById('qr-strength').value) || 7;
+    const content = getQRPayload();
+    const header = document.getElementById('qr-header')?.value || '';
+    const footer = document.getElementById('qr-footer')?.value || '';
+    const qrSize = parseInt(document.getElementById('qr-size')?.value) || 260;
+    const strength = parseInt(document.getElementById('qr-strength')?.value) || 7;
 
-    if (!content.trim()) {
-        showToast('Please enter QR code content to preview', 'text-bg-warning');
+    if (!content) {
+        if (currentQRType === 'wifi') {
+            showToast('Please enter Wi-Fi Network Name (SSID)', 'text-bg-warning');
+        } else {
+            showToast('Please enter QR code content to preview', 'text-bg-warning');
+        }
         return;
     }
 
@@ -96,6 +146,6 @@ async function previewQRBitmap() {
         document.getElementById('preview-img').src = url;
         new bootstrap.Modal(document.getElementById('previewModal')).show();
     } catch (e) {
-        showToast('QR Preview error', 'text-bg-danger');
+        showToast('QR Preview error: ' + e.message, 'text-bg-danger');
     }
 }

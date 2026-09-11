@@ -1,0 +1,184 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}
+<i class="bi bi-fonts text-primary me-2"></i>Multilingual Text API
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-0 fw-bold"><i class="bi bi-fonts text-primary me-2"></i>Multilingual Text Printing API</h6>
+            <small class="text-muted">Direct 1-step printing supporting all living world scripts and emojis mixed on the same line</small>
+        </div>
+        <span class="badge bg-primary-subtle text-primary">Universal Typography</span>
+    </div>
+    <div class="card-body p-4">
+        <!-- Language Features Alert -->
+        <div class="alert alert-success bg-success-subtle border-0 shadow-sm mb-4">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-globe2 text-success fs-4 me-3 mt-1"></i>
+                <div>
+                    <h6 class="alert-heading fw-bold mb-1">Universal Multi-Script &amp; Emoji Support</h6>
+                    <p class="small mb-0 text-body">
+                        TinyPOS bundles comprehensive Unicode fonts. Bengali (বাংলা), Arabic (العربية), Urdu (اردو), Hindi (हिन्दी), Chinese (中文), Japanese (日本語), Korean (한국어), Russian (Русский), Thai (ไทย), and all Emojis (🍕☕❤️) can be freely mixed on the same line without missing glyph boxes or broken ligatures.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoint Summary & Parameter Details -->
+        <div class="border rounded p-3 bg-body-tertiary mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div>
+                    <span class="badge bg-success me-2">POST</span>
+                    <span class="font-monospace fw-bold text-primary">/api/print/text</span>
+                </div>
+                <span class="badge bg-secondary-subtle text-secondary small">Requires API Key</span>
+            </div>
+            <p class="small text-muted mb-3">Renders formatted multilingual receipt text with automatic line-wrapping and prints immediately in 1 step.</p>
+
+            <span class="small fw-bold text-uppercase text-secondary d-block mb-1">JSON Payload Parameters</span>
+            <table class="table table-sm table-bordered small mb-3">
+                <thead class="table-light">
+                    <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>text</code></td><td>string</td><td><span class="badge bg-danger">required</span></td><td>Raw receipt text. Use <code>\n</code> for line breaks. Supports all world languages and emojis.</td></tr>
+                    <tr><td><code>font_size</code></td><td>int</td><td><code>22</code></td><td>Font size in points (recommended: <code>20</code>–<code>26</code> for receipts)</td></tr>
+                    <tr><td><code>strength</code></td><td>int</td><td><code>7</code></td><td>Thermal print darkness intensity (1 to 7)</td></tr>
+                    <tr><td><code>immediate</code></td><td>bool</td><td><code>true</code></td><td>Executes immediately in background (set <code>false</code> for 2-step manual confirmation)</td></tr>
+                    <tr><td><code>keepjob</code> / <code>keep_job</code></td><td>bool</td><td><code>false</code></td><td>Database bloat protection: when <code>false</code>, SQLite records are purged after 5m</td></tr>
+                </tbody>
+            </table>
+
+            <span class="small fw-bold text-uppercase text-secondary d-block mb-1">Success Response (200 OK)</span>
+            <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>{
+  "job_id": "cf13f34a-626c-4f43-82c6-5631bc96340c",
+  "status": "printing",
+  "immediate": true,
+  "width": 384,
+  "height": 450,
+  "preview_url": "/api/print/preview/cf13f34a..."
+}</code></pre>
+        </div>
+
+        {% include "documentation/doc_nav_header.html" %}
+
+        <!-- Code Tabs -->
+        <ul class="nav nav-tabs mb-3" id="textCodeTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fw-semibold" id="text-php-tab" data-bs-toggle="tab" data-bs-target="#text-php-pane" type="button">Laravel / PHP</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="text-curl-tab" data-bs-toggle="tab" data-bs-target="#text-curl-pane" type="button">cURL</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="text-js-tab" data-bs-toggle="tab" data-bs-target="#text-js-pane" type="button">JavaScript / Node</button>
+            </li>
+        </ul>
+
+        <div class="tab-content mb-4" id="textCodeTabsContent">
+            <!-- PHP Tab -->
+            <div class="tab-pane fade show active" id="text-php-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('text-php-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="text-php-code"><span class="text-primary">&lt;?php</span>
+<span class="text-warning">use</span> Illuminate\Support\Facades\Http;
+
+<span class="text-info">$apiKey</span> = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">$baseUrl</span> = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-info">$receiptText</span> = <span class="text-success">"================================\n"</span>
+    . <span class="text-success">"       রেস্তোরাঁ এক্সপ্রেস 🍕\n"</span>
+    . <span class="text-success">"================================\n"</span>
+    . <span class="text-success">"চিকেন বিরিয়ানি (Half)    ৳২০০.০০\n"</span>
+    . <span class="text-success">"Chicken Shawarma         $5.50\n"</span>
+    . <span class="text-success">"Mineral Water (500ml)    ৳২৫.০০\n"</span>
+    . <span class="text-success">"--------------------------------\n"</span>
+    . <span class="text-success">"সর্বমোট বিল / TOTAL     ৳২৮০.০০\n"</span>
+    . <span class="text-success">"ধন্যবাদ! আবার আসবেন ❤️\n"</span>
+    . <span class="text-success">"================================"</span>;
+
+<span class="text-info">$response</span> = Http::withHeaders([
+    <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
+])-&gt;post(<span class="text-success">"{$baseUrl}/api/print/text"</span>, [
+    <span class="text-success">'text'</span>      =&gt; <span class="text-info">$receiptText</span>,
+    <span class="text-success">'font_size'</span> =&gt; <span class="text-warning">22</span>,
+    <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,
+    <span class="text-success">'immediate'</span> =&gt; <span class="text-warning">true</span>,
+]);
+
+<span class="text-info">$jobId</span> = <span class="text-info">$response</span>-&gt;json(<span class="text-success">'job_id'</span>);
+echo <span class="text-success">"Text Receipt Queued: {$jobId}\n"</span>;
+</code></pre>
+                </div>
+            </div>
+
+            <!-- cURL Tab -->
+            <div class="tab-pane fade" id="text-curl-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('text-curl-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="text-curl-code"><span class="text-secondary"># Direct multilingual text receipt print</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/text \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -H <span class="text-success">"Content-Type: application/json"</span> \
+  -d <span class="text-success">'{
+    "text": "ACME RESTAURANT 🍕\n--------------------------------\nআইটেম ১             ৳১৫০.০০\nItem 2               $5.00\n--------------------------------\nTOTAL BILL          ৳২০০.০০\nThank You! ধন্যবাদ ❤️",
+    "font_size": 22,
+    "strength": 7,
+    "immediate": true
+  }'</span>
+</code></pre>
+                </div>
+            </div>
+
+            <!-- JS Tab -->
+            <div class="tab-pane fade" id="text-js-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('text-js-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="text-js-code"><span class="text-info">const</span> apiKey = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">const</span> baseUrl = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-warning">const</span> res = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/text`</span>, {
+  method: <span class="text-success">'POST'</span>,
+  headers: {
+    <span class="text-success">'Content-Type'</span>: <span class="text-success">'application/json'</span>,
+    <span class="text-success">'X-API-Key'</span>: apiKey
+  },
+  body: JSON.stringify({
+    text: <span class="text-success">"CAFE EXPRESS ☕\nআইটেম: কফি (৳৮০.০০)\nTotal: $2.50\nHave a great day! ❤️"</span>,
+    font_size: <span class="text-warning">22</span>,
+    strength: <span class="text-warning">7</span>,
+    immediate: <span class="text-warning">true</span>
+  })
+});
+<span class="text-info">const</span> data = <span class="text-warning">await</span> res.json();
+console.log(<span class="text-success">'Text Job ID:'</span>, data.job_id);
+</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Navigation Footer -->
+        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+            <a href="/documentation/documents" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Invoices &amp; PDFs
+            </a>
+            <a href="/documentation/control" class="btn btn-primary btn-sm">
+                Job Control &amp; Status API <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% include "documentation/doc_scripts.html" %}
+{% endblock %}

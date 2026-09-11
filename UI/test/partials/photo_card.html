@@ -1,38 +1,71 @@
 <!-- Dedicated Photo & Artwork Studio Card -->
 <div class="col-12">
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-warning-subtle text-warning-emphasis py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="d-flex align-items-center">
-                <i class="bi bi-camera-fill text-warning fs-5 me-2"></i>
+                <i class="bi bi-camera-fill text-primary fs-5 me-2"></i>
                 <div>
                     <h6 class="mb-0 fw-bold">Photo &amp; Artwork Studio</h6>
                     <small class="text-muted d-none d-sm-inline">High-fidelity 1-bit thermal halftoning matching the official Tiny Print app</small>
                 </div>
             </div>
-            <span class="badge bg-warning text-dark px-3 py-1">Advanced Dithering &amp; Quality Controls</span>
+            <div class="d-flex align-items-center gap-2 ms-auto">
+                <span class="badge bg-primary-subtle text-primary">Dithering &amp; Quality</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary fw-semibold px-2 py-1" data-bs-toggle="modal" data-bs-target="#photoInfoModal" title="Photo Configuration Guide">
+                    <i class="bi bi-info-circle me-1"></i> Quality Guide
+                </button>
+            </div>
         </div>
         <div class="card-body p-4">
             <div class="row g-4">
-                <!-- Left: Photo Drag & Drop Upload & Thumbnail Preview -->
+                <!-- Left: Photo Drag & Drop Upload & Live Halftone Preview Area -->
                 <div class="col-lg-5">
-                    <label class="form-label small fw-bold text-muted text-uppercase mb-2">Select or Drop Photo (.jpg, .png, .webp)</label>
-                    <div id="photo-dropzone" class="p-3 text-center rounded border border-2 bg-body-tertiary position-relative" style="cursor: pointer; transition: all 0.2s ease-in-out; border-style: dashed !important; min-height: 220px; display: flex; align-items: center; justify-content: center;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase mb-0">Photo Source &amp; Live View</label>
+                        <span class="badge bg-body-secondary text-muted border" style="font-size: 0.72rem;">
+                            <kbd>Ctrl</kbd>+<kbd>V</kbd> / <kbd>⌘</kbd>+<kbd>V</kbd> Paste Allowed
+                        </span>
+                    </div>
+
+                    <!-- Dropzone when no file selected -->
+                    <div id="photo-dropzone" class="p-4 text-center rounded border border-2 bg-body-tertiary position-relative" style="cursor: pointer; transition: all 0.2s ease-in-out; border-style: dashed !important; min-height: 260px; display: flex; align-items: center; justify-content: center;">
                         <input class="position-absolute top-0 start-0 w-100 h-100 opacity-0" type="file" id="photo-file" accept="image/*" style="cursor: pointer; z-index: 2;">
                         
                         <div id="photo-prompt" class="w-100 py-3">
-                            <i class="bi bi-images fs-2 text-warning d-block mb-2"></i>
-                            <span class="small fw-bold text-body d-block">Drag &amp; drop photo here, or <span class="text-primary text-decoration-underline">browse</span></span>
-                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Supports Portraits, Artwork, Photos, Logos (Auto-resized to 384 dots)</small>
+                            <i class="bi bi-images fs-1 text-primary d-block mb-2"></i>
+                            <span class="small fw-bold text-body d-block mb-1">Drag &amp; drop photo here, click to browse,</span>
+                            <span class="small text-muted d-block mb-2">or press <kbd>Ctrl+V</kbd> / <kbd>⌘+V</kbd> to paste from clipboard</span>
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">JPG, PNG, WebP • Auto-scaled to 384 dots</small>
                         </div>
+                    </div>
 
-                        <div id="photo-preview-box" class="d-none flex-column align-items-center justify-content-center w-100">
-                            <div class="position-relative mb-2">
-                                <img id="photo-thumb" src="" alt="Selected Photo" class="rounded shadow-sm border" style="max-height: 160px; max-width: 100%; object-fit: contain;">
-                                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 rounded-circle p-1" style="line-height: 1; z-index: 3;" title="Remove photo" onclick="clearSelectedPhoto(event)">
-                                    <i class="bi bi-x fs-6"></i>
+                    <!-- Live Preview Container when photo is loaded -->
+                    <div id="photo-preview-box" class="d-none border rounded p-3 bg-body-tertiary text-center position-relative">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Preview toggle">
+                                <button type="button" class="btn btn-primary btn-sm py-0 px-2 fw-semibold" id="btn-view-thermal" onclick="togglePhotoViewMode('thermal')">
+                                    <i class="bi bi-cpu-fill me-1"></i> 384px Thermal Dots
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="btn-view-orig" onclick="togglePhotoViewMode('orig')">
+                                    Original
                                 </button>
                             </div>
-                            <span id="photo-filename" class="small fw-bold text-body d-block text-truncate w-100" style="max-width: 280px;"></span>
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2" title="Remove photo" onclick="clearSelectedPhoto(event)">
+                                <i class="bi bi-trash-fill"></i> Remove
+                            </button>
+                        </div>
+
+                        <!-- Thermal Live Output Canvas / Image -->
+                        <div class="position-relative p-2 bg-white rounded border shadow-sm d-inline-block" style="max-width: 100%; min-height: 180px;">
+                            <img id="photo-thermal-preview" src="" alt="Live Thermal 384px" style="max-height: 220px; max-width: 100%; height: auto; image-rendering: pixelated; object-fit: contain;">
+                            <img id="photo-thumb" src="" alt="Original Photo" class="d-none" style="max-height: 220px; max-width: 100%; height: auto; object-fit: contain;">
+                            <div id="photo-preview-spinner" class="position-absolute top-50 start-50 translate-middle d-none bg-dark bg-opacity-50 p-2 rounded text-white small">
+                                <div class="spinner-border spinner-border-sm text-light me-1" role="status"></div> Updating live...
+                            </div>
+                        </div>
+
+                        <div class="mt-2 text-center">
+                            <span id="photo-filename" class="small fw-bold text-body d-block text-truncate mx-auto" style="max-width: 280px;"></span>
                             <small id="photo-meta" class="text-muted d-block" style="font-size: 0.75rem;"></small>
                         </div>
                     </div>
@@ -44,7 +77,7 @@
                         <!-- Quality Preset -->
                         <div class="col-sm-6">
                             <label for="photo-preset" class="form-label small fw-semibold text-muted mb-1">
-                                <i class="bi bi-magic text-warning me-1"></i> Quality Preset:
+                                <i class="bi bi-magic text-primary me-1"></i> Quality Preset:
                             </label>
                             <select id="photo-preset" class="form-select form-select-sm" onchange="onPhotoPresetChange()">
                                 <option value="portrait" selected>Portrait / Face (Soft Skin Tones)</option>
@@ -60,7 +93,7 @@
                             <label for="photo-dither" class="form-label small fw-semibold text-muted mb-1">
                                 <i class="bi bi-grid-3x3 me-1"></i> Dithering Algorithm:
                             </label>
-                            <select id="photo-dither" class="form-select form-select-sm">
+                            <select id="photo-dither" class="form-select form-select-sm" onchange="triggerLivePhotoPreview()">
                                 <option value="floyd" selected>Floyd-Steinberg (Ultra-Smooth Diffusion)</option>
                                 <option value="atkinson">Atkinson (Apple Mac Classic - Crisp Highlights)</option>
                                 <option value="bayer">Bayer 8x8 (Ordered Matrix Halftone)</option>
@@ -72,7 +105,7 @@
                             <label for="photo-sharpness" class="form-label small fw-semibold text-muted mb-1">
                                 <i class="bi bi-lightning text-primary me-1"></i> Edge Sharpening:
                             </label>
-                            <select id="photo-sharpness" class="form-select form-select-sm">
+                            <select id="photo-sharpness" class="form-select form-select-sm" onchange="triggerLivePhotoPreview()">
                                 <option value="1.2" selected>Normal (120% Unsharp Mask)</option>
                                 <option value="2.0">High (200% High-Definition)</option>
                                 <option value="0.0">None (Soft &amp; Natural)</option>
@@ -84,7 +117,7 @@
                             <label for="photo-strength" class="form-label small fw-semibold text-muted mb-1">
                                 <i class="bi bi-fire text-danger me-1"></i> Print Strength / Darkness:
                             </label>
-                            <select id="photo-strength" class="form-select form-select-sm border-warning">
+                            <select id="photo-strength" class="form-select form-select-sm border-primary" onchange="triggerLivePhotoPreview()">
                                 <option value="4">4 - Normal</option>
                                 <option value="5">5 - Dark</option>
                                 <option value="6">6 - Extra Dark</option>
@@ -97,7 +130,7 @@
                             <label for="photo-contrast" class="form-label small fw-semibold text-muted mb-1">
                                 <i class="bi bi-circle-half me-1"></i> Contrast Curve:
                             </label>
-                            <select id="photo-contrast" class="form-select form-select-sm">
+                            <select id="photo-contrast" class="form-select form-select-sm" onchange="triggerLivePhotoPreview()">
                                 <option value="default" selected>Preset Default</option>
                                 <option value="1.0">100% Normal</option>
                                 <option value="1.15">+15% Enhanced</option>
@@ -109,9 +142,9 @@
                         <!-- Brightness / Shadow Lift -->
                         <div class="col-sm-6">
                             <label for="photo-brightness" class="form-label small fw-semibold text-muted mb-1">
-                                <i class="bi bi-brightness-high text-warning me-1"></i> Brightness / Shadow Lift:
+                                <i class="bi bi-brightness-high text-primary me-1"></i> Brightness / Shadow Lift:
                             </label>
-                            <select id="photo-brightness" class="form-select form-select-sm">
+                            <select id="photo-brightness" class="form-select form-select-sm" onchange="triggerLivePhotoPreview()">
                                 <option value="default" selected>Preset Default</option>
                                 <option value="1.08">+8% Shadow Lift (Bright Skin)</option>
                                 <option value="1.15">+15% High Lift</option>
@@ -123,7 +156,7 @@
                         <!-- Scale & Margin Options -->
                         <div class="col-12 d-flex flex-wrap align-items-center justify-content-between gap-3 pt-2">
                             <div class="form-check form-switch mb-0">
-                                <input class="form-check-input" type="checkbox" role="switch" id="photo-autocrop" checked>
+                                <input class="form-check-input" type="checkbox" role="switch" id="photo-autocrop" checked onchange="triggerLivePhotoPreview()">
                                 <label class="form-check-label small fw-semibold text-body" for="photo-autocrop">
                                     Auto-crop borders
                                     <small class="text-muted d-block fw-normal">Trims empty borders so photo fills 384 dots</small>
@@ -131,7 +164,7 @@
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <label for="photo-scale" class="form-label small fw-semibold text-muted mb-0 text-nowrap">Scale:</label>
-                                <select id="photo-scale" class="form-select form-select-sm" style="width: 140px;">
+                                <select id="photo-scale" class="form-select form-select-sm" style="width: 140px;" onchange="triggerLivePhotoPreview()">
                                     <option value="1.0" selected>100% Fit Width</option>
                                     <option value="1.15">115% Zoom</option>
                                     <option value="1.25">125% Zoom</option>
@@ -143,16 +176,16 @@
                 </div>
             </div>
 
-            <!-- Action Buttons -->
+            <!-- Action Buttons (Standard size and btn-primary) -->
             <div class="pt-3 mt-3 border-top d-flex flex-wrap gap-2 align-items-center">
-                <button id="btn-print-photo" class="btn btn-sm btn-warning text-dark fw-bold px-4 flex-grow-1" onclick="printPhotoNow()">
+                <button id="btn-print-photo" class="btn btn-sm btn-primary px-3 fw-semibold" onclick="printPhotoNow()">
                     <i class="bi bi-printer-fill me-1"></i> Print Photo Now
                 </button>
                 <button id="btn-stop-photo" class="btn btn-sm btn-outline-danger px-3 fw-semibold" onclick="stopPrintingNow()" disabled>
                     <i class="bi bi-stop-circle me-1"></i> Stop
                 </button>
-                <button class="btn btn-sm btn-outline-secondary px-3" onclick="previewPhotoHalftone()">
-                    <i class="bi bi-eye me-1"></i> Preview 384px Halftone
+                <button class="btn btn-sm btn-outline-secondary px-3" onclick="openPhotoModalPreview()">
+                    <i class="bi bi-arrows-fullscreen me-1"></i> Fullscreen Preview
                 </button>
             </div>
         </div>

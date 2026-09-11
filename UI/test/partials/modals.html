@@ -69,6 +69,69 @@
     </div>
 </div>
 
+<!-- Modal for Photo Configuration Guide -->
+<div class="modal fade" id="photoInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-secondary-subtle text-secondary-emphasis py-3">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-camera-fill text-primary me-2"></i>Photo &amp; Halftoning Configuration Guide
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="small text-muted mb-3">
+                    Thermal receipt printers are <strong>1-bit monochrome</strong> devices: each micro-pin can only burn solid black or leave paper white.
+                    TinyPOS uses advanced digital image processing to reproduce photographic quality:
+                </p>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100 bg-body-tertiary">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-grid-3x3 me-1"></i> Dithering Algorithms</h6>
+                            <ul class="small mb-0 ps-3 text-muted">
+                                <li class="mb-2"><strong>Floyd-Steinberg (Default):</strong> Error-diffusion algorithm with continuous micro-dot distribution. Best for soft skin tones and smooth gradients.</li>
+                                <li class="mb-2"><strong>Atkinson:</strong> Apple Macintosh classic. Diffuses 75% of error and drops 25%, keeping highlights pure white and preventing dark ink pooling.</li>
+                                <li><strong>Bayer 8x8 Matrix:</strong> Ordered threshold grid producing a retro comic book and newspaper halftone pattern.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100 bg-body-tertiary">
+                            <h6 class="fw-bold text-warning-emphasis mb-2"><i class="bi bi-lightning me-1"></i> Edge Sharpening (Unsharp Mask)</h6>
+                            <p class="small text-muted mb-2">
+                                Thermal printer pins bleed heat into adjacent paper fibers ("dot gain").
+                            </p>
+                            <p class="small text-muted mb-0">
+                                Applying an <strong>Unsharp Mask filter</strong> before halftoning accentuates high-frequency edges — making eyes, hair strands, teeth, and fine textures razor-sharp on thermal paper!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border rounded p-3 bg-body-tertiary mb-3">
+                    <h6 class="fw-bold text-success mb-2"><i class="bi bi-magic me-1"></i> Quality Presets</h6>
+                    <div class="row g-2 small text-muted">
+                        <div class="col-sm-6"><strong>• Portrait / Face:</strong> Lifts midtone shadows so cheeks and eyes don't become muddy black holes.</div>
+                        <div class="col-sm-6"><strong>• Crisp &amp; Detailed:</strong> Maximum unsharp masking; ideal for jewelry, hair, and complex textures.</div>
+                        <div class="col-sm-6"><strong>• Balanced:</strong> Natural dynamic range for landscapes, travel, and everyday snaps.</div>
+                        <div class="col-sm-6"><strong>• High Contrast:</strong> Punchy blacks and stark whites for sketches, silhouettes, and logos.</div>
+                        <div class="col-sm-6"><strong>• Retro Halftone:</strong> Structured dot matrix look reminiscent of vintage newsprint.</div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info small mb-0 py-2">
+                    <i class="bi bi-clipboard-check me-1"></i> <strong>Pro-Tip:</strong> Press <kbd>Ctrl</kbd>+<kbd>V</kbd> or <kbd>⌘</kbd>+<kbd>V</kbd> anywhere on the page to instantly paste screenshots or copied photos into the Studio!
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-sm btn-primary px-4" data-bs-dismiss="modal">Got It</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
     <div id="liveToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">

@@ -51,6 +51,38 @@
             bottom: 0;
             z-index: 10;
         }
+        .doc-submenu {
+            padding-left: 0.5rem;
+            margin-top: 0.2rem;
+            margin-bottom: 0.4rem;
+            border-left: 2px solid var(--bs-border-color);
+            margin-left: 1.15rem;
+        }
+        .doc-submenu .nav-link {
+            font-size: 0.84rem;
+            padding: 0.35rem 0.6rem;
+            margin-bottom: 2px;
+            color: var(--bs-secondary-color);
+            border-radius: 6px;
+        }
+        .doc-submenu .nav-link:hover {
+            color: var(--bs-body-color);
+            background-color: var(--bs-secondary-bg);
+        }
+        .doc-submenu .nav-link.active {
+            color: var(--bs-primary);
+            background-color: var(--bs-primary-bg-subtle);
+            font-weight: 600;
+        }
+        .chevron-toggle {
+            transition: transform 0.2s ease-in-out;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+        }
+        [aria-expanded="true"] .chevron-toggle {
+            transform: rotate(180deg);
+        }
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -122,10 +154,52 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a href="/documentation" class="nav-link {% if active_page == 'documentation' %}active{% endif %}">
-                                    <i class="bi bi-book me-2"></i>
-                                    Documentation
+                                <a class="nav-link d-flex justify-content-between align-items-center text-nowrap {% if active_page == 'documentation' and not active_subpage %}active{% endif %}" 
+                                   href="#docSubmenu" 
+                                   data-bs-toggle="collapse" 
+                                   role="button" 
+                                   aria-expanded="{% if active_page == 'documentation' %}true{% else %}false{% endif %}"
+                                   aria-controls="docSubmenu">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-book me-2"></i>
+                                        <span>Documentation</span>
+                                    </div>
+                                    <i class="bi bi-chevron-down chevron-toggle ms-2" style="font-size: 0.75rem;"></i>
                                 </a>
+                                <div class="collapse {% if active_page == 'documentation' %}show{% endif %}" id="docSubmenu">
+                                    <ul class="nav nav-pills flex-column doc-submenu">
+                                        <li class="nav-item">
+                                            <a href="/documentation" class="nav-link {% if active_page == 'documentation' and (not active_subpage or active_subpage == 'overview') %}active{% endif %}">
+                                                <i class="bi bi-compass me-1"></i> Overview
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="/documentation/qr" class="nav-link {% if active_subpage == 'qr' %}active{% endif %}">
+                                                <i class="bi bi-qr-code me-1"></i> QR Code API
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="/documentation/photo" class="nav-link {% if active_subpage == 'photo' %}active{% endif %}">
+                                                <i class="bi bi-camera me-1"></i> Photo Studio API
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="/documentation/documents" class="nav-link {% if active_subpage == 'documents' %}active{% endif %}">
+                                                <i class="bi bi-file-earmark-pdf me-1"></i> Invoices &amp; PDFs
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="/documentation/text" class="nav-link {% if active_subpage == 'text' %}active{% endif %}">
+                                                <i class="bi bi-fonts me-1"></i> Multilingual Text
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a href="/documentation/control" class="nav-link {% if active_subpage == 'control' %}active{% endif %}">
+                                                <i class="bi bi-sliders me-1"></i> Job Control
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
                             </li>
                         </ul>
                     </div>

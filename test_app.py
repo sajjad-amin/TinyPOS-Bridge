@@ -77,7 +77,9 @@ def test_auth_and_ui_pages():
     assert "Print QR Code" in res_test.text
     assert "sample-lang-select" in res_test.text
     assert "qr-content" in res_test.text
-    print(" [OK] /test (Modular Console with Text & QR Tabs) rendered cleanly")
+    assert "qr-input-url" in res_test.text
+    assert "qr-wifi-ssid" in res_test.text
+    print(" [OK] /test (Modular Console with Text, QR URL/Wi-Fi/Text, & Photo Studio) rendered cleanly")
 
     # 5. Access /api-keys with session
     res_keys = client.get("/api-keys", cookies=cookies)
@@ -97,13 +99,19 @@ def test_auth_and_ui_pages():
     assert db.is_valid_api_key(ui_key) is True
     print(" [OK] Created API Key via UI successfully into SQLite")
 
-    # 7. Access /documentation with session
+    # 7. Access /documentation and all separate subpages with session
     res_doc = client.get("/documentation", cookies=cookies)
     assert res_doc.status_code == 200
     assert "Integration Guide" in res_doc.text
     assert "base-url-display" in res_doc.text
     assert "base-url-placeholder" in res_doc.text
     assert "baseUrlInput" in res_doc.text
+    assert "docSubmenu" in res_doc.text
+    assert "/documentation/qr" in res_doc.text
+    assert "/documentation/photo" in res_doc.text
+    assert "/documentation/documents" in res_doc.text
+    assert "/documentation/text" in res_doc.text
+    assert "/documentation/control" in res_doc.text
 
     # Test reverse proxy headers (Cloudflare / Nginx)
     res_doc_proxy = client.get(
@@ -113,8 +121,25 @@ def test_auth_and_ui_pages():
     )
     assert res_doc_proxy.status_code == 200
     assert "https://pos.sayem.com" in res_doc_proxy.text
+
+    # Test each separate documentation subpage
+    subpages = [
+        ("/documentation/qr", "QR Code API", "/api/print/qr"),
+        ("/documentation/photo", "Photo Studio API", "/api/print/photo"),
+        ("/documentation/documents", "Invoices & PDFs", "/api/print/raw"),
+        ("/documentation/text", "Multilingual Text", "/api/print/text"),
+        ("/documentation/control", "Job Control", "/api/print/stop"),
+    ]
+    for path, title_snippet, endpoint_snippet in subpages:
+        sub_res = client.get(path, cookies=cookies)
+        assert sub_res.status_code == 200
+        assert title_snippet in sub_res.text
+        assert endpoint_snippet in sub_res.text
+        assert "docSubmenu" in sub_res.text
+        print(f" [OK] {path} rendered cleanly with submenu and {endpoint_snippet}")
+
     print(" [OK] /documentation dynamically used production proxy headers (https://pos.sayem.com)")
-    print(" [OK] /documentation rendered cleanly with keepjob & immediate docs")
+    print(" [OK] All separate documentation subpages verified successfully")
 
     # 8. Delete key via UI action
     del_res = client.post(

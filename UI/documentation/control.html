@@ -1,0 +1,216 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}
+<i class="bi bi-sliders text-primary me-2"></i>Job Control &amp; Status API
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-0 fw-bold"><i class="bi bi-sliders me-2"></i>Job Control, Cancellation &amp; Status APIs</h6>
+            <small class="text-muted">Immediate print abort, job cancellation, hardware connectivity probe, and preview raster fetching</small>
+        </div>
+        <span class="badge bg-primary-subtle text-primary">Job Lifecycle</span>
+    </div>
+    <div class="card-body p-4">
+        <!-- Stop Safety Banner -->
+        <div class="alert alert-danger bg-danger-subtle border-0 shadow-sm mb-4">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-stop-circle-fill text-danger fs-4 me-3 mt-1"></i>
+                <div>
+                    <h6 class="alert-heading fw-bold mb-1">Immediate Print Abort (Save Thermal Paper)</h6>
+                    <p class="small mb-0 text-body">
+                        If a user accidentally prints a 100-page document or wrong invoice, calling <code>POST /api/print/stop</code> instantly halts the active Bluetooth transmission loop and cancels all pending packets within milliseconds, preventing wasted thermal paper rolls.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoints Grid -->
+        <div class="row g-4 mb-4">
+            <!-- 1. Immediate Stop -->
+            <div class="col-lg-6">
+                <div class="border rounded p-3 bg-body-tertiary h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-danger me-2">POST</span>
+                            <span class="font-monospace fw-bold text-danger">/api/print/stop</span>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary small">Requires API Key</span>
+                    </div>
+                    <p class="small text-muted mb-2">Aborts whatever print job is currently streaming over Bluetooth to the printer.</p>
+                    <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>{
+  "success": true,
+  "message": "Immediate stop signal sent."
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- 2. Cancel Job by ID -->
+            <div class="col-lg-6">
+                <div class="border rounded p-3 bg-body-tertiary h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-warning text-dark me-2">DELETE / POST</span>
+                            <span class="font-monospace fw-bold text-primary">/api/print/cancel/{job_id}</span>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary small">Requires API Key</span>
+                    </div>
+                    <p class="small text-muted mb-2">Cancels a pending queued job or halts an active printing job matching <code>job_id</code>.</p>
+                    <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>{
+  "job_id": "4f9b8c12-3456-789a-bcde-0123456789ab",
+  "status": "cancelled",
+  "message": "Job cancelled."
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- 3. Hardware Status -->
+            <div class="col-lg-6">
+                <div class="border rounded p-3 bg-body-tertiary h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-primary me-2">GET</span>
+                            <span class="font-monospace fw-bold text-primary">/api/status</span>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary small">Requires API Key</span>
+                    </div>
+                    <p class="small text-muted mb-2">Probes printer BLE connection status and checks if the print head is actively printing (<code>is_printing: true</code>).</p>
+                    <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>{
+  "connected": true,
+  "device_name": "Bainiu X6",
+  "is_printing": false,
+  "battery_level": 85
+}</code></pre>
+                </div>
+            </div>
+
+            <!-- 4. Preview Raster -->
+            <div class="col-lg-6">
+                <div class="border rounded p-3 bg-body-tertiary h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-info text-dark me-2">GET</span>
+                            <span class="font-monospace fw-bold text-primary">/api/print/preview/{job_id}</span>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary small">Requires API Key</span>
+                    </div>
+                    <p class="small text-muted mb-2">Fetches the exact 384px-wide 1-bit monochrome PNG image generated for the print job from SQLite.</p>
+                    <div class="small text-muted font-monospace">
+                        Returns: <code>image/png</code> binary stream
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% include "documentation/doc_nav_header.html" %}
+
+        <!-- Code Tabs -->
+        <ul class="nav nav-tabs mb-3" id="controlCodeTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fw-semibold" id="ctl-php-tab" data-bs-toggle="tab" data-bs-target="#ctl-php-pane" type="button">Laravel / PHP</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="ctl-curl-tab" data-bs-toggle="tab" data-bs-target="#ctl-curl-pane" type="button">cURL</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="ctl-js-tab" data-bs-toggle="tab" data-bs-target="#ctl-js-pane" type="button">JavaScript / Node</button>
+            </li>
+        </ul>
+
+        <div class="tab-content mb-4" id="controlCodeTabsContent">
+            <!-- PHP Tab -->
+            <div class="tab-pane fade show active" id="ctl-php-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('ctl-php-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="ctl-php-code"><span class="text-primary">&lt;?php</span>
+<span class="text-warning">use</span> Illuminate\Support\Facades\Http;
+
+<span class="text-info">$apiKey</span> = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">$baseUrl</span> = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-secondary">// 1. Immediate Print Abort</span>
+<span class="text-info">$stopRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;post(<span class="text-success">"{$baseUrl}/api/print/stop"</span>);
+
+<span class="text-secondary">// 2. Cancel Job by ID</span>
+<span class="text-info">$cancelRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;delete(<span class="text-success">"{$baseUrl}/api/print/cancel/{$jobId}"</span>);
+
+<span class="text-secondary">// 3. Probe Hardware &amp; Busy Status</span>
+<span class="text-info">$status</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;get(<span class="text-success">"{$baseUrl}/api/status"</span>)-&gt;json();
+
+<span class="text-warning">if</span> (<span class="text-info">$status</span>[<span class="text-success">'is_printing'</span>]) {
+    echo <span class="text-success">"Printer is currently busy.\n"</span>;
+}
+</code></pre>
+                </div>
+            </div>
+
+            <!-- cURL Tab -->
+            <div class="tab-pane fade" id="ctl-curl-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('ctl-curl-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="ctl-curl-code"><span class="text-secondary"># 1. Immediate Stop active print transmission</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/stop \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
+
+<span class="text-secondary"># 2. Cancel specific job</span>
+<span class="text-primary">curl</span> -X DELETE <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/cancel/JOB_ID_HERE \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
+
+<span class="text-secondary"># 3. Probe hardware status</span>
+<span class="text-primary">curl</span> <span class="base-url-placeholder">{{ request_url_base }}</span>/api/status \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
+</code></pre>
+                </div>
+            </div>
+
+            <!-- JS Tab -->
+            <div class="tab-pane fade" id="ctl-js-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('ctl-js-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="ctl-js-code"><span class="text-info">const</span> apiKey = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">const</span> baseUrl = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-secondary">// Stop printer immediately</span>
+<span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/stop`</span>, {
+  method: <span class="text-success">'POST'</span>,
+  headers: { <span class="text-success">'X-API-Key'</span>: apiKey }
+});
+
+<span class="text-secondary">// Check printer status</span>
+<span class="text-info">const</span> statusRes = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/status`</span>, {
+  headers: { <span class="text-success">'X-API-Key'</span>: apiKey }
+});
+<span class="text-info">const</span> status = <span class="text-warning">await</span> statusRes.json();
+console.log(<span class="text-success">'Printer Online:'</span>, status.connected, <span class="text-success">'Printing:'</span>, status.is_printing);
+</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Navigation Footer -->
+        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+            <a href="/documentation/text" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Multilingual Text API
+            </a>
+            <a href="/documentation" class="btn btn-primary btn-sm">
+                <i class="bi bi-compass me-1"></i> Back to Overview
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% include "documentation/doc_scripts.html" %}
+{% endblock %}

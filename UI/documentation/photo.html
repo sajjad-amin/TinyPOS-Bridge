@@ -1,0 +1,202 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}
+<i class="bi bi-camera-fill text-primary me-2"></i>Photo Studio API
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-0 fw-bold"><i class="bi bi-camera-fill text-primary me-2"></i>Photo &amp; Artwork Studio API</h6>
+            <small class="text-muted">High-fidelity 1-bit thermal halftoning matching the official Tiny Print app</small>
+        </div>
+        <span class="badge bg-primary-subtle text-primary">Dithering &amp; Edge Sharpening</span>
+    </div>
+    <div class="card-body p-4">
+        <!-- Technical Concept Alert -->
+        <div class="alert alert-secondary bg-secondary-subtle border-0 shadow-sm mb-4">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-lightning-charge-fill text-primary fs-4 me-3 mt-1"></i>
+                <div>
+                    <h6 class="alert-heading fw-bold mb-1">Thermal Halftoning vs. Standard Black &amp; White</h6>
+                    <p class="small mb-0 text-body">
+                        Thermal printers cannot print shades of gray — each micro-pin can only burn solid black or leave paper white.
+                        Standard thresholding produces ugly, blotchy photos where faces turn black.
+                        The Photo Studio API uses <strong>error-diffusion dithering</strong> and <strong>unsharp-mask spatial edge filtering</strong> to distribute micro-dots smoothly, rendering natural skin tones, soft gradients, and crisp details.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoint Summary & Parameter Details -->
+        <div class="border rounded p-3 bg-body-tertiary mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div>
+                    <span class="badge bg-warning text-dark me-2">POST</span>
+                    <span class="font-monospace fw-bold text-primary">/api/print/photo</span>
+                </div>
+                <span class="badge bg-body text-muted border small">Multipart / Form-Data</span>
+            </div>
+            <p class="small text-muted mb-3">Uploads an image file and renders it with fine-tuned halftoning, tone curve calibration, and spatial edge enhancement.</p>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-7">
+                    <span class="small fw-bold text-uppercase text-secondary d-block mb-1">Form-Data Parameters</span>
+                    <table class="table table-sm table-bordered small mb-0">
+                        <thead class="table-light">
+                            <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>file</code></td><td>file</td><td><span class="badge bg-danger">required</span></td><td>Image file (JPG, PNG, WebP)</td></tr>
+                            <tr><td><code>preset</code></td><td>string</td><td><code>portrait</code></td><td><code>portrait</code>, <code>sharp</code>, <code>balanced</code>, <code>high_contrast</code>, <code>halftone</code></td></tr>
+                            <tr><td><code>dither_algo</code></td><td>string</td><td>auto</td><td><code>floyd</code> (Floyd-Steinberg), <code>atkinson</code>, <code>bayer</code></td></tr>
+                            <tr><td><code>sharpness</code></td><td>float</td><td>1.2</td><td>Unsharp mask edge boost (0.0 to 3.0)</td></tr>
+                            <tr><td><code>contrast</code></td><td>float</td><td>auto</td><td>Contrast multiplier (e.g. 1.15)</td></tr>
+                            <tr><td><code>brightness</code></td><td>float</td><td>auto</td><td>Shadow lift multiplier (e.g. 1.08)</td></tr>
+                            <tr><td><code>strength</code></td><td>int</td><td>7</td><td>Print burning darkness (1 to 7)</td></tr>
+                            <tr><td><code>scale</code></td><td>float</td><td>1.0</td><td>Zoom scale factor (e.g. 1.0 = fit 384px)</td></tr>
+                            <tr><td><code>autocrop</code></td><td>bool</td><td>true</td><td>Auto-trims empty white borders</td></tr>
+                            <tr><td><code>immediate</code></td><td>bool</td><td>true</td><td>Print immediately in background</td></tr>
+                            <tr><td><code>keepjob</code></td><td>bool</td><td>false</td><td>Preserve record in SQLite</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="col-md-5">
+                    <span class="small fw-bold text-uppercase text-secondary d-block mb-1">Quality Presets Overview</span>
+                    <div class="list-group list-group-flush small border rounded bg-body">
+                        <div class="list-group-item py-2">
+                            <strong>• Portrait / Face:</strong> Lifts midtone shadows (+8% brightness) and uses smooth error diffusion so facial skin doesn't darken into blotches.
+                        </div>
+                        <div class="list-group-item py-2">
+                            <strong>• Crisp &amp; Detailed:</strong> Boosts unsharp-masking to 200% for fine hair, eyelashes, eyes, and intricate jewelry.
+                        </div>
+                        <div class="list-group-item py-2">
+                            <strong>• Balanced / Landscape:</strong> Neutral curve preserving distant horizon lines, trees, and sky gradients.
+                        </div>
+                        <div class="list-group-item py-2">
+                            <strong>• High Contrast:</strong> Punches black levels for logos, line illustrations, and ink drawings.
+                        </div>
+                        <div class="list-group-item py-2">
+                            <strong>• Retro Halftone:</strong> 8x8 Bayer ordered matrix mimicking vintage newspaper printing.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% include "documentation/doc_nav_header.html" %}
+
+        <!-- Code Tabs -->
+        <ul class="nav nav-tabs mb-3" id="photoCodeTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fw-semibold" id="photo-php-tab" data-bs-toggle="tab" data-bs-target="#photo-php-pane" type="button">Laravel / PHP</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="photo-curl-tab" data-bs-toggle="tab" data-bs-target="#photo-curl-pane" type="button">cURL</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="photo-js-tab" data-bs-toggle="tab" data-bs-target="#photo-js-pane" type="button">JavaScript / Node</button>
+            </li>
+        </ul>
+
+        <div class="tab-content mb-4" id="photoCodeTabsContent">
+            <!-- PHP Tab -->
+            <div class="tab-pane fade show active" id="photo-php-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('photo-php-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="photo-php-code"><span class="text-primary">&lt;?php</span>
+<span class="text-warning">use</span> Illuminate\Support\Facades\Http;
+
+<span class="text-info">$apiKey</span> = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">$baseUrl</span> = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+<span class="text-info">$photoPath</span> = <span class="text-success">'/path/to/portrait.jpg'</span>;
+
+<span class="text-info">$response</span> = Http::withHeaders([
+    <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
+])-&gt;attach(
+    <span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$photoPath</span>), <span class="text-success">'portrait.jpg'</span>
+)-&gt;post(<span class="text-success">"{$baseUrl}/api/print/photo"</span>, [
+    <span class="text-success">'preset'</span>      =&gt; <span class="text-success">'portrait'</span>,    <span class="text-secondary">// 'portrait', 'sharp', 'balanced', 'high_contrast', 'halftone'</span>
+    <span class="text-success">'dither_algo'</span> =&gt; <span class="text-success">'floyd'</span>,       <span class="text-secondary">// 'floyd', 'atkinson', 'bayer'</span>
+    <span class="text-success">'sharpness'</span>   =&gt; <span class="text-warning">1.2</span>,           <span class="text-secondary">// Unsharp-mask edge boost</span>
+    <span class="text-success">'contrast'</span>    =&gt; <span class="text-warning">1.15</span>,          <span class="text-secondary">// Optional contrast multiplier</span>
+    <span class="text-success">'brightness'</span>  =&gt; <span class="text-warning">1.08</span>,          <span class="text-secondary">// Optional shadow lift</span>
+    <span class="text-success">'strength'</span>    =&gt; <span class="text-warning">7</span>,             <span class="text-secondary">// Thermal darkness (1-7)</span>
+    <span class="text-success">'immediate'</span>   =&gt; <span class="text-warning">true</span>,          <span class="text-secondary">// 1-step direct print</span>
+    <span class="text-success">'keepjob'</span>     =&gt; <span class="text-warning">false</span>,         <span class="text-secondary">// Database bloat protection</span>
+]);
+
+<span class="text-info">$jobId</span> = <span class="text-info">$response</span>-&gt;json(<span class="text-success">'job_id'</span>);
+echo <span class="text-success">"Photo Job ID: {$jobId}\n"</span>;
+</code></pre>
+                </div>
+            </div>
+
+            <!-- cURL Tab -->
+            <div class="tab-pane fade" id="photo-curl-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('photo-curl-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="photo-curl-code"><span class="text-secondary"># Print photo with Floyd-Steinberg halftoning &amp; unsharp-masking</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/photo \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -F <span class="text-success">"file=@portrait.jpg"</span> \
+  -F <span class="text-success">"preset=portrait"</span> \
+  -F <span class="text-success">"dither_algo=floyd"</span> \
+  -F <span class="text-success">"sharpness=1.2"</span> \
+  -F <span class="text-success">"strength=7"</span> \
+  -F <span class="text-success">"immediate=true"</span>
+</code></pre>
+                </div>
+            </div>
+
+            <!-- JS Tab -->
+            <div class="tab-pane fade" id="photo-js-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('photo-js-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="photo-js-code"><span class="text-info">const</span> apiKey = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">const</span> baseUrl = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-info">const</span> formData = <span class="text-warning">new</span> FormData();
+formData.append(<span class="text-success">'file'</span>, photoFileInput.files[0]);
+formData.append(<span class="text-success">'preset'</span>, <span class="text-success">'portrait'</span>);
+formData.append(<span class="text-success">'dither_algo'</span>, <span class="text-success">'floyd'</span>);
+formData.append(<span class="text-success">'sharpness'</span>, <span class="text-success">'1.2'</span>);
+formData.append(<span class="text-success">'strength'</span>, <span class="text-success">'7'</span>);
+formData.append(<span class="text-success">'immediate'</span>, <span class="text-success">'true'</span>);
+
+<span class="text-warning">const</span> res = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/photo`</span>, {
+  method: <span class="text-success">'POST'</span>,
+  headers: { <span class="text-success">'X-API-Key'</span>: apiKey },
+  body: formData
+});
+<span class="text-info">const</span> data = <span class="text-warning">await</span> res.json();
+console.log(<span class="text-success">'Photo Job:'</span>, data.job_id);
+</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Navigation Footer -->
+        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+            <a href="/documentation/qr" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> QR Code API
+            </a>
+            <a href="/documentation/documents" class="btn btn-primary btn-sm">
+                Invoices &amp; PDFs API <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% include "documentation/doc_scripts.html" %}
+{% endblock %}

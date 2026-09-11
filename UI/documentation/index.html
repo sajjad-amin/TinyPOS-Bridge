@@ -1,32 +1,110 @@
 {% extends "layouts/app.html" %}
 
 {% block page_title %}
-<i class="bi bi-book text-primary me-2"></i>API Documentation
+<i class="bi bi-book text-primary me-2"></i>API Documentation &amp; Overview
 {% endblock %}
 
 {% block content %}
 <div class="card shadow-sm border-0 mb-4">
-    <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-book-half me-2"></i>Thermal Printer Integration Guide</h6>
+    <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-0 fw-bold"><i class="bi bi-book-half me-2"></i>Thermal Printer Integration Guide</h6>
+            <small class="text-muted">REST API overview, authentication, and quickstart examples</small>
+        </div>
+        <span class="badge bg-primary">v1.2 Active</span>
     </div>
     <div class="card-body p-4">
         <!-- Security Notice -->
         <div class="alert alert-info border-0 shadow-sm mb-4">
             <div class="d-flex align-items-center">
                 <div class="me-3">
-                    <i class="bi bi-shield-lock-fill fs-3"></i>
+                    <i class="bi bi-shield-lock-fill fs-3 text-primary"></i>
                 </div>
                 <div>
-                    <h6 class="alert-heading fw-bold mb-1">Authentication & Security</h6>
+                    <h6 class="alert-heading fw-bold mb-1">Authentication &amp; Security</h6>
                     <p class="mb-0 small">
-                        All requests under <code>/api/*</code> require your <strong>API Key</strong> to be sent via the <code>X-API-Key</code> HTTP header. Requests with missing or invalid keys return <code>403 Forbidden</code>.
+                        All requests under <code>/api/*</code> (except public QR generator <code>/api/qr/generate</code>) require your <strong>API Key</strong> to be passed in the <code>X-API-Key</code> HTTP header. Requests with missing or invalid keys return <code>403 Forbidden</code>.
                     </p>
                 </div>
             </div>
         </div>
 
+        <!-- Documentation Sub-sections Jump Cards -->
+        <h6 class="fw-bold mb-3">API Documentation Sections</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <a href="/documentation/qr" class="text-decoration-none">
+                    <div class="card h-100 border bg-body-tertiary shadow-sm hover-shadow transition">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-qr-code text-primary fs-4 me-2"></i>
+                                <h6 class="mb-0 fw-bold text-body">QR Code API</h6>
+                            </div>
+                            <p class="small text-muted mb-0">Thermal QR printing, multilingual headers/footers, and zero-auth PNG streaming for <code>&lt;img&gt;</code> tags.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-4">
+                <a href="/documentation/photo" class="text-decoration-none">
+                    <div class="card h-100 border bg-body-tertiary shadow-sm hover-shadow transition">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-camera-fill text-warning fs-4 me-2"></i>
+                                <h6 class="mb-0 fw-bold text-body">Photo Studio API</h6>
+                            </div>
+                            <p class="small text-muted mb-0">High-fidelity 1-bit halftoning (Floyd-Steinberg, Atkinson, Bayer), 5 quality presets, and unsharp masking.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-4">
+                <a href="/documentation/documents" class="text-decoration-none">
+                    <div class="card h-100 border bg-body-tertiary shadow-sm hover-shadow transition">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-file-earmark-pdf text-success fs-4 me-2"></i>
+                                <h6 class="mb-0 fw-bold text-body">Invoices &amp; PDFs</h6>
+                            </div>
+                            <p class="small text-muted mb-0">PDF receipt rendering, margin auto-cropping, and 80mm/A4 zoom auto-scaling to 384 dots.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-6">
+                <a href="/documentation/text" class="text-decoration-none">
+                    <div class="card h-100 border bg-body-tertiary shadow-sm hover-shadow transition">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-fonts text-info fs-4 me-2"></i>
+                                <h6 class="mb-0 fw-bold text-body">Multilingual Text API</h6>
+                            </div>
+                            <p class="small text-muted mb-0">100% universal living language support: Bengali, Arabic, Hindi, CJK, English, and Emojis mixed seamlessly.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-6">
+                <a href="/documentation/control" class="text-decoration-none">
+                    <div class="card h-100 border bg-body-tertiary shadow-sm hover-shadow transition">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-sliders text-danger fs-4 me-2"></i>
+                                <h6 class="mb-0 fw-bold text-body">Job Control &amp; Status</h6>
+                            </div>
+                            <p class="small text-muted mb-0">Immediate print abort, job cancellation, hardware connectivity status probe, and preview raster fetching.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
         <!-- Endpoints List -->
-        <h6 class="fw-bold mb-3">Core API Endpoints</h6>
+        <h6 class="fw-bold mb-3">Core API Endpoints Matrix</h6>
         <div class="p-3 bg-body-tertiary rounded border mb-4">
             <div class="row g-3">
                 <div class="col-md-2 fw-bold text-uppercase text-secondary small">Base URL</div>
@@ -35,7 +113,7 @@
                     <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="copyBaseUrl(this)" title="Copy Base URL">
                         <i class="bi bi-clipboard me-1"></i>Copy
                     </button>
-                    <span class="text-muted small">(Auto-detected)</span>
+                    <span class="text-muted small">(Auto-detected from current host)</span>
                 </div>
                 
                 <div class="col-md-2 fw-bold text-uppercase text-secondary small">Headers</div>
@@ -50,91 +128,121 @@
                 <div class="col-md-10">
                     <table class="table table-sm table-borderless align-middle mb-0">
                         <tr>
-                            <td><span class="badge bg-success">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/raw</td>
-                            <td>Upload PDF/Image invoice. Prints immediately in 1-step! (Supports <code>scale</code>, <code>autocrop</code>, <code>immediate</code>)</td>
+                            <td style="width: 110px;"><span class="badge bg-success">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold" style="width: 220px;">/api/print/raw</td>
+                            <td>Upload PDF/Image invoice. Prints immediately in 1-step! <a href="/documentation/documents" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-warning text-dark">POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/print/photo</td>
-                            <td><strong>Photo Studio Print:</strong> High-fidelity 1-bit thermal halftoning for photos and artwork with quality presets (<code>preset</code>, <code>dither_algo</code>, <code>sharpness</code>, <code>contrast</code>, <code>brightness</code>, <code>strength</code>)</td>
+                            <td><strong>Photo Studio Print:</strong> High-fidelity 1-bit thermal halftoning with quality presets. <a href="/documentation/photo" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-success">POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/print/text</td>
-                            <td>Print formatted text in 1-step! (Supports <code>font_size</code>, <code>strength</code>, <code>immediate</code>)</td>
+                            <td>Print formatted multilingual text in 1-step! <a href="/documentation/text" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-success">POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/print/qr</td>
-                            <td><strong>Print Thermal QR Code:</strong> High-contrast thermal QR code with optional header &amp; footer text (supports <code>content</code> / <code>text</code>, <code>header</code>, <code>footer</code>, <code>qr_size</code>, <code>strength</code>)</td>
+                            <td><strong>Print Thermal QR Code:</strong> High-contrast thermal QR code with header &amp; footer text. <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
-                            <td><span class="badge bg-info text-dark">GET/POST</span></td>
+                            <td><span class="badge bg-info text-dark">GET / POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/qr/generate</td>
-                            <td><strong>Direct QR Generator:</strong> Streams a 384px PNG QR code directly from text/URL for embedding in <code>&lt;img&gt;</code> tags or reports (no auth required).</td>
+                            <td><strong>Direct QR Generator:</strong> Streams a 384px PNG QR code directly (no auth required). <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-danger">POST</span></td>
                             <td class="font-monospace text-danger fw-bold">/api/print/stop</td>
-                            <td><strong>Immediate Stop:</strong> Aborts whatever print job is currently actively streaming to the printer!</td>
+                            <td><strong>Immediate Stop:</strong> Aborts whatever print job is currently actively streaming! <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-warning text-dark">DELETE</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/print/cancel/{id}</td>
-                            <td>Cancel a pending queued job or halt an active printing job by ID.</td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-secondary">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/confirm/{id}</td>
-                            <td>Optional: Manually confirm a pending print job (if <code>immediate=false</code> was used)</td>
+                            <td>Cancel a pending queued job or halt an active printing job by ID. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-primary">GET</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/status</td>
-                            <td>Probe thermal printer online/offline status (reports <code>is_printing: true</code> if busy)</td>
+                            <td>Probe thermal printer online/offline status and active printing flag. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                     </table>
 
                     <div class="mt-3 pt-3 border-top">
-                        <span class="fw-bold small text-uppercase text-secondary d-block mb-2">Parameters & Options</span>
-                        <ul class="small text-muted mb-0 ps-3">
-                            <li class="mb-1"><code>immediate</code> (boolean, default: <code>true</code>): <strong>Direct 1-Step Execution!</strong> When <code>true</code>, the job prints immediately in the background without needing a secondary <code>/confirm</code> request.</li>
-                            <li class="mb-1"><code>preset</code> (string, default: <code>portrait</code>): Quality preset for <code>/api/print/photo</code> (<code>portrait</code> for soft skin tones, <code>sharp</code> for eyes &amp; hair detail, <code>balanced</code> for landscapes, <code>high_contrast</code> for logos, <code>halftone</code> for vintage newsprint).</li>
-                            <li class="mb-1"><code>dither_algo</code> (string): Halftoning algorithm for <code>/api/print/photo</code> (<code>floyd</code> for Floyd-Steinberg error diffusion, <code>atkinson</code> for crisp Apple Mac highlights, <code>bayer</code> for 8x8 ordered matrix).</li>
-                            <li class="mb-1"><code>sharpness</code> (float, default: <code>1.2</code>): Unsharp-mask spatial edge enhancement filter (0.0 to 3.0) applied before halftoning to make thermal photos razor-sharp.</li>
-                            <li class="mb-1"><code>keepjob</code> / <code>keep_job</code> (boolean, default: <code>false</code>): <strong>Database Bloat Protection!</strong> By default, jobs are temporary and purged from SQLite after 5 minutes so high-volume POS invoicing doesn't bloat disk space. Pass <code>keepjob=true</code> or <code>keep_job=true</code> to permanently save the job and preview raster in history.</li>
-                            <li class="mb-1"><code>scale</code> (float, default: <code>1.0</code>): Zoom/Scale multiplier (e.g. <code>1.25</code> = +25% zoom, <code>1.5</code> = +50% zoom). Expands 80mm or A4 receipts to make fonts crisp and readable on 57mm paper!</li>
-                            <li class="mb-1"><code>autocrop</code> (boolean, default: <code>true</code>): Automatically strips empty white borders and margins so receipt text fills the full 384-dot width.</li>
-                            <li class="mb-1"><code>strength</code> (integer 1-7, default: <code>7</code>): Thermal burning energy and pulse pacing. Level <code>7</code> maximizes darkness and thickens text strokes for weak or aged thermal paper rolls.</li>
-                        </ul>
+                        <span class="fw-bold small text-uppercase text-secondary d-block mb-3">Parameters &amp; Options Reference</span>
+                        
+                        <div class="row g-3">
+                            <!-- QR Code Parameters -->
+                            <div class="col-md-6">
+                                <div class="p-3 rounded border bg-body">
+                                    <h6 class="fw-bold text-primary mb-2">
+                                        <i class="bi bi-qr-code me-1"></i> QR Code APIs (<code>/api/print/qr</code> &amp; <code>/api/qr/generate</code>)
+                                    </h6>
+                                    <ul class="small text-muted mb-0 ps-3">
+                                        <li class="mb-1"><code>text</code> / <code>content</code> (string, <strong>required</strong>): The URL, invoice link, or raw string data to encode.</li>
+                                        <li class="mb-1"><code>header</code> (string, optional): Multilingual header text printed centered above the QR code.</li>
+                                        <li class="mb-1"><code>footer</code> (string, optional): Multilingual footer text printed centered below the QR code.</li>
+                                        <li class="mb-1"><code>qr_size</code> / <code>size</code> (int, default: <code>260</code>, range: 64–384): Pixel dimension of the QR code square.</li>
+                                        <li class="mb-1"><code>strength</code> (int 1–7, default: <code>7</code>): Thermal pulse darkness.</li>
+                                        <li class="mb-1"><code>immediate</code> (bool, default: <code>true</code>): Print immediately in background.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Photo Studio Parameters -->
+                            <div class="col-md-6">
+                                <div class="p-3 rounded border bg-body">
+                                    <h6 class="fw-bold text-warning text-dark-emphasis mb-2">
+                                        <i class="bi bi-camera-fill me-1"></i> Photo Studio API (<code>/api/print/photo</code>)
+                                    </h6>
+                                    <ul class="small text-muted mb-0 ps-3">
+                                        <li class="mb-1"><code>file</code> (file, <strong>required</strong>): Multipart image file (JPG, PNG, WebP).</li>
+                                        <li class="mb-1"><code>preset</code> (string, default: <code>portrait</code>): Quality preset (<code>portrait</code>, <code>sharp</code>, <code>balanced</code>, <code>high_contrast</code>, <code>halftone</code>).</li>
+                                        <li class="mb-1"><code>dither_algo</code> (string): Algorithm override: <code>floyd</code>, <code>atkinson</code>, or <code>bayer</code>.</li>
+                                        <li class="mb-1"><code>sharpness</code> (float, default: <code>1.2</code>): Unsharp-mask spatial edge sharpening filter (0.0 to 3.0).</li>
+                                        <li class="mb-1"><code>contrast</code> (float, optional): Dynamic range curve multiplier (e.g. <code>1.15</code>).</li>
+                                        <li class="mb-1"><code>brightness</code> (float, optional): Shadow tone lift multiplier (e.g. <code>1.08</code>).</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Document / PDF Parameters -->
+                            <div class="col-md-6">
+                                <div class="p-3 rounded border bg-body">
+                                    <h6 class="fw-bold text-success mb-2">
+                                        <i class="bi bi-file-earmark-pdf me-1"></i> Document &amp; Invoice API (<code>/api/print/raw</code>)
+                                    </h6>
+                                    <ul class="small text-muted mb-0 ps-3">
+                                        <li class="mb-1"><code>file</code> (file, <strong>required</strong>): PDF or Image document.</li>
+                                        <li class="mb-1"><code>scale</code> (float, default: <code>1.0</code>): Zoom multiplier (<code>1.25</code> = +25% zoom for 80mm receipts).</li>
+                                        <li class="mb-1"><code>autocrop</code> (bool, default: <code>true</code>): Auto-trims white margins to maximize text width.</li>
+                                        <li class="mb-1"><code>strength</code> (int 1–7, default: <code>7</code>): Thermal burning intensity.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Text & General Parameters -->
+                            <div class="col-md-6">
+                                <div class="p-3 rounded border bg-body">
+                                    <h6 class="fw-bold text-info mb-2">
+                                        <i class="bi bi-fonts me-1"></i> Text &amp; General Execution Options
+                                    </h6>
+                                    <ul class="small text-muted mb-0 ps-3">
+                                        <li class="mb-1"><code>text</code> (string, <strong>required</strong> on <code>/api/print/text</code>): Multilingual text (all world scripts + emojis).</li>
+                                        <li class="mb-1"><code>font_size</code> (int, default: <code>22</code>): Font size in points (14–48).</li>
+                                        <li class="mb-1"><code>immediate</code> (bool, default: <code>true</code>): Direct 1-Step printing without confirmation.</li>
+                                        <li class="mb-1"><code>keepjob</code> / <code>keep_job</code> (bool, default: <code>false</code>): SQLite database bloat protection. When <code>false</code>, records are temporary and purged after 5m. Set <code>true</code> to keep permanently in history.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Code Examples Header with Key & Base URL Pre-fillers -->
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-            <h6 class="fw-bold mb-0">Code Examples (Direct 1-Step Printing)</h6>
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                <div class="d-flex align-items-center">
-                    <label for="baseUrlInput" class="form-label me-2 mb-0 small text-muted text-nowrap">Base URL:</label>
-                    <input type="text" class="form-control form-control-sm font-monospace" id="baseUrlInput" style="width: 250px;" oninput="updateBaseUrlPlaceholders(this.value)">
-                </div>
-                <div class="d-flex align-items-center">
-                    <label for="keySelector" class="form-label me-2 mb-0 small text-muted text-nowrap">API Key:</label>
-                    <select class="form-select form-select-sm" id="keySelector" style="width: 230px;" onchange="updateApiKeyPlaceholders(this)">
-                        {% if api_keys and api_keys|length > 0 %}
-                            {% for k in api_keys %}
-                            <option value="{{ k.key }}">{{ k.name }} ({{ k.key[:8] }}...)</option>
-                            {% endfor %}
-                        {% else %}
-                            <option value="sk_live_your_api_key_here">sk_live_your_api_key_here</option>
-                        {% endif %}
-                    </select>
-                </div>
-            </div>
-        </div>
+        {% include "documentation/doc_nav_header.html" %}
 
         <!-- Tabs -->
         <ul class="nav nav-tabs mb-3" id="codeTabs" role="tablist">
@@ -173,25 +281,18 @@
         <span class="text-success">'immediate'</span> =&gt; <span class="text-warning">true</span>,
     ]);
 
-<span class="text-secondary">// 2. Direct QR Image Stream (Returns binary PNG, no auth required)</span>
-<span class="text-info">$qrPngBytes</span> = Http::get(<span class="text-success">"{$baseUrl}/api/qr/generate"</span>, [
-    <span class="text-success">'text'</span>   =&gt; <span class="text-success">'https://pos.sayem.com'</span>,
-    <span class="text-success">'header'</span> =&gt; <span class="text-success">'ORDER #99'</span>,
-    <span class="text-success">'size'</span>   =&gt; <span class="text-warning">260</span>,
-])-&gt;body();
-
-<span class="text-secondary">// 3. High-Quality Photo Print (Floyd-Steinberg / Atkinson Dithering)</span>
+<span class="text-secondary">// 2. High-Quality Photo Print (Floyd-Steinberg / Atkinson Dithering)</span>
 <span class="text-info">$photoRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
     -&gt;attach(<span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$photoPath</span>), <span class="text-success">'portrait.jpg'</span>)
     -&gt;post(<span class="text-success">"{$baseUrl}/api/print/photo"</span>, [
-        <span class="text-success">'preset'</span>      =&gt; <span class="text-success">'portrait'</span>, <span class="text-secondary">// 'portrait', 'sharp', 'balanced', 'halftone'</span>
-        <span class="text-success">'dither_algo'</span> =&gt; <span class="text-success">'floyd'</span>,    <span class="text-secondary">// 'floyd', 'atkinson', 'bayer'</span>
-        <span class="text-success">'sharpness'</span>   =&gt; <span class="text-warning">1.2</span>,        <span class="text-secondary">// Unsharp-mask edge boost</span>
+        <span class="text-success">'preset'</span>      =&gt; <span class="text-success">'portrait'</span>,
+        <span class="text-success">'dither_algo'</span> =&gt; <span class="text-success">'floyd'</span>,
+        <span class="text-success">'sharpness'</span>   =&gt; <span class="text-warning">1.2</span>,
         <span class="text-success">'strength'</span>    =&gt; <span class="text-warning">7</span>,
         <span class="text-success">'immediate'</span>   =&gt; <span class="text-warning">true</span>,
     ]);
 
-<span class="text-secondary">// 4. Print Invoice PDF or Receipt Document</span>
+<span class="text-secondary">// 3. Print Invoice PDF or Receipt Document</span>
 <span class="text-info">$pdfRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
     -&gt;attach(<span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$pdfPath</span>), <span class="text-success">'invoice.pdf'</span>)
     -&gt;post(<span class="text-success">"{$baseUrl}/api/print/raw"</span>, [
@@ -201,7 +302,7 @@
         <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,
     ]);
 
-<span class="text-secondary">// 5. Print Multilingual Text Receipt</span>
+<span class="text-secondary">// 4. Print Multilingual Text Receipt</span>
 <span class="text-info">$textRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
     -&gt;post(<span class="text-success">"{$baseUrl}/api/print/text"</span>, [
         <span class="text-success">'text'</span>      =&gt; <span class="text-success">"ACME POS 🍕\nআইটেম: ৳১৫০\nTotal: \$15.00"</span>,
@@ -225,20 +326,16 @@
   -H <span class="text-success">"Content-Type: application/json"</span> \
   -d <span class="text-success">'{"text": "https://pos.sayem.com/pay/101", "header": "TABLE #5", "footer": "Scan to Pay", "qr_size": 260, "immediate": true}'</span>
 
-<span class="text-secondary"># 2. Directly Generate/Download 384px QR Code PNG (no API key required)</span>
-<span class="text-primary">curl</span> -o qr.png <span class="text-success">"<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?text=https://pos.sayem.com&header=ORDER+101&size=260"</span>
-
-<span class="text-secondary"># 3. High-Quality Photo Print (Floyd-Steinberg / Atkinson Dithering &amp; Unsharp Mask)</span>
+<span class="text-secondary"># 2. High-Quality Photo Print</span>
 <span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/photo \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
   -F <span class="text-success">"file=@portrait.jpg"</span> \
   -F <span class="text-success">"preset=portrait"</span> \
   -F <span class="text-success">"dither_algo=floyd"</span> \
   -F <span class="text-success">"sharpness=1.2"</span> \
-  -F <span class="text-success">"strength=7"</span> \
   -F <span class="text-success">"immediate=true"</span>
 
-<span class="text-secondary"># 4. Print Invoice PDF or Receipt Document</span>
+<span class="text-secondary"># 3. Print Invoice PDF or Receipt Document</span>
 <span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/raw \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
   -F <span class="text-success">"file=@invoice.pdf"</span> \
@@ -246,7 +343,7 @@
   -F <span class="text-success">"autocrop=true"</span> \
   -F <span class="text-success">"immediate=true"</span>
 
-<span class="text-secondary"># 5. Print Formatted Multilingual Text Receipt</span>
+<span class="text-secondary"># 4. Print Formatted Multilingual Text Receipt</span>
 <span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/text \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
   -H <span class="text-success">"Content-Type: application/json"</span> \
@@ -278,14 +375,11 @@
 });
 console.log(<span class="text-success">'QR Job ID:'</span>, (<span class="text-warning">await</span> qrRes.json()).job_id);
 
-<span class="text-secondary">// 2. Embed QR directly into HTML &lt;img&gt; tag (No API Key needed)</span>
-<span class="text-secondary">// &lt;img src="${baseUrl}/api/qr/generate?text=https://pos.sayem.com&header=TABLE+5&size=260" /&gt;</span>
-
-<span class="text-secondary">// 3. High-Quality Photo Print with Presets &amp; Dithering</span>
+<span class="text-secondary">// 2. High-Quality Photo Print with Presets &amp; Dithering</span>
 <span class="text-info">const</span> photoForm = <span class="text-warning">new</span> FormData();
 photoForm.append(<span class="text-success">'file'</span>, photoFile);
-photoForm.append(<span class="text-success">'preset'</span>, <span class="text-success">'portrait'</span>); <span class="text-secondary">// 'portrait', 'sharp', 'balanced', 'halftone'</span>
-photoForm.append(<span class="text-success">'dither_algo'</span>, <span class="text-success">'floyd'</span>);  <span class="text-secondary">// 'floyd', 'atkinson', 'bayer'</span>
+photoForm.append(<span class="text-success">'preset'</span>, <span class="text-success">'portrait'</span>);
+photoForm.append(<span class="text-success">'dither_algo'</span>, <span class="text-success">'floyd'</span>);
 photoForm.append(<span class="text-success">'sharpness'</span>, <span class="text-success">'1.2'</span>);
 photoForm.append(<span class="text-success">'strength'</span>, <span class="text-success">'7'</span>);
 photoForm.append(<span class="text-success">'immediate'</span>, <span class="text-success">'true'</span>);
@@ -305,64 +399,5 @@ console.log(<span class="text-success">'Photo Job ID:'</span>, (<span class="tex
 {% endblock %}
 
 {% block scripts %}
-<script>
-    function updateBaseUrlPlaceholders(url) {
-        if (!url) return;
-        const cleanUrl = url.trim().replace(/\/+$/, '');
-        document.querySelectorAll('.base-url-placeholder, .base-url-display').forEach(el => {
-            el.textContent = cleanUrl;
-        });
-    }
-
-    function updateApiKeyPlaceholders(select) {
-        const key = select.value;
-        document.querySelectorAll('.api-key-placeholder').forEach(el => {
-            el.textContent = key;
-        });
-    }
-
-    function copyBaseUrl(btn) {
-        const el = document.querySelector('.base-url-display');
-        const text = el ? el.textContent : window.location.origin;
-        navigator.clipboard.writeText(text).then(() => {
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-            btn.classList.replace('btn-outline-secondary', 'btn-success');
-            btn.classList.add('text-white');
-            setTimeout(() => {
-                btn.innerHTML = orig;
-                btn.classList.replace('btn-success', 'btn-outline-secondary');
-                btn.classList.remove('text-white');
-            }, 2000);
-        });
-    }
-
-    function copyCode(elementId, btn) {
-        const codeElement = document.getElementById(elementId);
-        navigator.clipboard.writeText(codeElement.innerText).then(() => {
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-            btn.classList.replace('btn-light', 'btn-success');
-            btn.classList.add('text-white');
-            setTimeout(() => {
-                btn.innerHTML = orig;
-                btn.classList.replace('btn-success', 'btn-light');
-                btn.classList.remove('text-white');
-            }, 2000);
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        // Auto-detect production domain/tunnel URL from browser location
-        const originUrl = window.location.origin;
-        const baseUrlInput = document.getElementById('baseUrlInput');
-        if (baseUrlInput) {
-            baseUrlInput.value = originUrl;
-        }
-        updateBaseUrlPlaceholders(originUrl);
-
-        const sel = document.getElementById('keySelector');
-        if (sel) updateApiKeyPlaceholders(sel);
-    });
-</script>
+{% include "documentation/doc_scripts.html" %}
 {% endblock %}

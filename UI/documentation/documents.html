@@ -1,0 +1,179 @@
+{% extends "layouts/app.html" %}
+
+{% block page_title %}
+<i class="bi bi-file-earmark-pdf text-primary me-2"></i>Invoices &amp; PDFs API
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-secondary-subtle text-secondary-emphasis py-3 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-0 fw-bold"><i class="bi bi-file-earmark-pdf me-2"></i>Invoice &amp; Document Printing API</h6>
+            <small class="text-muted">Direct 1-step printing for PDF invoices, payment receipts, barcode labels, and graphics</small>
+        </div>
+        <span class="badge bg-primary-subtle text-primary">PDF &amp; Image Engine</span>
+    </div>
+    <div class="card-body p-4">
+        <!-- Document Features Alert -->
+        <div class="alert alert-info bg-info-subtle border-0 shadow-sm mb-4">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-aspect-ratio-fill text-info fs-4 me-3 mt-1"></i>
+                <div>
+                    <h6 class="alert-heading fw-bold mb-1">Receipt Auto-Cropping &amp; 80mm/A4 Auto-Scaling</h6>
+                    <p class="small mb-0 text-body">
+                        Standard POS invoices are often designed for 80mm wide desktop printers or A4 paper.
+                        TinyPOS automatically removes empty white margins (<code>autocrop=true</code>) and supports zoom multipliers (<code>scale=1.25</code> or <code>1.5</code>) to expand receipt fonts across the 57mm (384-dot) paper width for razor-sharp legibility.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Endpoint Summary & Parameter Details -->
+        <div class="border rounded p-3 bg-body-tertiary mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div>
+                    <span class="badge bg-success me-2">POST</span>
+                    <span class="font-monospace fw-bold text-primary">/api/print/raw</span>
+                </div>
+                <span class="badge bg-body text-muted border small">Multipart / Form-Data</span>
+            </div>
+            <p class="small text-muted mb-3">Uploads an invoice PDF or document image for immediate 1-step rasterization and thermal printing.</p>
+
+            <span class="small fw-bold text-uppercase text-secondary d-block mb-1">Form-Data Parameters</span>
+            <table class="table table-sm table-bordered small mb-3">
+                <thead class="table-light">
+                    <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>file</code></td><td>file</td><td><span class="badge bg-danger">required</span></td><td>PDF document, PNG, JPG, or WebP invoice file</td></tr>
+                    <tr><td><code>scale</code></td><td>float</td><td><code>1.0</code></td><td>Zoom multiplier (e.g. <code>1.25</code> for 80mm receipts, <code>1.5</code> for A4 invoices)</td></tr>
+                    <tr><td><code>autocrop</code></td><td>bool</td><td><code>true</code></td><td>Automatically trims white whitespace margins around content</td></tr>
+                    <tr><td><code>strength</code></td><td>int</td><td><code>7</code></td><td>Thermal burn pulse energy (1 to 7)</td></tr>
+                    <tr><td><code>immediate</code></td><td>bool</td><td><code>true</code></td><td>Executes immediately in background (set <code>false</code> for 2-step manual confirmation)</td></tr>
+                    <tr><td><code>keepjob</code> / <code>keep_job</code></td><td>bool</td><td><code>false</code></td><td>Database bloat protection: when <code>false</code>, SQLite records are purged after 5m</td></tr>
+                </tbody>
+            </table>
+
+            <span class="small fw-bold text-uppercase text-secondary d-block mb-1">Success Response (200 OK)</span>
+            <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>{
+  "job_id": "4f9b8c12-3456-789a-bcde-0123456789ab",
+  "status": "printing",
+  "immediate": true,
+  "scale": 1.25,
+  "autocrop": true,
+  "width": 384,
+  "height": 780,
+  "preview_url": "/api/print/preview/4f9b8c12..."
+}</code></pre>
+        </div>
+
+        {% include "documentation/doc_nav_header.html" %}
+
+        <!-- Code Tabs -->
+        <ul class="nav nav-tabs mb-3" id="docCodeTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fw-semibold" id="doc-php-tab" data-bs-toggle="tab" data-bs-target="#doc-php-pane" type="button">Laravel / PHP</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="doc-curl-tab" data-bs-toggle="tab" data-bs-target="#doc-curl-pane" type="button">cURL</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="doc-js-tab" data-bs-toggle="tab" data-bs-target="#doc-js-pane" type="button">JavaScript / Node</button>
+            </li>
+        </ul>
+
+        <div class="tab-content mb-4" id="docCodeTabsContent">
+            <!-- PHP Tab -->
+            <div class="tab-pane fade show active" id="doc-php-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('doc-php-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="doc-php-code"><span class="text-primary">&lt;?php</span>
+<span class="text-warning">use</span> Illuminate\Support\Facades\Http;
+
+<span class="text-info">$apiKey</span> = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">$baseUrl</span> = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+<span class="text-info">$pdfPath</span> = <span class="text-success">'/path/to/invoice_1042.pdf'</span>;
+
+<span class="text-secondary">// Direct 1-Step Invoice PDF Print</span>
+<span class="text-info">$response</span> = Http::withHeaders([
+    <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
+])-&gt;attach(
+    <span class="text-success">'file'</span>, file_get_contents(<span class="text-info">$pdfPath</span>), <span class="text-success">'invoice.pdf'</span>
+)-&gt;post(<span class="text-success">"{$baseUrl}/api/print/raw"</span>, [
+    <span class="text-success">'scale'</span>     =&gt; <span class="text-warning">1.25</span>,   <span class="text-secondary">// Zoom 1.25x for 80mm receipts</span>
+    <span class="text-success">'autocrop'</span>  =&gt; <span class="text-success">'true'</span>,  <span class="text-secondary">// Strip empty whitespace borders</span>
+    <span class="text-success">'strength'</span>  =&gt; <span class="text-warning">7</span>,       <span class="text-secondary">// Maximum thermal darkness</span>
+    <span class="text-success">'immediate'</span> =&gt; <span class="text-success">'true'</span>,  <span class="text-secondary">// Print immediately in background</span>
+    <span class="text-success">'keepjob'</span>   =&gt; <span class="text-success">'false'</span>, <span class="text-secondary">// Auto-purged from SQLite after 5m</span>
+]);
+
+<span class="text-info">$jobId</span> = <span class="text-info">$response</span>-&gt;json(<span class="text-success">'job_id'</span>);
+echo <span class="text-success">"Invoice Job Queued: {$jobId}\n"</span>;
+</code></pre>
+                </div>
+            </div>
+
+            <!-- cURL Tab -->
+            <div class="tab-pane fade" id="doc-curl-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('doc-curl-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="doc-curl-code"><span class="text-secondary"># Upload and print PDF invoice directly</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/raw \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
+  -F <span class="text-success">"file=@invoice.pdf"</span> \
+  -F <span class="text-success">"scale=1.25"</span> \
+  -F <span class="text-success">"autocrop=true"</span> \
+  -F <span class="text-success">"strength=7"</span> \
+  -F <span class="text-success">"immediate=true"</span>
+</code></pre>
+                </div>
+            </div>
+
+            <!-- JS Tab -->
+            <div class="tab-pane fade" id="doc-js-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('doc-js-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="doc-js-code"><span class="text-info">const</span> apiKey = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
+<span class="text-info">const</span> baseUrl = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
+
+<span class="text-info">const</span> formData = <span class="text-warning">new</span> FormData();
+formData.append(<span class="text-success">'file'</span>, pdfFileInput.files[0]);
+formData.append(<span class="text-success">'scale'</span>, <span class="text-success">'1.25'</span>);
+formData.append(<span class="text-success">'autocrop'</span>, <span class="text-success">'true'</span>);
+formData.append(<span class="text-success">'strength'</span>, <span class="text-success">'7'</span>);
+formData.append(<span class="text-success">'immediate'</span>, <span class="text-success">'true'</span>);
+
+<span class="text-warning">const</span> res = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/raw`</span>, {
+  method: <span class="text-success">'POST'</span>,
+  headers: { <span class="text-success">'X-API-Key'</span>: apiKey },
+  body: formData
+});
+<span class="text-info">const</span> data = <span class="text-warning">await</span> res.json();
+console.log(<span class="text-success">'Invoice Print Job Dispatched:'</span>, data.job_id);
+</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Navigation Footer -->
+        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+            <a href="/documentation/photo" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Photo Studio API
+            </a>
+            <a href="/documentation/text" class="btn btn-primary btn-sm">
+                Multilingual Text API <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% include "documentation/doc_scripts.html" %}
+{% endblock %}

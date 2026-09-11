@@ -158,9 +158,10 @@ def get_request_base_url(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 
-# --- 3. Documentation ---
+# --- 3. Documentation Routes ---
 @web_router.get("/documentation", response_class=HTMLResponse)
-async def documentation_view(request: Request, _: str = Depends(require_login)):
+@web_router.get("/documentation/overview", response_class=HTMLResponse)
+async def documentation_overview_view(request: Request, _: str = Depends(require_login)):
     keys = db.list_api_keys()
     base_url = get_request_base_url(request)
     return templates.TemplateResponse(
@@ -168,8 +169,95 @@ async def documentation_view(request: Request, _: str = Depends(require_login)):
         name="documentation/index.html",
         context={
             "active_page": "documentation",
-            "title": "Documentation | TinyPOS",
+            "active_subpage": "overview",
+            "title": "Documentation & Quickstart | TinyPOS",
             "api_keys": keys,
             "request_url_base": base_url,
         },
     )
+
+
+@web_router.get("/documentation/qr", response_class=HTMLResponse)
+async def documentation_qr_view(request: Request, _: str = Depends(require_login)):
+    keys = db.list_api_keys()
+    base_url = get_request_base_url(request)
+    return templates.TemplateResponse(
+        request=request,
+        name="documentation/qr.html",
+        context={
+            "active_page": "documentation",
+            "active_subpage": "qr",
+            "title": "QR Code API | TinyPOS",
+            "api_keys": keys,
+            "request_url_base": base_url,
+        },
+    )
+
+
+@web_router.get("/documentation/photo", response_class=HTMLResponse)
+async def documentation_photo_view(request: Request, _: str = Depends(require_login)):
+    keys = db.list_api_keys()
+    base_url = get_request_base_url(request)
+    return templates.TemplateResponse(
+        request=request,
+        name="documentation/photo.html",
+        context={
+            "active_page": "documentation",
+            "active_subpage": "photo",
+            "title": "Photo Studio API | TinyPOS",
+            "api_keys": keys,
+            "request_url_base": base_url,
+        },
+    )
+
+
+@web_router.get("/documentation/documents", response_class=HTMLResponse)
+async def documentation_documents_view(request: Request, _: str = Depends(require_login)):
+    keys = db.list_api_keys()
+    base_url = get_request_base_url(request)
+    return templates.TemplateResponse(
+        request=request,
+        name="documentation/documents.html",
+        context={
+            "active_page": "documentation",
+            "active_subpage": "documents",
+            "title": "Invoices & PDFs API | TinyPOS",
+            "api_keys": keys,
+            "request_url_base": base_url,
+        },
+    )
+
+
+@web_router.get("/documentation/text", response_class=HTMLResponse)
+async def documentation_text_view(request: Request, _: str = Depends(require_login)):
+    keys = db.list_api_keys()
+    base_url = get_request_base_url(request)
+    return templates.TemplateResponse(
+        request=request,
+        name="documentation/text.html",
+        context={
+            "active_page": "documentation",
+            "active_subpage": "text",
+            "title": "Multilingual Text API | TinyPOS",
+            "api_keys": keys,
+            "request_url_base": base_url,
+        },
+    )
+
+
+@web_router.get("/documentation/control", response_class=HTMLResponse)
+async def documentation_control_view(request: Request, _: str = Depends(require_login)):
+    keys = db.list_api_keys()
+    base_url = get_request_base_url(request)
+    return templates.TemplateResponse(
+        request=request,
+        name="documentation/control.html",
+        context={
+            "active_page": "documentation",
+            "active_subpage": "control",
+            "title": "Job Control & Status API | TinyPOS",
+            "api_keys": keys,
+            "request_url_base": base_url,
+        },
+    )
+

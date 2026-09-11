@@ -1,0 +1,60 @@
+<script>
+    function updateBaseUrlPlaceholders(url) {
+        if (!url) return;
+        const cleanUrl = url.trim().replace(/\/+$/, '');
+        document.querySelectorAll('.base-url-placeholder, .base-url-display').forEach(el => {
+            el.textContent = cleanUrl;
+        });
+    }
+
+    function updateApiKeyPlaceholders(select) {
+        const key = select.value;
+        document.querySelectorAll('.api-key-placeholder').forEach(el => {
+            el.textContent = key;
+        });
+    }
+
+    function copyBaseUrl(btn) {
+        const el = document.querySelector('.base-url-display');
+        const text = el ? el.textContent : window.location.origin;
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+            btn.classList.replace('btn-outline-secondary', 'btn-success');
+            btn.classList.add('text-white');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.replace('btn-success', 'btn-outline-secondary');
+                btn.classList.remove('text-white');
+            }, 2000);
+        });
+    }
+
+    function copyCode(elementId, btn) {
+        const codeElement = document.getElementById(elementId);
+        if (!codeElement) return;
+        navigator.clipboard.writeText(codeElement.innerText).then(() => {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+            btn.classList.replace('btn-light', 'btn-success');
+            btn.classList.add('text-white');
+            setTimeout(() => {
+                btn.innerHTML = orig;
+                btn.classList.replace('btn-success', 'btn-light');
+                btn.classList.remove('text-white');
+            }, 2000);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const originUrl = window.location.origin;
+        const baseUrlInput = document.getElementById('baseUrlInput');
+        if (baseUrlInput) {
+            baseUrlInput.value = originUrl;
+        }
+        updateBaseUrlPlaceholders(originUrl);
+
+        const sel = document.getElementById('keySelector');
+        if (sel) updateApiKeyPlaceholders(sel);
+    });
+</script>

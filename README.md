@@ -116,8 +116,8 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 
 ## Integration Code Examples
 
-### 1. Photo & Artwork Print with Quality Presets (Laravel / PHP)
-Send portraits or artwork with Floyd-Steinberg or Atkinson dithering and edge sharpening:
+### 1. High-Quality Photo & Artwork Studio Print (Laravel / PHP)
+Send portraits or artwork with Floyd-Steinberg, Atkinson, or Bayer halftoning and unsharp-mask spatial edge sharpening:
 ```php
 <?php
 use Illuminate\Support\Facades\Http;
@@ -131,9 +131,11 @@ $response = Http::withHeaders([
     'file', file_get_contents($photoPath), 'portrait.jpg'
 )->post("{$baseUrl}/api/print/photo", [
     'immediate'   => 'true',        // Prints immediately in 1-step!
-    'preset'      => 'portrait',    // 'portrait', 'sharp', 'balanced', 'halftone'
-    'dither_algo' => 'floyd',       // 'floyd', 'atkinson', 'bayer'
-    'sharpness'   => 1.2,           // Unsharp-mask edge sharpening
+    'preset'      => 'portrait',    // 'portrait', 'sharp', 'balanced', 'high_contrast', 'halftone'
+    'dither_algo' => 'floyd',       // 'floyd' (Floyd-Steinberg), 'atkinson', 'bayer'
+    'sharpness'   => 1.2,           // Unsharp-mask spatial edge sharpening (0.0 to 3.0)
+    'contrast'    => 1.15,          // Optional contrast boost
+    'brightness'  => 1.08,          // Optional shadow lift
     'strength'    => 7,             // 1-7 thermal darkness
     'keepjob'     => 'false',       // Temporary (purged from SQLite after 5m)
 ]);
@@ -141,8 +143,53 @@ $response = Http::withHeaders([
 $jobId = $response->json('job_id');
 ```
 
-### 2. Direct 1-Step Invoice PDF & Document Print (Laravel / PHP)
-Send invoice PDFs or documents directly to your printer:
+### 2. Direct 1-Step QR Code Print (cURL & Laravel)
+Print payment QR codes, Wi-Fi credentials, or invoice links with sharp alignment and optional multilingual headers/footers:
+
+**cURL:**
+```bash
+curl -X POST https://pos.yourdomain.com/api/print/qr \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "https://pos.sayem.com/pay/inv_99812",
+    "header": "SCAN TO PAY ৳১৫০.০০",
+    "footer": "Table #5 • TinyPOS Bridge",
+    "qr_size": 260,
+    "strength": 7,
+    "immediate": true,
+    "keepjob": false
+  }'
+```
+
+**Laravel / PHP:**
+```php
+$qrRes = Http::withHeaders(['X-API-Key' => $apiKey])
+    ->post("{$baseUrl}/api/print/qr", [
+        'text'      => 'https://pos.sayem.com/pay/inv_1042',
+        'header'    => 'SCAN TO PAY ৳৪৫০.০০',
+        'footer'    => 'TinyPOS Thermal Bridge',
+        'qr_size'   => 260,
+        'strength'  => 7,
+        'immediate' => true,
+    ]);
+```
+
+### 3. Direct QR Code Image Generation & Streaming (HTML `<img>` & cURL)
+Streams a 384px monochrome PNG on-the-fly without requiring authentication. Perfect for embedding directly in web receipts or HTML reports:
+
+**HTML `<img>` tag:**
+```html
+<img src="https://pos.yourdomain.com/api/qr/generate?text=https://pos.sayem.com/order/99&header=TABLE+12&footer=THANK+YOU&size=260" alt="Thermal QR Code" />
+```
+
+**cURL save to file:**
+```bash
+curl -o qr.png "https://pos.yourdomain.com/api/qr/generate?text=https://pos.sayem.com&header=ORDER+99&size=260"
+```
+
+### 4. Direct 1-Step Invoice PDF & Document Print (Laravel / PHP)
+Send invoice PDFs or documents directly to your printer with automatic margin trimming:
 ```php
 <?php
 use Illuminate\Support\Facades\Http;
@@ -159,7 +206,7 @@ $response = Http::withHeaders([
 ]);
 ```
 
-### 2. Direct 1-Step Text Print with Multi-Language Support (cURL)
+### 5. Multilingual Text Receipt Print (cURL)
 Supports Bangla, Arabic, Hindi, CJK, English, and Emojis seamlessly:
 ```bash
 curl -X POST https://pos.yourdomain.com/api/print/text \
@@ -174,30 +221,7 @@ curl -X POST https://pos.yourdomain.com/api/print/text \
   }'
 ```
 
-### 3. Direct 1-Step QR Code Print (cURL)
-Print payment QR codes, Wi-Fi logins, or URL tickets with sharp pixel-perfect alignment:
-```bash
-curl -X POST https://pos.yourdomain.com/api/print/qr \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "https://pos.sayem.com/pay/inv_99812",
-    "header": "SCAN TO PAY ৳১৫০.০০",
-    "footer": "TinyPOS Thermal Bridge",
-    "qr_size": 260,
-    "strength": 7,
-    "immediate": true,
-    "keepjob": false
-  }'
-```
-
-### 4. Direct QR Code Image Generation (HTML / URL)
-Directly embed or stream a 384px thermal QR code PNG into any webpage, invoice, or application:
-```html
-<img src="https://pos.yourdomain.com/api/qr/generate?text=https://pos.sayem.com&header=TABLE+12&footer=THANK+YOU&size=260" alt="QR Code" />
-```
-
-### 4. Immediate Stop / Abort Job (cURL)
+### 6. Immediate Stop / Abort Job (cURL)
 To abort whatever job is currently transmitting to the printer:
 ```bash
 curl -X POST https://pos.yourdomain.com/api/print/stop \
@@ -206,8 +230,23 @@ curl -X POST https://pos.yourdomain.com/api/print/stop \
 
 ---
 
-## Key Parameters Explained
+## Key Parameters Reference
 
+### QR Code Parameters (`/api/print/qr` & `/api/qr/generate`)
+- `text` / `content` *(string, required)*: The URL, string, or invoice link encoded into the QR matrix.
+- `header` *(string, optional)*: Multilingual text printed centered above the QR code.
+- `footer` *(string, optional)*: Multilingual text printed centered below the QR code.
+- `qr_size` / `size` *(integer, default: `260`)*: QR square dimension in dots (64 to 384).
+- `strength` *(integer 1–7, default: `7`)*: Thermal head burning intensity.
+
+### Photo Studio Parameters (`/api/print/photo`)
+- `preset` *(string, default: `portrait`)*: Quality preset: `portrait` (smooth face tones), `sharp` (detailed hair/eyes/jewelry), `balanced` (landscapes), `high_contrast` (logos & ink art), `halftone` (retro 8x8 newspaper matrix).
+- `dither_algo` *(string, optional)*: Dithering algorithm override: `floyd` (Floyd-Steinberg error diffusion), `atkinson` (Apple Macintosh classic crisp highlights), `bayer` (8x8 ordered halftone).
+- `sharpness` *(float, default: `1.2`)*: Unsharp-mask spatial edge sharpening filter (0.0 to 3.0) applied before halftoning.
+- `contrast` *(float, optional)*: Dynamic range contrast multiplier (e.g. `1.15`).
+- `brightness` *(float, optional)*: Shadow tone lift multiplier (e.g. `1.08`).
+
+### General Execution Parameters
 - `immediate` *(boolean, default: `true`)*: When `true`, the job prints immediately in the background without needing a secondary `/confirm` call.
 - `scale` *(float, default: `1.0`)*: Zoom/Scale multiplier. Set to `1.25` for 80mm receipts or `1.5` for A4 to expand receipt text cleanly across the 57mm (384-dot) paper width.
 - `autocrop` *(boolean, default: `true`)*: Automatically strips empty white borders and margins so receipt content expands to fill the full printable area.
