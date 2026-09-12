@@ -107,10 +107,10 @@ def main():
     logger.info(f"Initializing TinyPOS Desktop Client on {sys.platform}...")
 
     if sys.platform == "darwin":
-        from core.tray_mac import run_mac_app
+        from ui.mac_tray import run_mac_app
         run_mac_app()
     else:
-        from core.tray_crossplatform import run_crossplatform_app
+        from ui.crossplatform_tray import run_crossplatform_app
         run_crossplatform_app()
 
 

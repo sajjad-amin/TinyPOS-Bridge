@@ -1,25 +1,27 @@
 """
-Cross-Platform System Tray & Control Application (Windows / Linux)
-Uses native PyQt6 as the primary modern GUI and tray framework with zero system dependencies.
-Falls back to Tkinter + Pystray if PyQt6 is not present.
+Cross-Platform System Tray & Control Application (Windows & Linux).
+Uses native PyQt6 as the primary modern GUI and tray framework with zero external dependencies.
+Falls back to Tkinter + Pystray if PyQt6 is not installed.
 """
+
+from __future__ import annotations
 
 import logging
 import sys
 from typing import Any, Dict, Optional
 
-from .config import config
-from .ble_driver import ble_driver
-from .relay_worker import relay_worker
-from .settings_window import PYQT_AVAILABLE, TK_AVAILABLE
+from core.config import config
+from core.ble_driver import ble_driver
+from core.relay_worker import relay_worker
+from .qt_settings import PYQT_AVAILABLE, QtSettingsDialog
+from .tk_settings import TK_AVAILABLE, TkSettingsWindow
 
-logger = logging.getLogger("tinypos.client.crossplatform")
+logger = logging.getLogger("tinypos.ui.crossplatform")
 
 
 def run_pyqt_app():
     """Launch native PyQt6 application with System Tray and Control Panel dialog."""
     from PyQt6 import QtCore, QtGui, QtWidgets
-    from .settings_window import QtSettingsDialog
 
     app = QtWidgets.QApplication.instance()
     if not app:
@@ -175,7 +177,6 @@ def run_tkinter_fallback_app():
     import pystray
     from PIL import Image, ImageDraw
     import tkinter as tk
-    from .settings_window import TkSettingsWindow
 
     def create_tray_icon_image(color_name: str = "gray") -> Image.Image:
         img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))

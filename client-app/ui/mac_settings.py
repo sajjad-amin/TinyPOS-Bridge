@@ -1,228 +1,69 @@
 """
-Native macOS Menu Bar Application for TinyPOS Client
-Built with PyObjC / Cocoa AppKit for 100% native macOS look and feel, dark mode, and zero external GUI dependencies.
+Native macOS Cocoa Settings & Control Panel Dialog for TinyPOS Client.
+Built with PyObjC / AppKit for 100% native macOS appearance, dark mode, and keyboard navigation.
 """
+
+from __future__ import annotations
 
 import asyncio
 import json
 import logging
-import platform
 import threading
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 import urllib.parse
 
 import AppKit
 import objc
-from PyObjCTools import AppHelper
 import websockets
 
-from .config import config
-from .ble_driver import ble_driver
-from .relay_worker import relay_worker
+from core.config import config
+from core.ble_driver import ble_driver
+from core.relay_worker import relay_worker
 
-logger = logging.getLogger("tinypos.client.mac")
-
-
-def create_circle_icon(color_hex: str) -> AppKit.NSImage:
-    """Render a crisp 18x18 macOS status bar icon with a colored circular badge."""
-    size = AppKit.NSMakeSize(18, 18)
-    image = AppKit.NSImage.alloc().initWithSize_(size)
-    image.lockFocus()
-
-    # Color definitions
-    colors = {
-        "green": AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.18, 0.80, 0.38, 1.0),
-        "yellow": AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.96, 0.72, 0.15, 1.0),
-        "red": AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.92, 0.26, 0.22, 1.0),
-        "gray": AppKit.NSColor.colorWithCalibratedRed_green_blue_alpha_(0.60, 0.60, 0.60, 1.0),
-    }
-    col = colors.get(color_hex, colors["gray"])
-
-    # Draw outer ring for crisp contrast in both light and dark mode
-    stroke_path = AppKit.NSBezierPath.bezierPathWithOvalInRect_(AppKit.NSMakeRect(3.5, 3.5, 11, 11))
-    AppKit.NSColor.colorWithCalibratedWhite_alpha_(0.2, 0.35).set()
-    stroke_path.stroke()
-
-    # Fill center color
-    col.set()
-    oval_path = AppKit.NSBezierPath.bezierPathWithOvalInRect_(AppKit.NSMakeRect(4, 4, 10, 10))
-    oval_path.fill()
-
-    image.unlockFocus()
-    return image
+logger = logging.getLogger("tinypos.ui.mac_settings")
 
 
-class MacTrayApp(AppKit.NSObject):
+class MacSettingsController(AppKit.NSObject):
+    """Controller managing the native macOS Cocoa Settings window and its controls."""
+
     def init(self):
-        self = objc.super(MacTrayApp, self).init()
+        self = objc.super(MacSettingsController, self).init()
         if self is None:
             return None
 
-        self.status_item = None
-        self.menu = None
-        self.header_item = None
-        self.group_item = None
-        self.printer_item = None
-        self.settings_window = None
+        self.settings_window: Optional[AppKit.NSWindow] = None
+        self.status_callback: Optional[Callable[[Any], None]] = None
 
         # Settings UI controls
-        self.ws_quick_input = None
-        self.server_url_input = None
-        self.api_key_input = None
-        self.client_name_input = None
-        self.test_status_label = None
-        self.test_btn = None
-
-        # Cached icon images
-        self.icon_green = create_circle_icon("green")
-        self.icon_yellow = create_circle_icon("yellow")
-        self.icon_red = create_circle_icon("red")
-        self.icon_gray = create_circle_icon("gray")
+        self.ws_quick_input: Optional[AppKit.NSTextField] = None
+        self.server_url_input: Optional[AppKit.NSTextField] = None
+        self.api_key_input: Optional[AppKit.NSTextField] = None
+        self.client_name_input: Optional[AppKit.NSTextField] = None
+        self.printer_popup: Optional[AppKit.NSPopUpButton] = None
+        self.printer_scan_btn: Optional[AppKit.NSButton] = None
+        self.printer_hint: Optional[AppKit.NSTextField] = None
+        self.test_status_label: Optional[AppKit.NSTextField] = None
+        self.test_btn: Optional[AppKit.NSButton] = None
+        self._popup_printer_items: List[Dict[str, str]] = []
 
         return self
 
-    def setupMenu(self):
-        """Construct the macOS Menu Bar status item and its drop-down menu."""
-        self.status_item = AppKit.NSStatusBar.systemStatusBar().statusItemWithLength_(AppKit.NSSquareStatusItemLength)
-        self.status_item.button().setImage_(self.icon_gray)
-        self.status_item.button().setToolTip_("TinyPOS Cloud Bridge")
+    def show(self, status_callback: Optional[Callable[[Any], None]] = None):
+        """Display the native Cocoa preferences/settings dialog."""
+        if status_callback:
+            self.status_callback = status_callback
 
-        self.menu = AppKit.NSMenu.alloc().init()
-
-        # Status & Group Header
-        self.header_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "TinyPOS Bridge: Initializing...", None, ""
-        )
-        self.header_item.setEnabled_(False)
-        self.menu.addItem_(self.header_item)
-
-        self.group_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "API Group: --", None, ""
-        )
-        self.group_item.setEnabled_(False)
-        self.menu.addItem_(self.group_item)
-
-        self.printer_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Printer: Scanning Bluetooth...", None, ""
-        )
-        self.printer_item.setEnabled_(False)
-        self.menu.addItem_(self.printer_item)
-
-        self.menu.addItem_(AppKit.NSMenuItem.separatorItem())
-
-        # Action: Feed Paper
-        feed_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Feed Paper", "feedPaperAction:", ""
-        )
-        feed_item.setTarget_(self)
-        self.menu.addItem_(feed_item)
-
-        # Action: Reconnect
-        reconnect_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Reconnect Now", "reconnectAction:", "r"
-        )
-        reconnect_item.setTarget_(self)
-        self.menu.addItem_(reconnect_item)
-
-        self.menu.addItem_(AppKit.NSMenuItem.separatorItem())
-
-        # Action: Preferences / Settings
-        settings_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Settings...", "openSettingsAction:", ","
-        )
-        settings_item.setTarget_(self)
-        self.menu.addItem_(settings_item)
-
-        # Action: Quit
-        quit_item = AppKit.NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-            "Quit TinyPOS Client", "quitAction:", "q"
-        )
-        quit_item.setTarget_(self)
-        self.menu.addItem_(quit_item)
-
-        self.status_item.setMenu_(self.menu)
-
-        # Connect relay worker status callback
-        relay_worker.set_status_callback(self.onStatusUpdate)
-
-        # Update initial UI state
-        self.updateStatusUI_(None)
-
-        # If unconfigured on first start, open settings window immediately
-        if not config.is_configured():
-            AppKit.NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-                0.5, self, "openSettingsAction:", None, False
-            )
-
-    @objc.python_method
-    def onStatusUpdate(self, state: str, info: Dict[str, Any]):
-        """Thread-safe dispatch to update macOS menu bar from worker threads."""
-        self.performSelectorOnMainThread_withObject_waitUntilDone_(
-            "updateStatusUI:", None, False
-        )
-
-    def updateStatusUI_(self, sender):
-        """Update the menu items and icon on the main UI thread."""
-        if not self.status_item:
-            return
-
-        if not config.is_configured():
-            self.status_item.button().setImage_(self.icon_gray)
-            self.header_item.setTitle_("TinyPOS Bridge: Not Configured")
-            self.group_item.setTitle_("API Group: --")
-            self.printer_item.setTitle_("Printer: Click Settings to configure")
-            return
-
-        if relay_worker.is_connected:
-            group_name = relay_worker.current_group or "Pending..."
-            self.group_item.setTitle_(f"API Group: {group_name}")
-
-            if ble_driver.is_online:
-                # 🟢 Connected to relay and printer ready
-                self.status_item.button().setImage_(self.icon_green)
-                rssi_str = f" ({ble_driver.rssi} dBm)" if ble_driver.rssi else ""
-                printer_name = ble_driver.device_name or "X6 Thermal"
-                self.header_item.setTitle_("TinyPOS Bridge: Active Target")
-                self.printer_item.setTitle_(f"Printer: {printer_name}{rssi_str}")
-            else:
-                # 🟡 Connected to relay, but printer is offline
-                self.status_item.button().setImage_(self.icon_yellow)
-                self.header_item.setTitle_("TinyPOS Bridge: Standby (Printer Off)")
-                self.printer_item.setTitle_("Printer: Out of Bluetooth range / Off")
-        else:
-            # 🔴 Disconnected from cloud relay
-            self.status_item.button().setImage_(self.icon_red)
-            msg = relay_worker.last_status_message or "Connecting..."
-            self.header_item.setTitle_(f"TinyPOS Bridge: {msg}")
-            self.group_item.setTitle_("API Group: --")
-            if ble_driver.is_online:
-                self.printer_item.setTitle_(f"Printer: {ble_driver.device_name} (Ready)")
-            else:
-                self.printer_item.setTitle_("Printer: Offline")
-
-    # --- Menu Actions ---
-
-    def feedPaperAction_(self, sender):
-        """Trigger paper feed safely via relay worker thread."""
-        relay_worker.feed_paper()
-
-    def reconnectAction_(self, sender):
-        """Trigger immediate reconnect."""
-        relay_worker.trigger_reconnect()
-
-    def quitAction_(self, sender):
-        """Terminate the application."""
-        relay_worker.stop()
-        AppKit.NSApplication.sharedApplication().terminate_(self)
-
-    def openSettingsAction_(self, sender):
-        """Open the native Cocoa preferences/settings dialog."""
         if self.settings_window:
-            self.server_url_input.setStringValue_(config.server_url or "")
-            self.api_key_input.setStringValue_(config.client_api_key or "")
-            self.client_name_input.setStringValue_(config.client_name or "")
-            self.ws_quick_input.setStringValue_("")
-            self.test_status_label.setStringValue_("")
+            if self.server_url_input:
+                self.server_url_input.setStringValue_(config.server_url or "")
+            if self.api_key_input:
+                self.api_key_input.setStringValue_(config.client_api_key or "")
+            if self.client_name_input:
+                self.client_name_input.setStringValue_(config.client_name or "")
+            if self.ws_quick_input:
+                self.ws_quick_input.setStringValue_("")
+            if self.test_status_label:
+                self.test_status_label.setStringValue_("")
             self._populatePrinterPopup()
             self.settings_window.makeKeyAndOrderFront_(None)
             AppKit.NSApp.activateIgnoringOtherApps_(True)
@@ -477,46 +318,55 @@ class MacTrayApp(AppKit.NSObject):
         pb = AppKit.NSPasteboard.generalPasteboard()
         clip_text = pb.stringForType_(AppKit.NSPasteboardTypeString)
         if clip_text and clip_text.strip():
-            self.ws_quick_input.setStringValue_(clip_text.strip())
+            if self.ws_quick_input:
+                self.ws_quick_input.setStringValue_(clip_text.strip())
             self.parseWsUrlAction_(sender)
         else:
-            self.test_status_label.setTextColor_(AppKit.NSColor.systemRedColor())
-            self.test_status_label.setStringValue_("⚠️ Clipboard is empty or contains no text.")
+            if self.test_status_label:
+                self.test_status_label.setTextColor_(AppKit.NSColor.systemRedColor())
+                self.test_status_label.setStringValue_("⚠️ Clipboard is empty or contains no text.")
 
     def parseWsUrlAction_(self, sender):
         """Parse full WebSocket URL pasted into quick setup box."""
+        if not self.ws_quick_input:
+            return
         raw_val = self.ws_quick_input.stringValue().strip()
         if not raw_val:
             return
 
         parsed = config.parse_ws_url(raw_val)
-        if parsed.get("server_url"):
+        if parsed.get("server_url") and self.server_url_input:
             self.server_url_input.setStringValue_(parsed["server_url"])
-        if parsed.get("client_api_key"):
+        if parsed.get("client_api_key") and self.api_key_input:
             self.api_key_input.setStringValue_(parsed["client_api_key"])
-        if parsed.get("client_name"):
+        if parsed.get("client_name") and self.client_name_input:
             self.client_name_input.setStringValue_(parsed["client_name"])
 
-        self.test_status_label.setTextColor_(AppKit.NSColor.systemGreenColor())
-        self.test_status_label.setStringValue_("✅ Connection details auto-filled from URL!")
+        if self.test_status_label:
+            self.test_status_label.setTextColor_(AppKit.NSColor.systemGreenColor())
+            self.test_status_label.setStringValue_("✅ Connection details auto-filled from URL!")
 
     def testConnectionAction_(self, sender):
         """Asynchronously tests WebSocket connection with currently entered fields."""
+        if not self.server_url_input or not self.api_key_input or not self.client_name_input:
+            return
         srv_url = self.server_url_input.stringValue().strip()
         api_key = self.api_key_input.stringValue().strip()
         client_name = self.client_name_input.stringValue().strip() or "Test Terminal"
 
         if not srv_url or not api_key:
-            self.test_status_label.setTextColor_(AppKit.NSColor.systemRedColor())
-            self.test_status_label.setStringValue_("❌ Please enter both Server URL and Client API Key.")
+            if self.test_status_label:
+                self.test_status_label.setTextColor_(AppKit.NSColor.systemRedColor())
+                self.test_status_label.setStringValue_("❌ Please enter both Server URL and Client API Key.")
             return
 
-        self.test_btn.setEnabled_(False)
-        self.test_status_label.setTextColor_(AppKit.NSColor.secondaryLabelColor())
-        self.test_status_label.setStringValue_("⏳ Testing connection to cloud relay...")
+        if self.test_btn:
+            self.test_btn.setEnabled_(False)
+        if self.test_status_label:
+            self.test_status_label.setTextColor_(AppKit.NSColor.secondaryLabelColor())
+            self.test_status_label.setStringValue_("⏳ Testing connection to cloud relay...")
 
         def _test():
-            # Build URL
             parsed = urllib.parse.urlparse(srv_url)
             ws_scheme = "ws" if parsed.scheme in ("http", "ws") else "wss"
             netloc = parsed.netloc or parsed.path.split("/")[0]
@@ -526,7 +376,6 @@ class MacTrayApp(AppKit.NSObject):
             async def _connect():
                 try:
                     async with websockets.connect(full_url, close_timeout=4.0) as ws:
-                        # Wait for welcome message
                         msg_str = await asyncio.wait_for(ws.recv(), timeout=5.0)
                         data = json.loads(msg_str)
                         group = data.get("group") or "Default"
@@ -541,12 +390,14 @@ class MacTrayApp(AppKit.NSObject):
             success, message = asyncio.run(_connect())
 
             def _update():
-                self.test_btn.setEnabled_(True)
-                if success:
-                    self.test_status_label.setTextColor_(AppKit.NSColor.systemGreenColor())
-                else:
-                    self.test_status_label.setTextColor_(AppKit.NSColor.systemRedColor())
-                self.test_status_label.setStringValue_(message)
+                if self.test_btn:
+                    self.test_btn.setEnabled_(True)
+                if self.test_status_label:
+                    if success:
+                        self.test_status_label.setTextColor_(AppKit.NSColor.systemGreenColor())
+                    else:
+                        self.test_status_label.setTextColor_(AppKit.NSColor.systemRedColor())
+                    self.test_status_label.setStringValue_(message)
 
             self.performSelectorOnMainThread_withObject_waitUntilDone_("_execCallable:", _update, False)
 
@@ -568,15 +419,21 @@ class MacTrayApp(AppKit.NSObject):
         if resp == AppKit.NSAlertFirstButtonReturn:
             config.delete()
             ble_driver.reset_cache()
-            self.server_url_input.setStringValue_("")
-            self.api_key_input.setStringValue_("")
-            self.client_name_input.setStringValue_(config.client_name)
-            self.ws_quick_input.setStringValue_("")
+            if self.server_url_input:
+                self.server_url_input.setStringValue_("")
+            if self.api_key_input:
+                self.api_key_input.setStringValue_("")
+            if self.client_name_input:
+                self.client_name_input.setStringValue_(config.client_name)
+            if self.ws_quick_input:
+                self.ws_quick_input.setStringValue_("")
             if hasattr(self, "printer_popup") and self.printer_popup:
                 self.printer_popup.selectItemAtIndex_(0)
-            self.test_status_label.setTextColor_(AppKit.NSColor.systemOrangeColor())
-            self.test_status_label.setStringValue_("⚪ Configuration removed. Disconnected.")
-            self.updateStatusUI_(None)
+            if self.test_status_label:
+                self.test_status_label.setTextColor_(AppKit.NSColor.systemOrangeColor())
+                self.test_status_label.setStringValue_("⚪ Configuration removed. Disconnected.")
+            if self.status_callback:
+                self.status_callback(None)
             relay_worker.trigger_reconnect()
 
     def cancelSettingsAction_(self, sender):
@@ -586,9 +443,12 @@ class MacTrayApp(AppKit.NSObject):
 
     def saveSettingsAction_(self, sender):
         """Save settings to disk and trigger immediate reconnect."""
-        config.server_url = self.server_url_input.stringValue().strip()
-        config.client_api_key = self.api_key_input.stringValue().strip()
-        config.client_name = self.client_name_input.stringValue().strip() or "Store Terminal"
+        if self.server_url_input:
+            config.server_url = self.server_url_input.stringValue().strip()
+        if self.api_key_input:
+            config.client_api_key = self.api_key_input.stringValue().strip()
+        if self.client_name_input:
+            config.client_name = self.client_name_input.stringValue().strip() or "Store Terminal"
 
         if hasattr(self, "printer_popup") and self.printer_popup:
             idx = self.printer_popup.indexOfSelectedItem()
@@ -608,52 +468,6 @@ class MacTrayApp(AppKit.NSObject):
         if self.settings_window:
             self.settings_window.close()
 
-        self.updateStatusUI_(None)
+        if self.status_callback:
+            self.status_callback(None)
         relay_worker.trigger_reconnect()
-
-
-def setup_main_menu(app: AppKit.NSApplication):
-    """Install standard Edit menu into NSApp.mainMenu so Cmd+C/V/X/A/Z shortcuts work across all NSTextFields."""
-    main_menu = AppKit.NSMenu.alloc().init()
-
-    # 1. Application Menu
-    app_menu_item = AppKit.NSMenuItem.alloc().init()
-    app_menu = AppKit.NSMenu.alloc().initWithTitle_("TinyPOS")
-    app_menu.addItemWithTitle_action_keyEquivalent_("Hide TinyPOS", "hide:", "h")
-    app_menu.addItemWithTitle_action_keyEquivalent_("Hide Others", "hideOtherApplications:", "h")
-    app_menu.addItem_(AppKit.NSMenuItem.separatorItem())
-    app_menu.addItemWithTitle_action_keyEquivalent_("Quit TinyPOS", "terminate:", "q")
-    app_menu_item.setSubmenu_(app_menu)
-    main_menu.addItem_(app_menu_item)
-
-    # 2. Edit Menu (Enables standard Cmd+C, Cmd+V, Cmd+X, Cmd+A, Cmd+Z across Cocoa text fields)
-    edit_menu_item = AppKit.NSMenuItem.alloc().init()
-    edit_menu = AppKit.NSMenu.alloc().initWithTitle_("Edit")
-    edit_menu.addItemWithTitle_action_keyEquivalent_("Undo", "undo:", "z")
-    edit_menu.addItemWithTitle_action_keyEquivalent_("Redo", "redo:", "Z")
-    edit_menu.addItem_(AppKit.NSMenuItem.separatorItem())
-    edit_menu.addItemWithTitle_action_keyEquivalent_("Cut", "cut:", "x")
-    edit_menu.addItemWithTitle_action_keyEquivalent_("Copy", "copy:", "c")
-    edit_menu.addItemWithTitle_action_keyEquivalent_("Paste", "paste:", "v")
-    edit_menu.addItemWithTitle_action_keyEquivalent_("Select All", "selectAll:", "a")
-    edit_menu_item.setSubmenu_(edit_menu)
-    main_menu.addItem_(edit_menu_item)
-
-    app.setMainMenu_(main_menu)
-
-
-def run_mac_app():
-    """Launch the native macOS Menu Bar application."""
-    app = AppKit.NSApplication.sharedApplication()
-    app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
-    setup_main_menu(app)
-
-    delegate = MacTrayApp.alloc().init()
-    app.setDelegate_(delegate)
-    delegate.setupMenu()
-
-    # Start the background relay worker
-    relay_worker.start()
-
-    logger.info("Starting TinyPOS macOS Menu Bar Application...")
-    AppHelper.runEventLoop()

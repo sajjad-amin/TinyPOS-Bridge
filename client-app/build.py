@@ -127,7 +127,9 @@ def get_platform_config():
             "objc",
             "PyObjCTools",
             "PyObjCTools.AppHelper",
-            "core.tray_mac",
+            "ui",
+            "ui.mac_tray",
+            "ui.mac_settings",
         ])
         extra_args = [
             "--windowed",
@@ -146,8 +148,12 @@ def get_platform_config():
             collect_all.append("pystray")
 
         hidden_imports.extend([
-            "core.settings_window",
-            "core.tray_crossplatform",
+            "ui",
+            "ui.theme",
+            "ui.styles",
+            "ui.qt_settings",
+            "ui.tk_settings",
+            "ui.crossplatform_tray",
             "ctypes",
             "ctypes.wintypes",
         ])
@@ -168,8 +174,12 @@ def get_platform_config():
             collect_all.append("pystray")
 
         hidden_imports.extend([
-            "core.settings_window",
-            "core.tray_crossplatform",
+            "ui",
+            "ui.theme",
+            "ui.styles",
+            "ui.qt_settings",
+            "ui.tk_settings",
+            "ui.crossplatform_tray",
         ])
         extra_args = [
             "--windowed",
