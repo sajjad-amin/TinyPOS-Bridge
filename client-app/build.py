@@ -143,9 +143,11 @@ def get_platform_config(onedir: bool = False):
         icon_path = ICON_DIR / "icon.ico"
         import importlib.util
         if importlib.util.find_spec("PyQt6") is not None:
-            collect_all.append("PyQt6")
-        if importlib.util.find_spec("tkinter") is not None:
-            collect_all.append("tkinter")
+            hidden_imports.extend([
+                "PyQt6.QtCore",
+                "PyQt6.QtGui",
+                "PyQt6.QtWidgets",
+            ])
         if importlib.util.find_spec("pystray") is not None:
             collect_all.append("pystray")
 
@@ -169,9 +171,11 @@ def get_platform_config(onedir: bool = False):
         icon_path = ICON_DIR / "icon.png"
         import importlib.util
         if importlib.util.find_spec("PyQt6") is not None:
-            collect_all.append("PyQt6")
-        if importlib.util.find_spec("tkinter") is not None:
-            collect_all.append("tkinter")
+            hidden_imports.extend([
+                "PyQt6.QtCore",
+                "PyQt6.QtGui",
+                "PyQt6.QtWidgets",
+            ])
         if importlib.util.find_spec("pystray") is not None:
             collect_all.append("pystray")
 
@@ -188,11 +192,28 @@ def get_platform_config(onedir: bool = False):
             "--onefile",
         ]
 
+    excludes = [
+        "PyQt6.QtQml",
+        "PyQt6.QtQuick",
+        "PyQt6.QtQuickWidgets",
+        "PyQt6.QtSql",
+        "PyQt6.QtMultimedia",
+        "PyQt6.QtMultimediaWidgets",
+        "PyQt6.QtPdf",
+        "PyQt6.QtPdfWidgets",
+        "PyQt6.QtTest",
+        "PyQt6.QtNetwork",
+        "PyQt6.QtBluetooth",
+        "tkinter.test",
+        "unittest",
+    ]
+
     return {
         "os_name": os_name,
         "icon_path": icon_path,
         "hidden_imports": hidden_imports,
         "collect_all": collect_all,
+        "excludes": excludes,
         "extra_args": extra_args,
         "data_sep": data_sep,
     }
@@ -237,6 +258,10 @@ def build_app(keep_cache: bool = False, version: str = APP_VERSION, onedir: bool
     # Add hidden imports
     for imp in cfg["hidden_imports"]:
         cmd.extend(["--hidden-import", imp])
+
+    # Exclude unused bloat modules
+    for exc in cfg.get("excludes", []):
+        cmd.extend(["--exclude-module", exc])
 
     # Entry point
     cmd.append(str(entry_script))
