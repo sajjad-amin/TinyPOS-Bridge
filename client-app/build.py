@@ -139,7 +139,6 @@ def get_platform_config():
         icon_path = ICON_DIR / "icon.ico"
         collect_all.extend([
             "pystray",
-            "tkinter",
         ])
         hidden_imports.extend([
             "pystray",
@@ -151,6 +150,10 @@ def get_platform_config():
             "core.settings_window",
             "core.tray_crossplatform",
         ])
+        import importlib.util
+        if importlib.util.find_spec("tkinter") is not None:
+            collect_all.append("tkinter")
+
         extra_args = [
             "--windowed",
             "--onefile",
@@ -161,7 +164,6 @@ def get_platform_config():
         icon_path = ICON_DIR / "icon.png"
         collect_all.extend([
             "pystray",
-            "tkinter",
         ])
         hidden_imports.extend([
             "pystray",
@@ -174,6 +176,20 @@ def get_platform_config():
             "core.settings_window",
             "core.tray_crossplatform",
         ])
+        import importlib.util
+        if importlib.util.find_spec("tkinter") is not None:
+            collect_all.append("tkinter")
+        if importlib.util.find_spec("gi") is not None:
+            collect_all.append("gi")
+            hidden_imports.extend([
+                "gi",
+                "gi.repository.GLib",
+                "gi.repository.GObject",
+                "gi.repository.Gtk",
+                "gi.repository.AppIndicator3",
+                "gi.repository.AyatanaAppIndicator3",
+            ])
+
         extra_args = [
             "--windowed",
             "--onefile",
