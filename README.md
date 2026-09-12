@@ -119,170 +119,24 @@ pm2 logs tinypos
 
 All requests to `/api/*` require authentication via the `X-API-Key` HTTP header (or `?api_key=` query parameter for direct browser media streams).
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/print/photo` | **Photo Studio Print:** High-fidelity 1-bit thermal halftoning for photos and artwork with quality presets (`preset`, `dither_algo`, `sharpness`, `contrast`, `brightness`, `strength`). |
-| `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image invoice document with auto-scaling, auto-cropping, and strength options. |
-| `POST` | `/api/print/text` | **Direct Text Print:** Formatted receipt text supporting all languages and emojis with customizable font size and strength. |
-| `POST` | `/api/print/qr` | **Direct QR Code Print:** High-contrast thermal QR code with optional multilingual header and footer text (supports `content` and `text`). |
-| `GET` / `POST` | `/api/qr/generate` | **Direct QR Generator:** Directly streams a 384px PNG QR code from query parameters or JSON body (requires `X-API-Key` or `?api_key=`, ideal for `<img>` tags). |
-| `POST` | `/api/print/feed` | **Paper Feed:** Advance/feed thermal paper roll (alias: `/api/printer/feed`). |
-| `POST` | `/api/print/stop` | **Immediate Stop:** Aborts whatever job is currently streaming to the thermal printer. |
-| `DELETE` / `POST` | `/api/print/cancel/{job_id}` | Cancels a pending job or aborts an active printing job by ID. |
-| `POST` | `/api/print/confirm/{job_id}` | Confirms a pending job (if submitted with `immediate=false`). |
-| `GET` | `/api/print/preview/{job_id}` | Returns a 384px monochrome PNG preview of the rasterized receipt (requires `X-API-Key`, `?api_key=`, or admin session). |
-| `GET` | `/api/status` | Probes printer BLE connectivity and returns active transmission status (`is_printing`). |
-| `GET` | `/api/queue` | Returns paginated recent job history. |
-| `WebSocket` | `/ws/client` | **Cloud Relay Bridge:** Real-time bidirectional WebSocket stream for store client machines (authenticates via `?api_key=...&client_name=...`). |
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `POST` | `/api/print/photo` | **Photo Studio Print:** High-fidelity 1-bit thermal halftoning for photos and artwork with quality presets (`portrait`, `sharp`, `balanced`, `high_contrast`, `halftone`). | `X-API-Key` |
+| `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image invoice document with auto-scaling, auto-cropping, and strength options. | `X-API-Key` |
+| `POST` | `/api/print/text` | **Direct Text Print:** Formatted receipt text supporting all living languages and emojis with customizable font size and strength. | `X-API-Key` |
+| `POST` | `/api/print/qr` | **Direct QR Code Print:** High-contrast thermal QR code with optional multilingual header and footer text. | `X-API-Key` |
+| `GET` / `POST` | `/api/qr/generate` | **Direct QR Generator:** Directly streams a 384px PNG QR code from query parameters or JSON body (ideal for `<img>` tags). | `X-API-Key` or `?api_key=` |
+| `POST` | `/api/print/feed` | **Paper Feed:** Advance/feed thermal paper roll (alias: `/api/printer/feed`). | `X-API-Key` |
+| `POST` | `/api/print/stop` | **Immediate Stop:** Aborts whatever job is currently streaming to the thermal printer. | `X-API-Key` |
+| `DELETE` / `POST` | `/api/print/cancel/{job_id}` | Cancels a pending job or aborts an active printing job by ID. | `X-API-Key` |
+| `POST` | `/api/print/confirm/{job_id}` | Confirms a pending job (if submitted with `immediate=false`). | `X-API-Key` |
+| `GET` | `/api/print/preview/{job_id}` | Returns a 384px monochrome PNG preview of the rasterized receipt. | `X-API-Key`, `?api_key=`, or Admin Session |
+| `GET` | `/api/status` | Probes printer BLE connectivity and returns active transmission status (`is_printing`). | `X-API-Key` |
+| `GET` | `/api/queue` | Returns paginated recent job history. | `X-API-Key` |
+| `WebSocket` | `/ws/client` | **Cloud Relay Bridge:** Real-time bidirectional WebSocket stream for store client machines. | Client Key |
 
----
-
-## Integration Code Examples
-
-### 1. High-Quality Photo & Artwork Studio Print (Laravel / PHP)
-Send portraits or artwork with Floyd-Steinberg, Atkinson, or Bayer halftoning and unsharp-mask spatial edge sharpening:
-```php
-<?php
-use Illuminate\Support\Facades\Http;
-
-$apiKey  = 'sk_live_your_api_key_here';
-$baseUrl = 'https://pos.yourdomain.com'; // or http://localhost:8100
-
-$response = Http::withHeaders([
-    'X-API-Key' => $apiKey,
-])->attach(
-    'file', file_get_contents($photoPath), 'portrait.jpg'
-)->post("{$baseUrl}/api/print/photo", [
-    'immediate'   => 'true',        // Prints immediately in 1-step!
-    'preset'      => 'portrait',    // 'portrait', 'sharp', 'balanced', 'high_contrast', 'halftone'
-    'dither_algo' => 'floyd',       // 'floyd' (Floyd-Steinberg), 'atkinson', 'bayer'
-    'sharpness'   => 1.2,           // Unsharp-mask spatial edge sharpening (0.0 to 3.0)
-    'contrast'    => 1.15,          // Optional contrast boost
-    'brightness'  => 1.08,          // Optional shadow lift
-    'strength'    => 7,             // 1-7 thermal darkness
-    'keepjob'     => 'false',       // Temporary (purged from SQLite after 5m)
-]);
-
-$jobId = $response->json('job_id');
-```
-
-### 2. Direct 1-Step QR Code Print (cURL & Laravel)
-Print payment QR codes, Wi-Fi credentials, or invoice links with sharp alignment and optional multilingual headers/footers:
-
-**cURL:**
-```bash
-curl -X POST https://your-pos-server.com/api/print/qr \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "https://sajjadamin.com/pay/inv_99812",
-    "header": "SCAN TO PAY ৳১৫০.০০",
-    "footer": "Table #5 • TinyPOS Bridge",
-    "qr_size": 260,
-    "strength": 7,
-    "immediate": true,
-    "keepjob": false
-  }'
-```
-
-**Laravel / PHP:**
-```php
-$qrRes = Http::withHeaders(['X-API-Key' => $apiKey])
-    ->post("{$baseUrl}/api/print/qr", [
-        'text'      => 'https://sajjadamin.com/pay/inv_1042',
-        'header'    => 'SCAN TO PAY ৳৪৫০.০০',
-        'footer'    => 'TinyPOS Thermal Bridge',
-        'qr_size'   => 260,
-        'strength'  => 7,
-        'immediate' => true,
-    ]);
-```
-
-### 3. Direct QR Code Image Generation & Streaming (HTML `<img>` & cURL)
-Streams a 384px monochrome PNG on-the-fly. Pass your API key via `?api_key=` in query string for `<img>` tags or via `X-API-Key` header:
-
-**HTML `<img>` tag:**
-```html
-<img src="https://your-pos-server.com/api/qr/generate?api_key=sk_live_your_key_here&text=https://sajjadamin.com/order/99&header=TABLE+12&footer=THANK+YOU&size=260" alt="Thermal QR Code" />
-```
-
-**cURL save to file:**
-```bash
-curl -o qr.png "https://your-pos-server.com/api/qr/generate?api_key=sk_live_your_key_here&text=https://sajjadamin.com&header=ORDER+99&size=260"
-```
-
-### 4. Direct 1-Step Invoice PDF & Document Print (Laravel / PHP)
-Send invoice PDFs or documents directly to your printer with automatic margin trimming:
-```php
-<?php
-use Illuminate\Support\Facades\Http;
-
-$response = Http::withHeaders([
-    'X-API-Key' => $apiKey,
-])->attach(
-    'file', file_get_contents($pdfPath), 'invoice.pdf'
-)->post("{$baseUrl}/api/print/raw", [
-    'immediate' => 'true',
-    'scale'     => 1.25,   // 1.25x zoom for 80mm receipts
-    'autocrop'  => 'true', // Trims empty white margins
-    'strength'  => 7,
-]);
-```
-
-### 5. Multilingual Text Receipt Print (cURL)
-Supports Bangla, Arabic, Hindi, CJK, English, and Emojis seamlessly:
-```bash
-curl -X POST https://your-pos-server.com/api/print/text \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "text": "================================\n       রেস্তোরাঁ এক্সপ্রেস 🍕\n================================\nআইটেম ১             ৳১৫০.০০\nItem 2               $5.00\n--------------------------------\nমোট বিল / TOTAL     ৳২০০.০০\nধন্যবাদ! আবার আসবেন ❤️\n================================",
-    "font_size": 22,
-    "strength": 7,
-    "immediate": true,
-    "keepjob": false
-  }'
-```
-
-### 6. Paper Feed Roll (cURL)
-Advances the thermal paper roll past the physical tear cutter bar:
-```bash
-curl -X POST https://your-pos-server.com/api/print/feed \
-  -H "X-API-Key: YOUR_API_KEY"
-```
-
-### 7. Immediate Stop / Abort Job (cURL)
-To abort whatever job is currently transmitting to the printer:
-```bash
-curl -X POST https://your-pos-server.com/api/print/stop \
-  -H "X-API-Key: YOUR_API_KEY"
-```
-
----
-
-## Key Parameters Reference
-
-### QR Code Parameters (`/api/print/qr` & `/api/qr/generate`)
-- `text` / `content` *(string, required)*: The URL, string, or invoice link encoded into the QR matrix.
-- `header` *(string, optional)*: Multilingual text printed centered above the QR code.
-- `footer` *(string, optional)*: Multilingual text printed centered below the QR code.
-- `qr_size` / `size` *(integer, default: `260`)*: QR square dimension in dots (64 to 384).
-- `strength` *(integer 1–7, default: `7`)*: Thermal head burning intensity.
-
-### Photo Studio Parameters (`/api/print/photo`)
-- `preset` *(string, default: `portrait`)*: Quality preset: `portrait` (smooth face tones), `sharp` (detailed hair/eyes/jewelry), `balanced` (landscapes), `high_contrast` (logos & ink art), `halftone` (retro 8x8 newspaper matrix).
-- `dither_algo` *(string, optional)*: Dithering algorithm override: `floyd` (Floyd-Steinberg error diffusion), `atkinson` (Apple Macintosh classic crisp highlights), `bayer` (8x8 ordered halftone).
-- `sharpness` *(float, default: `1.2`)*: Unsharp-mask spatial edge sharpening filter (0.0 to 3.0) applied before halftoning.
-- `contrast` *(float, optional)*: Dynamic range contrast multiplier (e.g. `1.15`).
-- `brightness` *(float, optional)*: Shadow tone lift multiplier (e.g. `1.08`).
-
-### General Execution Parameters
-- `immediate` *(boolean, default: `true`)*: When `true`, the job prints immediately in the background without needing a secondary `/confirm` call.
-- `scale` *(float, default: `1.0`)*: Zoom/Scale multiplier. Set to `1.25` for 80mm receipts or `1.5` for A4 to expand receipt text cleanly across the 57mm (384-dot) paper width.
-- `autocrop` *(boolean, default: `true`)*: Automatically strips empty white borders and margins so receipt content expands to fill the full printable area.
-- `strength` *(integer 1–7, default: `7`)*: Thermal head burning energy. Level `7` ensures high contrast and dark characters even on weak, aging, or thin thermal paper.
-- `font_size` *(integer, default: `22`)*: Size in points for text printing (recommended: 20–26pt for receipts).
-- `keepjob` / `keep_job` *(boolean, default: `false`)*: When `false`, job records and stored preview bitmaps are auto-purged from SQLite after 5 minutes, keeping disk footprint minimal. Set to `true` to preserve records permanently in history.
+> 📖 **Developer Integration Guide & Multi-Language Code Examples:**
+> For comprehensive REST API documentation, JSON request/response schemas, complete parameter explanations, and ready-to-use integration code examples in **cURL, JavaScript / TypeScript, Python, and PHP (Laravel)**, please see **[DOC.md](DOC.md)**.
 
 ---
 

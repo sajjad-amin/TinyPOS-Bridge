@@ -126,67 +126,73 @@
 
                 <div class="col-md-2 fw-bold text-uppercase text-secondary small">Endpoints</div>
                 <div class="col-md-10">
-                        <tr>
-                            <td style="width: 110px;"><span class="badge bg-success">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold" style="width: 220px;">/api/print/raw</td>
-                            <td>Upload PDF/Image invoice. Prints immediately in 1-step! <a href="/documentation/documents" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-warning text-dark">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/photo</td>
-                            <td><strong>Photo Studio Print:</strong> High-fidelity 1-bit thermal halftoning with quality presets. <a href="/documentation/photo" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-success">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/text</td>
-                            <td>Print formatted multilingual text in 1-step! <a href="/documentation/text" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-success">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/qr</td>
-                            <td><strong>Print Thermal QR Code:</strong> High-contrast thermal QR code with header &amp; footer text. <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-info text-dark">GET / POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/qr/generate</td>
-                            <td><strong>Direct QR Generator:</strong> Streams a 384px PNG QR code directly (requires API Key or <code>?api_key=</code>). <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-success">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/feed</td>
-                            <td><strong>Feed Thermal Paper:</strong> Advances paper roll for clean manual tearing (alias: <code>/api/printer/feed</code>). <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-danger">POST</span></td>
-                            <td class="font-monospace text-danger fw-bold">/api/print/stop</td>
-                            <td><strong>Immediate Stop:</strong> Aborts whatever print job is currently actively streaming! <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-warning text-dark">DELETE</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/cancel/{id}</td>
-                            <td>Cancel a pending queued job or halt an active printing job by ID. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-primary">POST</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/confirm/{id}</td>
-                            <td>Confirm and execute a 2-step pending queued job. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-info text-dark">GET</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/print/preview/{id}</td>
-                            <td>Fetch exact 384px 1-bit monochrome PNG raster preview. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-secondary">GET</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/queue</td>
-                            <td>List paginated print queue jobs and execution statuses. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                        <tr>
-                            <td><span class="badge bg-primary">GET</span></td>
-                            <td class="font-monospace text-primary fw-bold">/api/status</td>
-                            <td>Probe thermal printer online/offline status and active printing flag. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
-                        </tr>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 120px;"><span class="badge bg-success">POST</span></td>
+                                    <td class="font-monospace text-primary fw-bold" style="width: 220px;">/api/print/raw</td>
+                                    <td>Upload PDF/Image invoice. Prints immediately in 1-step! <a href="/documentation/documents" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-warning text-dark">POST</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/print/photo</td>
+                                    <td><strong>Photo Studio Print:</strong> High-fidelity 1-bit thermal halftoning with quality presets. <a href="/documentation/photo" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-success">POST</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/print/text</td>
+                                    <td>Print formatted multilingual text in 1-step! <a href="/documentation/text" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-success">POST</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/print/qr</td>
+                                    <td><strong>Print Thermal QR Code:</strong> High-contrast thermal QR code with header &amp; footer text. <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-info text-dark">GET / POST</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/qr/generate</td>
+                                    <td><strong>Direct QR Generator:</strong> Streams a 384px PNG QR code directly (requires API Key or <code>?api_key=</code>). <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-success">POST</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/print/feed</td>
+                                    <td><strong>Feed Thermal Paper:</strong> Advances paper roll for clean manual tearing (alias: <code>/api/printer/feed</code>). <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-danger">POST</span></td>
+                                    <td class="font-monospace text-danger fw-bold">/api/print/stop</td>
+                                    <td><strong>Immediate Stop:</strong> Aborts whatever print job is currently actively streaming! <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-warning text-dark">DELETE</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/print/cancel/{id}</td>
+                                    <td>Cancel a pending queued job or halt an active printing job by ID. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-primary">POST</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/print/confirm/{id}</td>
+                                    <td>Confirm and execute a 2-step pending queued job. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-info text-dark">GET</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/print/preview/{id}</td>
+                                    <td>Fetch exact 384px 1-bit monochrome PNG raster preview. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-secondary">GET</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/queue</td>
+                                    <td>List paginated print queue jobs and execution statuses. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-primary">GET</span></td>
+                                    <td class="font-monospace text-primary fw-bold">/api/status</td>
+                                    <td>Probe thermal printer online/offline status and active printing flag. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
                     <div class="mt-3 pt-3 border-top">
                         <span class="fw-bold small text-uppercase text-secondary d-block mb-3">Parameters &amp; Options Reference</span>
