@@ -255,11 +255,11 @@ cd client-app
 python3 build.py
 ```
 
-| Platform | Output Artifact | Size | Build Details |
-|---|---|---|---|
-| **macOS** | `dist/TinyPOS.app` | **~24.5 MB** | Native Cocoa Menu Bar Agent (`LSUIElement`), Retina squircle icon (`icon.icns`), Bluetooth privacy permissions, ad-hoc codesigned. Strip-optimized for Darwin. |
-| **Windows** | `dist/TinyPOS/` | **~123 MB** | Optimized `--onedir` bundle with Qt6/Tkinter settings GUI, embedded multi-resolution icon (`icon.ico`), Win32 tray notification area hooks, and crash recovery. |
-| **Linux** | `dist/TinyPOS` | **~35 MB** | Standalone ELF binary with embedded `icon.png` and AppIndicator/XEmbed panel integration. |
+| Platform | Output Artifact | Build Details |
+|---|---|---|
+| **macOS** | `dist/TinyPOS.app` | Native Cocoa Menu Bar Agent (`LSUIElement`), Retina squircle icon (`icon.icns`), Bluetooth privacy permissions, ad-hoc codesigned. Strip-optimized for Darwin. |
+| **Windows** | `dist/TinyPOS/` | Optimized `--onedir` bundle with Qt6/Tkinter settings GUI, embedded multi-resolution icon (`icon.ico`), Win32 tray notification area hooks, and crash recovery. |
+| **Linux** | `dist/TinyPOS` | Standalone ELF binary with embedded `icon.png` and AppIndicator/XEmbed panel integration. |
 
 #### 2. Generate Release Installers (`packager.py`)
 
@@ -273,7 +273,7 @@ python3 packager.py
 | Platform | Installer Package | Format | Details |
 |---|---|---|---|
 | **macOS** | `dist/installer/TinyPOS-1.0.0-macOS.dmg` | **Apple Disk Image** | Drag-and-drop installer with customized volume layout and `/Applications` alias symlink. |
-| **Windows** | `dist/installer/TinyPOS-Setup-1.0.0.exe` | **Inno Setup 6/7 Installer** | Ultra-compressed wizard installer (**<40 MB** using LZMA2 solid compression). Includes Start Menu shortcuts, desktop shortcut, clean uninstaller, and single-instance kill guard. |
+| **Windows** | `dist/installer/TinyPOS-Setup-1.0.0.exe` | **Inno Setup 6/7 Installer** | Ultra-compressed wizard installer using LZMA2 solid compression. Includes Start Menu shortcuts, desktop shortcut, clean uninstaller, and single-instance kill guard. |
 | **Linux** | `dist/installer/tinypos_1.0.0_amd64.deb`<br>`TinyPOS-1.0.0-linux-x86_64.tar.gz` | **Debian Package & Archive** | Standard Debian package installing to `/opt/tinypos` with desktop `.desktop` entry, icon integration, and terminal symlink `/usr/local/bin/tinypos`. |
 
 *Note: All intermediate build caches (`build/`, `.spec` files, `__pycache__`) are automatically pruned immediately upon build completion.*
