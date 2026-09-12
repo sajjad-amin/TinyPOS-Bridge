@@ -102,6 +102,25 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 5. Paper Feed -->
+            <div class="col-lg-12">
+                <div class="border rounded p-3 bg-body-tertiary h-100">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="badge bg-success me-2">POST</span>
+                            <span class="font-monospace fw-bold text-success">/api/print/feed</span>
+                            <span class="text-muted small ms-2">(alias: <code>/api/printer/feed</code>)</span>
+                        </div>
+                        <span class="badge bg-secondary-subtle text-secondary small">Requires API Key</span>
+                    </div>
+                    <p class="small text-muted mb-2">Advances / feeds the thermal receipt roll by standard line feed steps, allowing the user to cleanly tear off invoices or receipts.</p>
+                    <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>{
+  "success": true,
+  "message": "Feed paper command sent to thermal printer."
+}</code></pre>
+                </div>
+            </div>
         </div>
 
         {% include "documentation/doc_nav_header.html" %}
@@ -116,6 +135,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link fw-semibold" id="ctl-js-tab" data-bs-toggle="tab" data-bs-target="#ctl-js-pane" type="button">JavaScript / Node</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="ctl-py-tab" data-bs-toggle="tab" data-bs-target="#ctl-py-pane" type="button">Python</button>
             </li>
         </ul>
 
@@ -132,15 +154,19 @@
 <span class="text-info">$apiKey</span> = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
 <span class="text-info">$baseUrl</span> = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
 
-<span class="text-secondary">// 1. Immediate Print Abort</span>
+<span class="text-secondary">// 1. Feed / Advance Paper</span>
+<span class="text-info">$feedRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
+    -&gt;post(<span class="text-success">"{$baseUrl}/api/print/feed"</span>);
+
+<span class="text-secondary">// 2. Immediate Print Abort</span>
 <span class="text-info">$stopRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
     -&gt;post(<span class="text-success">"{$baseUrl}/api/print/stop"</span>);
 
-<span class="text-secondary">// 2. Cancel Job by ID</span>
+<span class="text-secondary">// 3. Cancel Job by ID</span>
 <span class="text-info">$cancelRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
     -&gt;delete(<span class="text-success">"{$baseUrl}/api/print/cancel/{$jobId}"</span>);
 
-<span class="text-secondary">// 3. Probe Hardware &amp; Busy Status</span>
+<span class="text-secondary">// 4. Probe Hardware &amp; Busy Status</span>
 <span class="text-info">$status</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
     -&gt;get(<span class="text-success">"{$baseUrl}/api/status"</span>)-&gt;json();
 
@@ -157,15 +183,19 @@
                     <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('ctl-curl-code', this)">
                         <i class="bi bi-clipboard"></i> Copy
                     </button>
-<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="ctl-curl-code"><span class="text-secondary"># 1. Immediate Stop active print transmission</span>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="ctl-curl-code"><span class="text-secondary"># 1. Feed / Advance Paper roll</span>
+<span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/feed \
+  -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
+
+<span class="text-secondary"># 2. Immediate Stop active print transmission</span>
 <span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/stop \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
 
-<span class="text-secondary"># 2. Cancel specific job</span>
+<span class="text-secondary"># 3. Cancel specific job</span>
 <span class="text-primary">curl</span> -X DELETE <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/cancel/JOB_ID_HERE \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
 
-<span class="text-secondary"># 3. Probe hardware status</span>
+<span class="text-secondary"># 4. Probe hardware status</span>
 <span class="text-primary">curl</span> <span class="base-url-placeholder">{{ request_url_base }}</span>/api/status \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span>
 </code></pre>
@@ -181,18 +211,49 @@
 <pre class="bg-dark text-light p-3 rounded small mb-0"><code id="ctl-js-code"><span class="text-info">const</span> apiKey = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>;
 <span class="text-info">const</span> baseUrl = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>;
 
-<span class="text-secondary">// Stop printer immediately</span>
+<span class="text-secondary">// 1. Feed / Advance paper roll</span>
+<span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/feed`</span>, {
+  method: <span class="text-success">'POST'</span>,
+  headers: { <span class="text-success">'X-API-Key'</span>: apiKey }
+});
+
+<span class="text-secondary">// 2. Stop printer immediately</span>
 <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/print/stop`</span>, {
   method: <span class="text-success">'POST'</span>,
   headers: { <span class="text-success">'X-API-Key'</span>: apiKey }
 });
 
-<span class="text-secondary">// Check printer status</span>
+<span class="text-secondary">// 3. Check printer status</span>
 <span class="text-info">const</span> statusRes = <span class="text-warning">await</span> fetch(<span class="text-success">`${baseUrl}/api/status`</span>, {
   headers: { <span class="text-success">'X-API-Key'</span>: apiKey }
 });
 <span class="text-info">const</span> status = <span class="text-warning">await</span> statusRes.json();
 console.log(<span class="text-success">'Printer Online:'</span>, status.connected, <span class="text-success">'Printing:'</span>, status.is_printing);
+</code></pre>
+                </div>
+            </div>
+
+            <!-- Python Tab -->
+            <div class="tab-pane fade" id="ctl-py-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('ctl-py-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="ctl-py-code"><span class="text-warning">import</span> requests
+
+api_key = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>
+base_url = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>
+headers = {<span class="text-success">'X-API-Key'</span>: api_key}
+
+<span class="text-secondary"># 1. Feed Paper Roll</span>
+requests.post(f<span class="text-success">"{base_url}/api/print/feed"</span>, headers=headers)
+
+<span class="text-secondary"># 2. Emergency Stop Print</span>
+requests.post(f<span class="text-success">"{base_url}/api/print/stop"</span>, headers=headers)
+
+<span class="text-secondary"># 3. Check Printer Status</span>
+status = requests.get(f<span class="text-success">"{base_url}/api/status"</span>, headers=headers).json()
+print(<span class="text-success">"Connected:"</span>, status.get(<span class="text-success">"connected"</span>), <span class="text-success">"Printing:"</span>, status.get(<span class="text-success">"is_printing"</span>))
 </code></pre>
                 </div>
             </div>

@@ -138,7 +138,7 @@ if TK_AVAILABLE:
             details_card.pack(fill="x", pady=(0, 14))
 
             tk.Label(details_card, text="Cloud Relay URL:", bg=card_bg, fg=fg_label).pack(anchor="w")
-            self.server_url_var = tk.StringVar(value=config.server_url or "wss://pos.sayem.top")
+            self.server_url_var = tk.StringVar(value=config.server_url or "wss://your-pos-server.com")
             tk.Entry(details_card, textvariable=self.server_url_var, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg).pack(fill="x", ipady=6, pady=(2, 6))
 
             tk.Label(details_card, text="Client API Key:", bg=card_bg, fg=fg_label).pack(anchor="w")

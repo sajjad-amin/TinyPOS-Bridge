@@ -136,7 +136,7 @@ if PYQT_AVAILABLE:
             quick_input_row = QtWidgets.QHBoxLayout()
             quick_input_row.setSpacing(8)
             self.input_quick = QtWidgets.QLineEdit()
-            self.input_quick.setPlaceholderText("wss://pos.sayem.top/ws/client?api_key=...")
+            self.input_quick.setPlaceholderText("wss://your-pos-server.com/ws/client?api_key=...")
             btn_paste = QtWidgets.QPushButton("📋 Paste && Apply")
             btn_paste.setObjectName("btnPaste")
             btn_paste.setFixedWidth(130)
@@ -151,8 +151,8 @@ if PYQT_AVAILABLE:
             details_layout = QtWidgets.QVBoxLayout(details_box)
             details_layout.setSpacing(6)
 
-            details_layout.addWidget(QtWidgets.QLabel("Cloud Relay URL (e.g. wss://pos.sayem.top):"))
-            self.input_server = QtWidgets.QLineEdit(config.server_url or "wss://pos.sayem.top")
+            details_layout.addWidget(QtWidgets.QLabel("Cloud Relay URL (e.g. wss://your-pos-server.com):"))
+            self.input_server = QtWidgets.QLineEdit(config.server_url or "wss://your-pos-server.com")
             details_layout.addWidget(self.input_server)
 
             details_layout.addWidget(QtWidgets.QLabel("Client API Key (sk_client_...):"))

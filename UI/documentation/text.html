@@ -76,6 +76,9 @@
             <li class="nav-item">
                 <button class="nav-link fw-semibold" id="text-js-tab" data-bs-toggle="tab" data-bs-target="#text-js-pane" type="button">JavaScript / Node</button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="text-py-tab" data-bs-toggle="tab" data-bs-target="#text-py-pane" type="button">Python</button>
+            </li>
         </ul>
 
         <div class="tab-content mb-4" id="textCodeTabsContent">
@@ -161,6 +164,46 @@ echo <span class="text-success">"Text Receipt Queued: {$jobId}\n"</span>;
 });
 <span class="text-info">const</span> data = <span class="text-warning">await</span> res.json();
 console.log(<span class="text-success">'Text Job ID:'</span>, data.job_id);
+</code></pre>
+                </div>
+            </div>
+
+            <!-- Python Tab -->
+            <div class="tab-pane fade" id="text-py-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('text-py-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="text-py-code"><span class="text-warning">import</span> requests
+
+api_key = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>
+base_url = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>
+
+receipt_text = (
+    <span class="text-success">"================================\n"</span>
+    <span class="text-success">"       রেস্তোরাঁ এক্সপ্রেস 🍕\n"</span>
+    <span class="text-success">"================================\n"</span>
+    <span class="text-success">"চিকেন বিরিয়ানি (Half)    ৳২০০.০০\n"</span>
+    <span class="text-success">"Chicken Shawarma         $5.50\n"</span>
+    <span class="text-success">"Mineral Water (500ml)    ৳২৫.০০\n"</span>
+    <span class="text-success">"--------------------------------\n"</span>
+    <span class="text-success">"সর্বমোট বিল / TOTAL     ৳২৮০.০০\n"</span>
+    <span class="text-success">"ধন্যবাদ! আবার আসবেন ❤️\n"</span>
+    <span class="text-success">"================================"</span>
+)
+
+res = requests.post(
+    f<span class="text-success">"{base_url}/api/print/text"</span>,
+    headers={<span class="text-success">"X-API-Key"</span>: api_key},
+    json={
+        <span class="text-success">"text"</span>: receipt_text,
+        <span class="text-success">"font_size"</span>: 22,
+        <span class="text-success">"strength"</span>: 7,
+        <span class="text-success">"immediate"</span>: True,
+    }
+)
+data = res.json()
+print(<span class="text-success">"Text Receipt Job ID:"</span>, data.get(<span class="text-success">"job_id"</span>))
 </code></pre>
                 </div>
             </div>

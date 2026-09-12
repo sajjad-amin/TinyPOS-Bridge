@@ -173,7 +173,7 @@ class InternalPrintQRRequest(BaseModel):
 async def internal_preview_qr(payload: InternalPrintQRRequest):
     """Generate 384px PNG preview for QR code."""
     if not payload.content.strip():
-        payload.content = "https://pos.sayem.com"
+        payload.content = "https://sajjadamin.com"
     bitmap = printer_ble.render_qr_to_bitmap(
         content=payload.content,
         header_text=payload.header,

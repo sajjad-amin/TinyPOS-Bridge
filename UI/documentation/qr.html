@@ -19,11 +19,11 @@
             <div class="d-flex align-items-start">
                 <i class="bi bi-info-circle-fill text-primary fs-4 me-3 mt-1"></i>
                 <div>
-                    <h6 class="alert-heading fw-bold mb-1">Direct Printing or Zero-Auth PNG Streaming</h6>
+                    <h6 class="alert-heading fw-bold mb-1">Direct Printing &amp; High-Speed PNG Streaming</h6>
                     <p class="small mb-0 text-body">
                         TinyPOS offers two QR capabilities:
                         (1) <strong>Print Directly:</strong> Send <code>POST /api/print/qr</code> with your API key to print a thermal QR code with optional multilingual headers and footers.
-                        (2) <strong>Stream Image:</strong> Request <code>GET /api/qr/generate?text=...</code> with <em>no authentication required</em> to generate a 384px monochrome PNG on-the-fly for web <code>&lt;img&gt;</code> tags or invoice templates.
+                        (2) <strong>Stream Image:</strong> Request <code>GET /api/qr/generate?api_key=...&amp;text=...</code> (or with <code>X-API-Key</code> header) to generate a 384px monochrome PNG on-the-fly for web <code>&lt;img&gt;</code> tags or invoice templates.
                     </p>
                 </div>
             </div>
@@ -85,7 +85,7 @@
                             <span class="badge bg-info text-dark me-2">GET / POST</span>
                             <span class="font-monospace fw-bold text-primary">/api/qr/generate</span>
                         </div>
-                        <span class="badge bg-success-subtle text-success small">No Auth Required</span>
+                        <span class="badge bg-secondary-subtle text-secondary small">Requires API Key</span>
                     </div>
                     <p class="small text-muted mb-2">Streams a live 384px monochrome PNG QR code. Ideal for embedding in web <code>&lt;img&gt;</code> tags or downloadable reports.</p>
 
@@ -105,11 +105,11 @@
 
                     <span class="small fw-bold text-uppercase text-secondary d-block mb-1">HTML Image Tag Embed Example</span>
                     <div class="bg-dark text-light p-2 rounded small mb-2 font-monospace">
-                        <code>&lt;img src="<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?text=https://pos.sayem.com/pay/101&amp;header=TABLE+5&amp;size=260" alt="Thermal QR Code" /&gt;</code>
+                        <code>&lt;img src="<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?api_key=YOUR_API_KEY&amp;text=https://sajjadamin.com/pay/101&amp;header=TABLE+5&amp;size=260" alt="Thermal QR Code" /&gt;</code>
                     </div>
 
                     <span class="small fw-bold text-uppercase text-secondary d-block mb-1">cURL Save Example</span>
-                    <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>curl -o qr.png "<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?text=https://pos.sayem.com&amp;header=ORDER+99&amp;size=260"</code></pre>
+                    <pre class="bg-dark text-light p-2 rounded small mb-0 font-monospace"><code>curl -o qr.png "<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?api_key=YOUR_API_KEY&amp;text=https://sajjadamin.com&amp;header=ORDER+99&amp;size=260"</code></pre>
                 </div>
             </div>
         </div>
@@ -126,6 +126,9 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link fw-semibold" id="qr-js-tab" data-bs-toggle="tab" data-bs-target="#qr-js-pane" type="button">JavaScript / Node</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="qr-py-tab" data-bs-toggle="tab" data-bs-target="#qr-py-pane" type="button">Python</button>
             </li>
         </ul>
 
@@ -146,7 +149,7 @@
 <span class="text-info">$response</span> = Http::withHeaders([
     <span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>,
 ])-&gt;post(<span class="text-success">"{$baseUrl}/api/print/qr"</span>, [
-    <span class="text-success">'text'</span>      =&gt; <span class="text-success">'https://pos.sayem.com/pay/inv_1042'</span>,
+    <span class="text-success">'text'</span>      =&gt; <span class="text-success">'https://sajjadamin.com/pay/inv_1042'</span>,
     <span class="text-success">'header'</span>    =&gt; <span class="text-success">'SCAN TO PAY ৳৪৫০.০০'</span>,  <span class="text-secondary">// Bangla, Arabic, English, Emojis</span>
     <span class="text-success">'footer'</span>    =&gt; <span class="text-success">'Table #12 • TinyPOS'</span>,
     <span class="text-success">'qr_size'</span>   =&gt; <span class="text-warning">260</span>,
@@ -156,9 +159,10 @@
 
 <span class="text-info">$jobId</span> = <span class="text-info">$response</span>-&gt;json(<span class="text-success">'job_id'</span>);
 
-<span class="text-secondary">// 2. Direct QR PNG Image Stream (no API key required)</span>
+<span class="text-secondary">// 2. Direct QR PNG Image Stream (pass api_key in query or headers)</span>
 <span class="text-info">$qrPngBytes</span> = Http::get(<span class="text-success">"{$baseUrl}/api/qr/generate"</span>, [
-    <span class="text-success">'text'</span>   =&gt; <span class="text-success">'https://pos.sayem.com'</span>,
+    <span class="text-success">'api_key'</span>=&gt; <span class="text-info">$apiKey</span>,
+    <span class="text-success">'text'</span>   =&gt; <span class="text-success">'https://sajjadamin.com'</span>,
     <span class="text-success">'header'</span> =&gt; <span class="text-success">'ORDER #99'</span>,
     <span class="text-success">'size'</span>   =&gt; <span class="text-warning">260</span>,
 ])-&gt;body();
@@ -177,7 +181,7 @@
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
   -H <span class="text-success">"Content-Type: application/json"</span> \
   -d <span class="text-success">'{
-    "text": "https://pos.sayem.com/pay/101",
+    "text": "https://sajjadamin.com/pay/101",
     "header": "TABLE #5 • বিল ৳৪৫০.০০",
     "footer": "Scan to Pay Online",
     "qr_size": 260,
@@ -185,8 +189,8 @@
     "immediate": true
   }'</span>
 
-<span class="text-secondary"># 2. Directly Download 384px QR Code PNG (no API key required)</span>
-<span class="text-primary">curl</span> -o qr.png <span class="text-success">"<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?text=https://pos.sayem.com&header=ORDER+101&size=260"</span>
+<span class="text-secondary"># 2. Directly Download 384px QR Code PNG (using ?api_key= or X-API-Key header)</span>
+<span class="text-primary">curl</span> -o qr.png <span class="text-success">"<span class="base-url-placeholder">{{ request_url_base }}</span>/api/qr/generate?api_key=<span class="api-key-placeholder">sk_live_your_api_key_here</span>&text=https://sajjadamin.com&header=ORDER+101&size=260"</span>
 </code></pre>
                 </div>
             </div>
@@ -208,7 +212,7 @@
     <span class="text-success">'X-API-Key'</span>: apiKey
   },
   body: JSON.stringify({
-    text: <span class="text-success">"https://pos.sayem.com/order/54"</span>,
+    text: <span class="text-success">"https://sajjadamin.com/order/54"</span>,
     header: <span class="text-success">"TABLE 5"</span>,
     footer: <span class="text-success">"Scan to Pay"</span>,
     qr_size: <span class="text-warning">260</span>,
@@ -219,10 +223,42 @@
 <span class="text-info">const</span> data = <span class="text-warning">await</span> res.json();
 console.log(<span class="text-success">'QR Job Dispatched:'</span>, data.job_id);
 
-<span class="text-secondary">// 2. Dynamic Image Element Embed (No Auth needed)</span>
+<span class="text-secondary">// 2. Dynamic Image Element Embed (pass ?api_key=)</span>
 <span class="text-info">const</span> img = document.createElement(<span class="text-success">'img'</span>);
-img.src = <span class="text-success">`${baseUrl}/api/qr/generate?text=${encodeURIComponent('https://pos.sayem.com')}&header=TABLE+5&size=260`</span>;
+img.src = <span class="text-success">`${baseUrl}/api/qr/generate?api_key=${encodeURIComponent(apiKey)}&text=${encodeURIComponent('https://sajjadamin.com')}&header=TABLE+5&size=260`</span>;
 document.body.appendChild(img);
+</code></pre>
+                </div>
+            </div>
+
+            <!-- Python Tab -->
+            <div class="tab-pane fade" id="qr-py-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('qr-py-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="qr-py-code"><span class="text-warning">import</span> requests
+
+api_key = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>
+base_url = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>
+headers = {<span class="text-success">'X-API-Key'</span>: api_key}
+
+<span class="text-secondary"># 1. Direct 1-Step Thermal QR Code Print</span>
+res = requests.post(f<span class="text-success">"{base_url}/api/print/qr"</span>, headers=headers, json={
+    <span class="text-success">"text"</span>: <span class="text-success">"https://sajjadamin.com/order/54"</span>,
+    <span class="text-success">"header"</span>: <span class="text-success">"TABLE 5"</span>,
+    <span class="text-success">"footer"</span>: <span class="text-success">"Scan to Pay"</span>,
+    <span class="text-success">"qr_size"</span>: 260,
+    <span class="text-success">"strength"</span>: 7,
+    <span class="text-success">"immediate"</span>: True,
+})
+print(<span class="text-success">"QR Job ID:"</span>, res.json().get(<span class="text-success">"job_id"</span>))
+
+<span class="text-secondary"># 2. Direct PNG Download (using ?api_key= query parameter)</span>
+qr_png = requests.get(f<span class="text-success">"{base_url}/api/qr/generate?api_key={api_key}&text=https://sajjadamin.com&header=TABLE+5&size=260"</span>).content
+with open(<span class="text-success">"thermal_qr.png"</span>, <span class="text-success">"wb"</span>) as f:
+    f.write(qr_png)
+print(<span class="text-success">"Saved thermal_qr.png (384px monochrome)"</span>)
 </code></pre>
                 </div>
             </div>

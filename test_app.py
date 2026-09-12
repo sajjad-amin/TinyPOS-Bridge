@@ -116,11 +116,11 @@ def test_auth_and_ui_pages():
     # Test reverse proxy headers (Cloudflare / Nginx)
     res_doc_proxy = client.get(
         "/documentation",
-        headers={"X-Forwarded-Proto": "https", "X-Forwarded-Host": "pos.sayem.com"},
+        headers={"X-Forwarded-Proto": "https", "X-Forwarded-Host": "sajjadamin.com"},
         cookies=cookies,
     )
     assert res_doc_proxy.status_code == 200
-    assert "https://pos.sayem.com" in res_doc_proxy.text
+    assert "https://sajjadamin.com" in res_doc_proxy.text
 
     # Test each separate documentation subpage
     subpages = [
@@ -138,7 +138,7 @@ def test_auth_and_ui_pages():
         assert "docSubmenu" in sub_res.text
         print(f" [OK] {path} rendered cleanly with submenu and {endpoint_snippet}")
 
-    print(" [OK] /documentation dynamically used production proxy headers (https://pos.sayem.com)")
+    print(" [OK] /documentation dynamically used production proxy headers (https://sajjadamin.com)")
     print(" [OK] All separate documentation subpages verified successfully")
 
     # 8. Delete key via UI action
@@ -190,11 +190,17 @@ def test_api_printing_pipeline():
     job_id = data_step["job_id"]
     print(f" [OK] 2-Step pending text print created: {job_id} (keepjob: true)")
 
-    # 3. Preview queued pending job
-    preview_res = client.get(f"/api/print/preview/{job_id}")
-    assert preview_res.status_code == 200
-    assert preview_res.headers["content-type"] == "image/png"
-    print(" [OK] Preview PNG retrieved from SQLite")
+    # 3. Preview queued pending job (verify 403 unauthenticated, 200 with query/header/session)
+    unauth_client = TestClient(main.app)
+    assert unauth_client.get(f"/api/print/preview/{job_id}").status_code == 403
+    res_prev_query = unauth_client.get(f"/api/print/preview/{job_id}?api_key={test_key}")
+    assert res_prev_query.status_code == 200
+    assert res_prev_query.headers["content-type"] == "image/png"
+    res_prev_header = unauth_client.get(f"/api/print/preview/{job_id}", headers={"X-API-Key": test_key})
+    assert res_prev_header.status_code == 200
+    res_prev_session = client.get(f"/api/print/preview/{job_id}")
+    assert res_prev_session.status_code == 200
+    print(" [OK] Preview PNG security verified (403 unauth, 200 via ?api_key=, X-API-Key, & admin session)")
 
     # 4. Confirm queued pending job
     confirm_res = client.post(f"/api/print/confirm/{job_id}", headers={"X-API-Key": test_key})
@@ -558,7 +564,7 @@ def test_qr_code_rendering_and_api():
 
     # 1. Test engine renderer directly
     bmp = printer_ble.render_qr_to_bitmap(
-        content="https://pos.sayem.com",
+        content="https://sajjadamin.com",
         header_text="SCAN TO PAY",
         footer_text="TinyPOS Thermal Bridge",
         qr_size=260,
@@ -574,7 +580,7 @@ def test_qr_code_rendering_and_api():
     res_preview = client.post(
         "/api/internal/preview-qr",
         json={
-            "content": "https://pos.sayem.com",
+            "content": "https://sajjadamin.com",
             "header": "TABLE #12",
             "footer": "THANK YOU",
             "qr_size": 240,
@@ -679,17 +685,25 @@ def test_photo_dithering_and_direct_qr():
     db.delete_job(data_dither["job_id"])
     print(" [OK] POST /api/print/raw with dither=true succeeded")
 
-    # 5. Test direct QR generation: GET /api/qr/generate?text=...
-    res_qr_get = client.get("/api/qr/generate?text=https://pos.sayem.com/order/123&header=TABLE+5&footer=SCAN+TO+PAY&size=260")
+    # 5. Test direct QR generation: GET /api/qr/generate
+    unauth_client = TestClient(main.app)
+    assert unauth_client.get("/api/qr/generate?text=hello").status_code == 403
+    res_qr_get = unauth_client.get(f"/api/qr/generate?api_key={test_key}&text=https://sajjadamin.com/order/123&header=TABLE+5&footer=SCAN+TO+PAY&size=260")
     assert res_qr_get.status_code == 200
     assert res_qr_get.headers["content-type"] == "image/png"
     qr_img = Image.open(io.BytesIO(res_qr_get.content))
     assert qr_img.size[0] == 384
-    print(" [OK] GET /api/qr/generate returned valid 384px PNG QR code directly")
+    res_qr_get_hdr = unauth_client.get("/api/qr/generate?text=https://sajjadamin.com/order/123", headers={"X-API-Key": test_key})
+    assert res_qr_get_hdr.status_code == 200
+    res_qr_get_sess = client.get("/api/qr/generate?text=https://sajjadamin.com/order/123")
+    assert res_qr_get_sess.status_code == 200
+    print(" [OK] GET /api/qr/generate security verified (403 unauth, 200 with ?api_key=, X-API-Key, & admin session)")
 
     # 6. Test direct QR generation: POST /api/qr/generate (JSON payload)
-    res_qr_post = client.post(
+    assert unauth_client.post("/api/qr/generate", json={"text": "hello"}).status_code == 403
+    res_qr_post = unauth_client.post(
         "/api/qr/generate",
+        headers={"X-API-Key": test_key},
         json={
             "text": "WIFI:S:TinyPOS;T:WPA;P:password123;;",
             "header": "FREE WI-FI",
@@ -701,7 +715,7 @@ def test_photo_dithering_and_direct_qr():
     assert res_qr_post.headers["content-type"] == "image/png"
     qr_post_img = Image.open(io.BytesIO(res_qr_post.content))
     assert qr_post_img.size[0] == 384
-    print(" [OK] POST /api/qr/generate returned valid 384px PNG QR code directly")
+    print(" [OK] POST /api/qr/generate security verified (403 unauth, 200 with X-API-Key)")
 
     # 7. Test /api/print/qr with text alias (instead of content)
     res_qr_alias = client.post(
@@ -757,8 +771,9 @@ def test_settings_and_cloud_relay():
 
     # 1. Ensure test API key and client API key exist
     test_key = "sk_test_relay_key_456"
-    db.insert_api_key(key=test_key, name="Relay Store PC")
-    db.insert_client_api_key(key=test_key, name="Relay Store PC")
+    db.create_client_group("Default")
+    db.insert_api_key(key=test_key, name="Relay Store PC", group_name="Default")
+    db.insert_client_api_key(key=test_key, name="Relay Store PC", group_name="Default")
 
     # 2. Test database settings & client keys operations
     db.set_setting("bridge_mode", "bluetooth")
@@ -924,17 +939,50 @@ def test_settings_and_cloud_relay():
     print(" [OK] Reset operating mode back to default 'bluetooth'")
 
 
+def test_feed_paper_and_favicon():
+    print("--> Testing Paper Feed API and Favicon endpoints...")
+    # 1. Favicon endpoints
+    res_fav = client.get("/favicon.ico")
+    assert res_fav.status_code == 200
+    assert "image/" in res_fav.headers.get("content-type", "")
+
+    res_icon = client.get("/static/icon.png")
+    assert res_icon.status_code == 200
+    assert res_icon.headers.get("content-type") == "image/png"
+    print(" [OK] /favicon.ico and /static/icon.png served successfully")
+
+    # 2. Paper Feed Public API authentication
+    res_unauth = client.post("/api/print/feed")
+    assert res_unauth.status_code == 403
+
+    # 3. Paper Feed with valid API key
+    test_key = "sk_feed_test_key_123"
+    db.insert_api_key(key=test_key, name="Feed Test Key")
+    res_feed = client.post("/api/print/feed", headers={"X-API-Key": test_key})
+    # Since thermal printer BLE is offline in test runner, expect either 200 (if mocked) or 500 with offline message
+    assert res_feed.status_code in (200, 500)
+    assert "message" in res_feed.json()
+
+    # Alias /api/printer/feed
+    res_alias = client.post("/api/printer/feed", headers={"X-API-Key": test_key})
+    assert res_alias.status_code in (200, 500)
+    db.delete_api_key(test_key)
+    print(" [OK] Paper Feed API (/api/print/feed and /api/printer/feed) verified")
+
+
 if __name__ == "__main__":
     test_sqlite_api_keys()
     test_auth_and_ui_pages()
     test_temporary_vs_preserved_jobs()
     test_api_printing_pipeline()
     test_stop_print_flow()
+    test_feed_paper_and_favicon()
     test_bangla_unicode_text_printing()
     test_universal_multilingual_printing()
     test_mixed_multi_script_rendering()
     test_qr_code_rendering_and_api()
     test_photo_dithering_and_direct_qr()
     test_settings_and_cloud_relay()
-    print("\n🎉 ALL TESTS (SETTINGS, CLOUD RELAY, WEBSOCKET, PHOTO DITHERING, DIRECT QR API, MODULAR UI, MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
+    print("\n🎉 ALL TESTS (SETTINGS, CLOUD RELAY, WEBSOCKET, PHOTO DITHERING, DIRECT QR API, FEED PAPER, FAVICON, MODULAR UI, MULTI-LANGUAGE, BANGLA UNICODE, KEEPJOB, STOP API & SQLITE) PASSED SUCCESSFULLY!")
+
 

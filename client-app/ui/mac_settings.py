@@ -118,7 +118,7 @@ class MacSettingsController(AppKit.NSObject):
         box_view.addSubview_(ws_label)
 
         self.ws_quick_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(10, 16, 260, 24))
-        self.ws_quick_input.setPlaceholderString_("wss://pos.sayem.top/ws/client?api_key=sk_client_...")
+        self.ws_quick_input.setPlaceholderString_("wss://your-pos-server.com/ws/client?api_key=sk_client_...")
         box_view.addSubview_(self.ws_quick_input)
 
         paste_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(275, 14, 95, 26))
@@ -147,7 +147,7 @@ class MacSettingsController(AppKit.NSObject):
         content.addSubview_(srv_label)
 
         self.server_url_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 263, 315, 24))
-        self.server_url_input.setPlaceholderString_("e.g. https://pos.sayem.top")
+        self.server_url_input.setPlaceholderString_("e.g. https://your-pos-server.com")
         self.server_url_input.setStringValue_(config.server_url or "")
         content.addSubview_(self.server_url_input)
 

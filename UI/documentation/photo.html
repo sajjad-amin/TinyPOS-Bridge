@@ -99,6 +99,9 @@
             <li class="nav-item">
                 <button class="nav-link fw-semibold" id="photo-js-tab" data-bs-toggle="tab" data-bs-target="#photo-js-pane" type="button">JavaScript / Node</button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="photo-py-tab" data-bs-toggle="tab" data-bs-target="#photo-py-pane" type="button">Python</button>
+            </li>
         </ul>
 
         <div class="tab-content mb-4" id="photoCodeTabsContent">
@@ -178,7 +181,37 @@ formData.append(<span class="text-success">'immediate'</span>, <span class="text
   body: formData
 });
 <span class="text-info">const</span> data = <span class="text-warning">await</span> res.json();
-console.log(<span class="text-success">'Photo Job:'</span>, data.job_id);
+console.log(<span class="text-success">'Photo Job Dispatched:'</span>, data.job_id);
+</code></pre>
+                </div>
+            </div>
+
+            <!-- Python Tab -->
+            <div class="tab-pane fade" id="photo-py-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('photo-py-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="photo-py-code"><span class="text-warning">import</span> requests
+
+api_key = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>
+base_url = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>
+
+with open(<span class="text-success">"portrait.jpg"</span>, <span class="text-success">"rb"</span>) as f:
+    res = requests.post(
+        f<span class="text-success">"{base_url}/api/print/photo"</span>,
+        headers={<span class="text-success">"X-API-Key"</span>: api_key},
+        files={<span class="text-success">"file"</span>: f},
+        data={
+            <span class="text-success">"preset"</span>: <span class="text-success">"portrait"</span>,
+            <span class="text-success">"dither_algo"</span>: <span class="text-success">"floyd"</span>,
+            <span class="text-success">"sharpness"</span>: 1.2,
+            <span class="text-success">"strength"</span>: 7,
+            <span class="text-success">"immediate"</span>: True,
+        }
+    )
+data = res.json()
+print(<span class="text-success">"Photo Job ID:"</span>, data.get(<span class="text-success">"job_id"</span>))
 </code></pre>
                 </div>
             </div>

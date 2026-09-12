@@ -1,5 +1,12 @@
 # TinyPOS &bull; Thermal POS Bridge Application
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB.svg?logo=python&logoColor=white)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> 📖 **Developer Integration Guide & API Reference**: For comprehensive REST API documentation, schemas, payloads, and code snippets in cURL, JavaScript, Python, and PHP, see **[DOC.md](DOC.md)**.
+
 **TinyPOS** is a cross-platform, lightweight FastAPI bridge that connects web applications (Laravel, ERPNext, custom POS software) to local Bluetooth Low Energy (BLE) thermal receipt printers running the **Bainiu / Tiny Print** protocol (such as X6, X5, C9, iPrint, etc.).
 
 It runs seamlessly on macOS, Linux, Raspberry Pi, and Windows, exposing both a modern Web Dashboard and a REST API with 1-step direct printing, mid-stream print cancellation, universal multi-language support, and auto-scaling for 80mm/A4 receipts.
@@ -12,6 +19,7 @@ It runs seamlessly on macOS, Linux, Raspberry Pi, and Windows, exposing both a m
 - **Photographic Dithering & Shading Engine:** Dedicated photo processor (`engine/photo.py`) with Floyd-Steinberg error-diffusion dithering and thermal dot-gain dynamic range compensation, reproducing smooth skin tones and soft gradients matching the official Tiny Print app.
 - **Direct 1-Step Printing:** Print formatted text, receipts, or PDF/image files immediately via REST API or the Web UI.
 - **Direct QR Code Generation & Printing:** Print thermal QR codes directly, or generate/stream 384px PNG QR codes on-the-fly via `/api/qr/generate` for embedding in web `<img>` tags or reports.
+- **Paper Feed & Cut Margin:** Advance paper roll on-demand via `/api/print/feed` to ensure clean receipt tearing.
 - **Drag-and-Drop File Uploader:** Intuitive drag-and-drop dropzone on the web console with instant file size/type detection and auto-scaling to 384 dots.
 - **Live Job Cancellation:** Stop and abort active print jobs mid-stream from the dashboard or API to prevent paper waste.
 - **Receipt Auto-Scaling & Margin Cropping:** Automatically crop white borders and scale 80mm/A4 receipts to fit 57mm rolls cleanly.
@@ -25,6 +33,8 @@ It runs seamlessly on macOS, Linux, Raspberry Pi, and Windows, exposing both a m
 ## Directory Structure
 ```
 TinyPOS/
+├── DOC.md              # Complete Developer Integration Guide & REST API Specification
+├── README.md           # Getting started, architecture, and deployment guide
 ├── .env                # Local configuration (ADMIN_USERNAME, ADMIN_PASSWORD, PORT, HOST)
 ├── .env.example        # Environment configuration template
 ├── .gitignore          # Rules for venv, caches, build artifacts, SQLite DBs, and logs
@@ -38,12 +48,16 @@ TinyPOS/
 ├── ecosystem.config.js # PM2 process manager configuration
 ├── server/             # Modular server core (auth, database, print service, routes)
 ├── UI/                 # Modern Web Dashboard (console, API keys, settings, docs)
+│   ├── static/         # Brand assets & favicons (icon.png, favicon.ico)
+│   └── documentation/  # Interactive web documentation subpages
 └── client-app/         # Native Desktop Menu Bar / System Tray client for Cloud Relay
     ├── build.py        # Automated cross-platform standalone builder (macOS/Win/Linux)
+    ├── packager.py     # Native installer generator (.dmg, Inno Setup .exe, .deb, .tar.gz)
     ├── run.sh          # Quick launch script for desktop client
     ├── requirements.txt# Client dependencies (bleak, websockets, Pillow, pyobjc/pystray)
     ├── main.py         # Client launcher & platform selector
     ├── icon/           # Squircle app icon assets (icon.icns, icon.ico, icon.png)
+    ├── ui/             # Native settings GUIs (Cocoa, Qt6, Tkinter, Browser fallback)
     └── core/           # Tray UI, Bluetooth LE driver, and WebSocket relay worker
 ```
 
@@ -103,7 +117,7 @@ pm2 logs tinypos
 
 ## REST API Reference
 
-All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
+All requests to `/api/*` require authentication via the `X-API-Key` HTTP header (or `?api_key=` query parameter for direct browser media streams).
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -111,11 +125,12 @@ All requests to `/api/*` require authentication via the `X-API-Key` HTTP header.
 | `POST` | `/api/print/raw` | **Upload & Print:** PDF or Image invoice document with auto-scaling, auto-cropping, and strength options. |
 | `POST` | `/api/print/text` | **Direct Text Print:** Formatted receipt text supporting all languages and emojis with customizable font size and strength. |
 | `POST` | `/api/print/qr` | **Direct QR Code Print:** High-contrast thermal QR code with optional multilingual header and footer text (supports `content` and `text`). |
-| `GET` / `POST` | `/api/qr/generate` | **Direct QR Generator:** Directly streams a 384px PNG QR code from query parameters or JSON body (no auth required, ideal for `<img>` tags). |
+| `GET` / `POST` | `/api/qr/generate` | **Direct QR Generator:** Directly streams a 384px PNG QR code from query parameters or JSON body (requires `X-API-Key` or `?api_key=`, ideal for `<img>` tags). |
+| `POST` | `/api/print/feed` | **Paper Feed:** Advance/feed thermal paper roll (alias: `/api/printer/feed`). |
 | `POST` | `/api/print/stop` | **Immediate Stop:** Aborts whatever job is currently streaming to the thermal printer. |
 | `DELETE` / `POST` | `/api/print/cancel/{job_id}` | Cancels a pending job or aborts an active printing job by ID. |
 | `POST` | `/api/print/confirm/{job_id}` | Confirms a pending job (if submitted with `immediate=false`). |
-| `GET` | `/api/print/preview/{job_id}` | Returns a 384px monochrome PNG preview of the rasterized receipt. |
+| `GET` | `/api/print/preview/{job_id}` | Returns a 384px monochrome PNG preview of the rasterized receipt (requires `X-API-Key`, `?api_key=`, or admin session). |
 | `GET` | `/api/status` | Probes printer BLE connectivity and returns active transmission status (`is_printing`). |
 | `GET` | `/api/queue` | Returns paginated recent job history. |
 | `WebSocket` | `/ws/client` | **Cloud Relay Bridge:** Real-time bidirectional WebSocket stream for store client machines (authenticates via `?api_key=...&client_name=...`). |
@@ -156,11 +171,11 @@ Print payment QR codes, Wi-Fi credentials, or invoice links with sharp alignment
 
 **cURL:**
 ```bash
-curl -X POST https://pos.yourdomain.com/api/print/qr \
+curl -X POST https://your-pos-server.com/api/print/qr \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "https://pos.sayem.com/pay/inv_99812",
+    "text": "https://sajjadamin.com/pay/inv_99812",
     "header": "SCAN TO PAY ৳১৫০.০০",
     "footer": "Table #5 • TinyPOS Bridge",
     "qr_size": 260,
@@ -174,7 +189,7 @@ curl -X POST https://pos.yourdomain.com/api/print/qr \
 ```php
 $qrRes = Http::withHeaders(['X-API-Key' => $apiKey])
     ->post("{$baseUrl}/api/print/qr", [
-        'text'      => 'https://pos.sayem.com/pay/inv_1042',
+        'text'      => 'https://sajjadamin.com/pay/inv_1042',
         'header'    => 'SCAN TO PAY ৳৪৫০.০০',
         'footer'    => 'TinyPOS Thermal Bridge',
         'qr_size'   => 260,
@@ -184,16 +199,16 @@ $qrRes = Http::withHeaders(['X-API-Key' => $apiKey])
 ```
 
 ### 3. Direct QR Code Image Generation & Streaming (HTML `<img>` & cURL)
-Streams a 384px monochrome PNG on-the-fly without requiring authentication. Perfect for embedding directly in web receipts or HTML reports:
+Streams a 384px monochrome PNG on-the-fly. Pass your API key via `?api_key=` in query string for `<img>` tags or via `X-API-Key` header:
 
 **HTML `<img>` tag:**
 ```html
-<img src="https://pos.yourdomain.com/api/qr/generate?text=https://pos.sayem.com/order/99&header=TABLE+12&footer=THANK+YOU&size=260" alt="Thermal QR Code" />
+<img src="https://your-pos-server.com/api/qr/generate?api_key=sk_live_your_key_here&text=https://sajjadamin.com/order/99&header=TABLE+12&footer=THANK+YOU&size=260" alt="Thermal QR Code" />
 ```
 
 **cURL save to file:**
 ```bash
-curl -o qr.png "https://pos.yourdomain.com/api/qr/generate?text=https://pos.sayem.com&header=ORDER+99&size=260"
+curl -o qr.png "https://your-pos-server.com/api/qr/generate?api_key=sk_live_your_key_here&text=https://sajjadamin.com&header=ORDER+99&size=260"
 ```
 
 ### 4. Direct 1-Step Invoice PDF & Document Print (Laravel / PHP)
@@ -217,7 +232,7 @@ $response = Http::withHeaders([
 ### 5. Multilingual Text Receipt Print (cURL)
 Supports Bangla, Arabic, Hindi, CJK, English, and Emojis seamlessly:
 ```bash
-curl -X POST https://pos.yourdomain.com/api/print/text \
+curl -X POST https://your-pos-server.com/api/print/text \
   -H "X-API-Key: YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -229,10 +244,17 @@ curl -X POST https://pos.yourdomain.com/api/print/text \
   }'
 ```
 
-### 6. Immediate Stop / Abort Job (cURL)
+### 6. Paper Feed Roll (cURL)
+Advances the thermal paper roll past the physical tear cutter bar:
+```bash
+curl -X POST https://your-pos-server.com/api/print/feed \
+  -H "X-API-Key: YOUR_API_KEY"
+```
+
+### 7. Immediate Stop / Abort Job (cURL)
 To abort whatever job is currently transmitting to the printer:
 ```bash
-curl -X POST https://pos.yourdomain.com/api/print/stop \
+curl -X POST https://your-pos-server.com/api/print/stop \
   -H "X-API-Key: YOUR_API_KEY"
 ```
 
@@ -277,7 +299,7 @@ MODE 1: Direct Local Bluetooth
 MODE 2: Cloud Relay Mesh (Remote VPS Deployment)
 ┌─────────────────────────┐
 │ Cloud Server (VPS)      │
-│ e.g. pos.sayem.top      │
+│ e.g. your-pos-server.com│
 └────────────┬────────────┘
              │  Bidirectional WebSocket (WSS)
              ▼
@@ -311,12 +333,12 @@ The desktop client is a native Menu Bar / System Tray application designed to ru
     * 🔴 **Red**: Disconnected from Cloud Relay / Reconnecting.
     * ⚪ **Gray**: Unconfigured.
 * **Universal Control Panel & Settings GUI**:
-  * Clean, native settings window available across all platforms (Cocoa on macOS, Tkinter on Windows/Linux, with an automatic zero-dependency local browser fallback if Tkinter is unavailable).
+  * Clean, native settings window available across all platforms (Cocoa on macOS, Qt6/Tkinter on Windows/Linux, with an automatic zero-dependency local browser fallback if GUI toolkits are unavailable).
   * Automatically pops up on first launch when unconfigured.
   * Live status overview (Cloud Relay connection state, Terminal Group, Printer model & Bluetooth RSSI).
   * In-window hardware actions: **Feed Paper**, **Reconnect Now**, and **Test Connection**.
 * **1-Click Quick Setup (URL Auto-Parser)**:
-  * Simply paste the full WebSocket connection URL generated from your TinyPOS server's **Settings** page (e.g. `wss://pos.sayem.top/ws/client?api_key=...`), and the app automatically parses the Server URL, Client API Key, and Terminal Name!
+  * Simply paste the full WebSocket connection URL generated from your TinyPOS server's **Settings** page (e.g. `wss://your-pos-server.com/ws/client?api_key=...`), and the app automatically parses the Server URL, Client API Key, and Terminal Name!
 * **Smart Roaming & Heartbeats**:
   * Continuously scans for your portable Bluetooth printer in the background with 4-scan debouncing and a 25-second post-print grace period.
   * Reports signal strength (RSSI dBm) and presence to the cloud relay.
@@ -356,11 +378,11 @@ python3 client-app/main.py
 On first launch, the **Settings & Control Panel** window opens automatically:
 
 1. **Option A (1-Click Quick Setup)**:
-   * Open your TinyPOS web dashboard (e.g. `https://pos.sayem.top/settings`).
+   * Open your TinyPOS web dashboard (e.g. `https://your-pos-server.com/settings`).
    * In the **Client Terminal Authorization Keys** table, click the copy button next to your terminal's **WebSocket Connection URL**.
    * Paste the URL into the **Quick Connect** box in the client app and click **Paste & Apply**.
 2. **Option B (Manual Setup)**:
-   * **Cloud Server URL**: e.g. `wss://pos.sayem.top`
+   * **Cloud Server URL**: e.g. `wss://your-pos-server.com`
    * **Client API Key**: e.g. `sk_client_cmi9ort2mxog5jkjnr2c2lo4`
    * **Terminal Name**: e.g. `Mac Mini` or `Windows-POS`
 3. Click **🧪 Test Connection** to verify WebSocket handshake and group authorization.
@@ -368,22 +390,37 @@ On first launch, the **Settings & Control Panel** window opens automatically:
 
 ---
 
-### Packaging Standalone Executables (`build.py`)
+### Packaging Standalone Executables & Native Installers
 
-You can compile TinyPOS into a standalone application without needing Python installed on the target machine:
+TinyPOS can be compiled into portable, standalone applications and native operating system release installers without requiring Python on target client computers:
+
+#### 1. Compile Standalone Application Bundles (`build.py`)
 
 ```bash
 cd client-app
 python3 build.py
 ```
 
-#### Platform Build Requirements & Artifacts
+| Platform | Output Artifact | Size | Build Details |
+|---|---|---|---|
+| **macOS** | `dist/TinyPOS.app` | **~24.5 MB** | Native Cocoa Menu Bar Agent (`LSUIElement`), Retina squircle icon (`icon.icns`), Bluetooth privacy permissions, ad-hoc codesigned. Strip-optimized for Darwin. |
+| **Windows** | `dist/TinyPOS/` | **~123 MB** | Optimized `--onedir` bundle with Qt6/Tkinter settings GUI, embedded multi-resolution icon (`icon.ico`), Win32 tray notification area hooks, and crash recovery. |
+| **Linux** | `dist/TinyPOS` | **~35 MB** | Standalone ELF binary with embedded `icon.png` and AppIndicator/XEmbed panel integration. |
 
-| Platform | Output Artifact | Prerequisites & Build Details |
-|---|---|---|
-| **macOS** | `dist/TinyPOS.app` | Native macOS Application Bundle with Retina icon (`icon.icns`), Dockless menu bar agent mode (`LSUIElement`), injected Bluetooth privacy permissions, and ad-hoc code signature.<br>• Run: `open dist/TinyPOS.app`<br>• Install: Drag `dist/TinyPOS.app` into `/Applications/` |
-| **Windows** | `dist/TinyPOS.exe` | Standalone executable with embedded multi-res icon (`icon.ico`), Win32 tray hooks, full Tkinter Control Panel, and crash guard.<br>• Build on Windows: `python build.py` from Command Prompt or PowerShell. |
-| **Linux** | `dist/TinyPOS` | Standalone ELF binary with embedded `icon.png` and system tray integration.<br>• Prerequisites on Ubuntu/Debian: `sudo apt install -y python3-tk python3-gi gir1.2-appindicator3-0.1` |
+#### 2. Generate Release Installers (`packager.py`)
+
+Package the compiled standalone application into production-ready release installers for end users:
+
+```bash
+cd client-app
+python3 packager.py
+```
+
+| Platform | Installer Package | Format | Details |
+|---|---|---|---|
+| **macOS** | `dist/installer/TinyPOS-1.0.0-macOS.dmg` | **Apple Disk Image** | Drag-and-drop installer with customized volume layout and `/Applications` alias symlink. |
+| **Windows** | `dist/installer/TinyPOS-Setup-1.0.0.exe` | **Inno Setup 6/7 Installer** | Ultra-compressed wizard installer (**<40 MB** using LZMA2 solid compression). Includes Start Menu shortcuts, desktop shortcut, clean uninstaller, and single-instance kill guard. |
+| **Linux** | `dist/installer/tinypos_1.0.0_amd64.deb`<br>`TinyPOS-1.0.0-linux-x86_64.tar.gz` | **Debian Package & Archive** | Standard Debian package installing to `/opt/tinypos` with desktop `.desktop` entry, icon integration, and terminal symlink `/usr/local/bin/tinypos`. |
 
 *Note: All intermediate build caches (`build/`, `.spec` files, `__pycache__`) are automatically pruned immediately upon build completion.*
 

@@ -4,7 +4,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from server.config import HOST, PORT
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response
+
+from server.config import HOST, PORT, TEMPLATES_DIR
 from server.routes.web import web_router
 from server.routes.internal_api import internal_api_router
 from server.routes.public_api import public_api_router
@@ -38,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TinyPOS Thermal Printer Bridge",
     description="FastAPI bridge to stream invoices and receipts to Bainiu / Tiny Print BLE thermal printers.",
-    version="1.3.0",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -50,6 +53,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files & Favicon
+STATIC_DIR = TEMPLATES_DIR / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    fav_ico = STATIC_DIR / "favicon.ico"
+    if fav_ico.exists():
+        return FileResponse(fav_ico, media_type="image/x-icon")
+    fav_png = STATIC_DIR / "icon.png"
+    if fav_png.exists():
+        return FileResponse(fav_png, media_type="image/png")
+    return Response(status_code=404)
+
 
 # Register modular routes
 app.include_router(web_router)

@@ -8,10 +8,11 @@ from pydantic import BaseModel, Field
 from PIL import Image
 
 import printer_ble
-from server.auth import verify_api_key
+from server.auth import verify_api_key, verify_media_access
 import server.db as db
 from server.services.print_service import (
     execute_print_job,
+    feed_paper_cmd,
     get_system_printer_status,
     schedule_job_cleanup,
 )
@@ -323,10 +324,12 @@ async def generate_qr_image_get(
     size: int = 260,
     qr_size: Optional[int] = None,
     strength: int = 7,
+    _: str = Depends(verify_media_access),
 ):
     """
-    Directly generates a 384px-wide thermal-optimized QR code PNG image from query text.
-    Can be embedded directly in HTML <img> tags, receipts, or downloaded.
+    Generates a 384px-wide thermal-optimized QR code PNG image from query text.
+    Protected endpoint: Requires API Key via 'X-API-Key' header, '?api_key=' parameter, or admin session.
+    Can be embedded in HTML <img> tags or downloaded.
     """
     qr_text = (text or content or "").strip()
     if not qr_text:
@@ -351,9 +354,13 @@ async def generate_qr_image_get(
 
 
 @public_api_router.post("/qr/generate")
-async def generate_qr_image_post(payload: GenerateQRRequest):
+async def generate_qr_image_post(
+    payload: GenerateQRRequest,
+    _: str = Depends(verify_media_access),
+):
     """
-    Directly generates a 384px-wide thermal-optimized QR code PNG image from JSON payload.
+    Generates a 384px-wide thermal-optimized QR code PNG image from JSON payload.
+    Protected endpoint: Requires API Key via 'X-API-Key' header, '?api_key=' parameter, or admin session.
     Returns binary PNG image stream.
     """
     qr_text = payload.get_text()
@@ -462,6 +469,21 @@ async def confirm_print_job(
     }
 
 
+@public_api_router.post("/print/feed")
+@public_api_router.post("/printer/feed")
+async def feed_printer_paper(api_key: str = Depends(verify_api_key)):
+    """
+    Advance/feed paper on the thermal printer associated with the authorized API key.
+    Sends standard ESC/POS paper feed byte sequence to the printer.
+    """
+    key_data = db.get_api_key(api_key)
+    target_group = key_data.get("group_name") if key_data else None
+    success, msg = await feed_paper_cmd(group=target_group)
+    if not success:
+        return JSONResponse(status_code=500, content={"success": False, "message": msg})
+    return {"success": True, "message": msg}
+
+
 @public_api_router.post("/print/stop")
 async def stop_active_print(_: str = Depends(verify_api_key)):
     """Stop the currently transmitting print job on the thermal printer."""
@@ -505,8 +527,14 @@ async def cancel_print_job(
 
 
 @public_api_router.get("/print/preview/{job_id}")
-async def get_job_preview(job_id: str):
-    """Return PNG preview of queued job from SQLite."""
+async def get_job_preview(
+    job_id: str,
+    _: str = Depends(verify_media_access),
+):
+    """
+    Return PNG preview of queued job from SQLite.
+    Protected endpoint: Requires API Key via 'X-API-Key' header, '?api_key=' parameter, or admin session.
+    """
     preview_bytes = db.get_job_preview_bytes(job_id)
     if not preview_bytes:
         raise HTTPException(status_code=404, detail="Preview not available.")

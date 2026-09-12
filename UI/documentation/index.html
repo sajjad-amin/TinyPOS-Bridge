@@ -23,7 +23,7 @@
                 <div>
                     <h6 class="alert-heading fw-bold mb-1">Authentication &amp; Security</h6>
                     <p class="mb-0 small">
-                        All requests under <code>/api/*</code> (except public QR generator <code>/api/qr/generate</code>) require your <strong>API Key</strong> to be passed in the <code>X-API-Key</code> HTTP header. Requests with missing or invalid keys return <code>403 Forbidden</code>.
+                        All requests under <code>/api/*</code> require authentication via your <strong>API Key</strong> (passed in the <code>X-API-Key</code> header or <code>?api_key=</code> query parameter for media streams). Requests with missing or invalid keys return <code>403 Forbidden</code>.
                     </p>
                 </div>
             </div>
@@ -40,7 +40,7 @@
                                 <i class="bi bi-qr-code text-primary fs-4 me-2"></i>
                                 <h6 class="mb-0 fw-bold text-body">QR Code API</h6>
                             </div>
-                            <p class="small text-muted mb-0">Thermal QR printing, multilingual headers/footers, and zero-auth PNG streaming for <code>&lt;img&gt;</code> tags.</p>
+                            <p class="small text-muted mb-0">Thermal QR printing, multilingual headers/footers, and high-speed PNG streaming for <code>&lt;img&gt;</code> tags.</p>
                         </div>
                     </div>
                 </a>
@@ -126,7 +126,6 @@
 
                 <div class="col-md-2 fw-bold text-uppercase text-secondary small">Endpoints</div>
                 <div class="col-md-10">
-                    <table class="table table-sm table-borderless align-middle mb-0">
                         <tr>
                             <td style="width: 110px;"><span class="badge bg-success">POST</span></td>
                             <td class="font-monospace text-primary fw-bold" style="width: 220px;">/api/print/raw</td>
@@ -150,7 +149,12 @@
                         <tr>
                             <td><span class="badge bg-info text-dark">GET / POST</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/qr/generate</td>
-                            <td><strong>Direct QR Generator:</strong> Streams a 384px PNG QR code directly (no auth required). <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
+                            <td><strong>Direct QR Generator:</strong> Streams a 384px PNG QR code directly (requires API Key or <code>?api_key=</code>). <a href="/documentation/qr" class="small ms-1">View Details &rarr;</a></td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-success">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/feed</td>
+                            <td><strong>Feed Thermal Paper:</strong> Advances paper roll for clean manual tearing (alias: <code>/api/printer/feed</code>). <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-danger">POST</span></td>
@@ -161,6 +165,21 @@
                             <td><span class="badge bg-warning text-dark">DELETE</span></td>
                             <td class="font-monospace text-primary fw-bold">/api/print/cancel/{id}</td>
                             <td>Cancel a pending queued job or halt an active printing job by ID. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-primary">POST</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/confirm/{id}</td>
+                            <td>Confirm and execute a 2-step pending queued job. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-info text-dark">GET</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/print/preview/{id}</td>
+                            <td>Fetch exact 384px 1-bit monochrome PNG raster preview. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge bg-secondary">GET</span></td>
+                            <td class="font-monospace text-primary fw-bold">/api/queue</td>
+                            <td>List paginated print queue jobs and execution statuses. <a href="/documentation/control" class="small ms-1">View Details &rarr;</a></td>
                         </tr>
                         <tr>
                             <td><span class="badge bg-primary">GET</span></td>
@@ -255,6 +274,9 @@
             <li class="nav-item">
                 <button class="nav-link fw-semibold" id="js-tab" data-bs-toggle="tab" data-bs-target="#js-pane" type="button">JavaScript / Node</button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link fw-semibold" id="py-tab" data-bs-toggle="tab" data-bs-target="#py-pane" type="button">Python</button>
+            </li>
         </ul>
 
         <div class="tab-content" id="codeTabsContent">
@@ -273,7 +295,7 @@
 <span class="text-secondary">// 1. Direct 1-Step QR Code Print</span>
 <span class="text-info">$qrRes</span> = Http::withHeaders([<span class="text-success">'X-API-Key'</span> =&gt; <span class="text-info">$apiKey</span>])
     -&gt;post(<span class="text-success">"{$baseUrl}/api/print/qr"</span>, [
-        <span class="text-success">'text'</span>      =&gt; <span class="text-success">'https://pos.sayem.com/pay/inv_1042'</span>,
+        <span class="text-success">'text'</span>      =&gt; <span class="text-success">'https://sajjadamin.com/pay/inv_1042'</span>,
         <span class="text-success">'header'</span>    =&gt; <span class="text-success">'SCAN TO PAY ৳৪৫০.০০'</span>,
         <span class="text-success">'footer'</span>    =&gt; <span class="text-success">'Table #12 • TinyPOS'</span>,
         <span class="text-success">'qr_size'</span>   =&gt; <span class="text-warning">260</span>,
@@ -324,7 +346,7 @@
 <span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/qr \
   -H <span class="text-success">"X-API-Key: <span class="api-key-placeholder">sk_live_your_api_key_here</span>"</span> \
   -H <span class="text-success">"Content-Type: application/json"</span> \
-  -d <span class="text-success">'{"text": "https://pos.sayem.com/pay/101", "header": "TABLE #5", "footer": "Scan to Pay", "qr_size": 260, "immediate": true}'</span>
+  -d <span class="text-success">'{"text": "https://sajjadamin.com/pay/101", "header": "TABLE #5", "footer": "Scan to Pay", "qr_size": 260, "immediate": true}'</span>
 
 <span class="text-secondary"># 2. High-Quality Photo Print</span>
 <span class="text-primary">curl</span> -X POST <span class="base-url-placeholder">{{ request_url_base }}</span>/api/print/photo \
@@ -366,7 +388,7 @@
   method: <span class="text-success">'POST'</span>,
   headers: { <span class="text-success">'Content-Type'</span>: <span class="text-success">'application/json'</span>, <span class="text-success">'X-API-Key'</span>: apiKey },
   body: JSON.stringify({
-    text: <span class="text-success">"https://pos.sayem.com/order/54"</span>,
+    text: <span class="text-success">"https://sajjadamin.com/order/54"</span>,
     header: <span class="text-success">"TABLE 5"</span>,
     footer: <span class="text-success">"Scan to Pay"</span>,
     qr_size: <span class="text-warning">260</span>,
@@ -390,6 +412,53 @@ photoForm.append(<span class="text-success">'immediate'</span>, <span class="tex
   body: photoForm,
 });
 console.log(<span class="text-success">'Photo Job ID:'</span>, (<span class="text-warning">await</span> photoRes.json()).job_id);
+</code></pre>
+                </div>
+            </div>
+
+            <!-- Python Tab -->
+            <div class="tab-pane fade" id="py-pane" role="tabpanel">
+                <div class="position-relative">
+                    <button class="btn btn-sm btn-light border position-absolute top-0 end-0 m-2 opacity-75" onclick="copyCode('py-code', this)">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+<pre class="bg-dark text-light p-3 rounded small mb-0"><code id="py-code"><span class="text-warning">import</span> requests
+
+api_key = <span class="text-success">'<span class="api-key-placeholder">sk_live_your_api_key_here</span>'</span>
+base_url = <span class="text-success">'<span class="base-url-placeholder">{{ request_url_base }}</span>'</span>
+headers = {<span class="text-success">'X-API-Key'</span>: api_key}
+
+<span class="text-secondary"># 1. Direct 1-Step Thermal QR Code Print</span>
+qr_res = requests.post(f<span class="text-success">"{base_url}/api/print/qr"</span>, headers=headers, json={
+    <span class="text-success">"text"</span>: <span class="text-success">"https://sajjadamin.com/pay/101"</span>,
+    <span class="text-success">"header"</span>: <span class="text-success">"TABLE #5 • বিল ৳৪৫০.০০"</span>,
+    <span class="text-success">"footer"</span>: <span class="text-success">"Scan to Pay Online"</span>,
+    <span class="text-success">"qr_size"</span>: 260,
+    <span class="text-success">"immediate"</span>: True,
+})
+print(<span class="text-success">"QR Job ID:"</span>, qr_res.json().get(<span class="text-success">"job_id"</span>))
+
+<span class="text-secondary"># 2. High-Quality Photo Print</span>
+with open(<span class="text-success">"portrait.jpg"</span>, <span class="text-success">"rb"</span>) as f:
+    photo_res = requests.post(
+        f<span class="text-success">"{base_url}/api/print/photo"</span>,
+        headers=headers,
+        files={<span class="text-success">"file"</span>: f},
+        data={<span class="text-success">"preset"</span>: <span class="text-success">"portrait"</span>, <span class="text-success">"dither_algo"</span>: <span class="text-success">"floyd"</span>, <span class="text-success">"immediate"</span>: <span class="text-success">"true"</span>}
+    )
+print(<span class="text-success">"Photo Job ID:"</span>, photo_res.json().get(<span class="text-success">"job_id"</span>))
+
+<span class="text-secondary"># 3. Print Multilingual Text Receipt</span>
+text_res = requests.post(f<span class="text-success">"{base_url}/api/print/text"</span>, headers=headers, json={
+    <span class="text-success">"text"</span>: <span class="text-success">"RESTAURANT EXPRESS 🍕\nTotal: ৳৪৫০.০০"</span>,
+    <span class="text-success">"font_size"</span>: 22,
+    <span class="text-success">"immediate"</span>: True,
+})
+print(<span class="text-success">"Text Job ID:"</span>, text_res.json().get(<span class="text-success">"job_id"</span>))
+
+<span class="text-secondary"># 4. Feed Paper Roll</span>
+feed_res = requests.post(f<span class="text-success">"{base_url}/api/print/feed"</span>, headers=headers)
+print(<span class="text-success">"Feed Paper Result:"</span>, feed_res.json())
 </code></pre>
                 </div>
             </div>

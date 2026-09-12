@@ -88,10 +88,10 @@ class ClientConfig:
         """
         Parses a full WebSocket connection URL or standard web URL.
         Example:
-            wss://pos.sayem.top/ws/client?api_key=sk_client_cmi9ort2mxog5jkjnr2c2lo4&client_name=Mac_Mini
+            wss://your-pos-server.com/ws/client?api_key=sk_client_cmi9ort2mxog5jkjnr2c2lo4&client_name=Mac_Mini
         Returns:
             {
-                "server_url": "wss://pos.sayem.top",
+                "server_url": "wss://your-pos-server.com",
                 "client_api_key": "sk_client_cmi9ort2mxog5jkjnr2c2lo4",
                 "client_name": "Mac_Mini"
             }
@@ -103,7 +103,7 @@ class ClientConfig:
         parsed = urllib.parse.urlparse(clean)
         scheme = parsed.scheme.lower()
         if not scheme:
-            # If user entered pos.sayem.top without scheme, assume wss
+            # If user entered server domain without scheme, assume wss
             clean = "wss://" + clean
             parsed = urllib.parse.urlparse(clean)
             scheme = parsed.scheme.lower()
