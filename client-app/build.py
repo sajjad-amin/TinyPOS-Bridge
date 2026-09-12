@@ -208,6 +208,10 @@ def get_platform_config(onedir: bool = False):
         "unittest",
     ]
 
+    # macOS uses 100% native Cocoa/PyObjC, so ensure Qt and Tk are never bundled
+    if os_name == "Darwin":
+        excludes.extend(["PyQt6", "PySide6", "tkinter", "tcl", "_tkinter"])
+
     return {
         "os_name": os_name,
         "icon_path": icon_path,
