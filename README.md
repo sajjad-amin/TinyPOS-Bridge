@@ -297,43 +297,95 @@ MODE 2: Cloud Relay Mesh (Remote VPS Deployment)
 
 ## TinyPOS Desktop Client (`client-app/`)
 
-The desktop client is a native Menu Bar / System Tray application designed to run quietly in the background on store machines.
+The desktop client is a native Menu Bar / System Tray application designed to run quietly in the background on store computers, connecting local Bluetooth thermal receipt printers to the TinyPOS Cloud Relay.
 
 ### Key Capabilities
-- **Native Look & Feel**: Uses native Cocoa AppKit on macOS (`NSStatusBar`, `NSMenu`, dynamic colored circle status badges) and `pystray` on Windows/Linux.
-- **1-Click Quick Setup**: Copy the WebSocket Connection URL from your TinyPOS server's **Settings** page and click the **📋 Paste** button (or press `Cmd+V` / `Ctrl+V`) to automatically populate Server URL, API Key, and Terminal Name.
-- **Dynamic Status Icons**:
-  - 🟢 **Green**: Connected to Cloud Relay & Bluetooth Printer Ready.
-  - 🟡 **Yellow**: Connected to Cloud Relay, but Printer is Offline or Out of Bluetooth Range.
-  - 🔴 **Red**: Disconnected from Cloud Relay / Reconnecting.
-  - ⚪ **Gray**: Unconfigured.
-- **BLE Resiliency**: Built-in 4-scan debouncing, 25-second post-print cooldown grace period, and device memory to prevent false offline drops on macOS CoreBluetooth duplicate filtering.
 
-### Running in Development
+* **Native Menu Bar / System Tray Integration**:
+  * **macOS**: Runs as a Dockless background status item in the top menu bar using Apple Cocoa (`NSStatusBar`, `NSMenu`, `LSUIElement`).
+  * **Windows**: Runs in the bottom-right taskbar notification area via Win32. Right-click for context menu, left-click or double-click to open the Control Panel.
+  * **Linux**: Runs in the system tray / panel using AppIndicator or Xorg XEmbed with single-click activation.
+  * **Dynamic Status Badges**:
+    * 🟢 **Green**: Connected to Cloud Relay & Bluetooth Printer Online and Ready.
+    * 🟡 **Yellow**: Connected to Cloud Relay, but Printer is Offline or Out of Bluetooth Range.
+    * 🔴 **Red**: Disconnected from Cloud Relay / Reconnecting.
+    * ⚪ **Gray**: Unconfigured.
+* **Universal Control Panel & Settings GUI**:
+  * Clean, native settings window available across all platforms (Cocoa on macOS, Tkinter on Windows/Linux, with an automatic zero-dependency local browser fallback if Tkinter is unavailable).
+  * Automatically pops up on first launch when unconfigured.
+  * Live status overview (Cloud Relay connection state, Terminal Group, Printer model & Bluetooth RSSI).
+  * In-window hardware actions: **Feed Paper**, **Reconnect Now**, and **Test Connection**.
+* **1-Click Quick Setup (URL Auto-Parser)**:
+  * Simply paste the full WebSocket connection URL generated from your TinyPOS server's **Settings** page (e.g. `wss://pos.sayem.top/ws/client?api_key=...`), and the app automatically parses the Server URL, Client API Key, and Terminal Name!
+* **Smart Roaming & Heartbeats**:
+  * Continuously scans for your portable Bluetooth printer in the background with 4-scan debouncing and a 25-second post-print grace period.
+  * Reports signal strength (RSSI dBm) and presence to the cloud relay.
+  * Whichever computer detects the printer automatically becomes the active print target.
+* **Paper Feed Action**:
+  * Easily test or feed thermal paper directly from the menu bar item or the settings window.
+* **Single-Instance Protection**:
+  * Uses a dedicated loopback socket lock (`127.0.0.1:49281`) to prevent multiple duplicate instances from opening simultaneously.
+
+---
+
+### Supported Thermal Printers
+
+* **Bainiu / Tiny Print 57mm BLE Printers**: X6, X5, C9, MX0, iPrint, GB01, and compatible pocket thermal printers.
+* **Standard ESC/POS Bluetooth Low Energy Printers**: Any BLE thermal printer exposing standard service UUIDs `0xAE30`, `0xAF30`, or `0xFF00`.
+
+---
+
+### Quick Start & Configuration
+
+#### 1. Launching the Client
+
+From the project root:
+
 ```bash
 ./client-app/run.sh
 ```
-*or directly:*
+
+Or using Python directly:
+
 ```bash
-./.venv/bin/python client-app/main.py
+python3 client-app/main.py
 ```
 
-### Packaging Standalone Binaries (`build.py`)
+#### 2. Configuring the Connection
 
-You can compile TinyPOS into a single standalone application without needing Python installed on the target machine:
+On first launch, the **Settings & Control Panel** window opens automatically:
+
+1. **Option A (1-Click Quick Setup)**:
+   * Open your TinyPOS web dashboard (e.g. `https://pos.sayem.top/settings`).
+   * In the **Client Terminal Authorization Keys** table, click the copy button next to your terminal's **WebSocket Connection URL**.
+   * Paste the URL into the **Quick Connect** box in the client app and click **Paste & Apply**.
+2. **Option B (Manual Setup)**:
+   * **Cloud Server URL**: e.g. `wss://pos.sayem.top`
+   * **Client API Key**: e.g. `sk_client_cmi9ort2mxog5jkjnr2c2lo4`
+   * **Terminal Name**: e.g. `Mac Mini` or `Windows-POS`
+3. Click **🧪 Test Connection** to verify WebSocket handshake and group authorization.
+4. Click **💾 Save & Connect**.
+
+---
+
+### Packaging Standalone Executables (`build.py`)
+
+You can compile TinyPOS into a standalone application without needing Python installed on the target machine:
 
 ```bash
 cd client-app
 python3 build.py
 ```
 
-| Platform | Output Artifact | Description |
-|---|---|---|
-| **macOS** | `dist/TinyPOS.app` | Native macOS Application Bundle with Retina `icon.icns`, background menu bar mode, and Cocoa Edit shortcuts. |
-| **Windows** | `dist/TinyPOS.exe` | Single-file standalone executable with embedded `icon.ico` and no console window. |
-| **Linux** | `dist/TinyPOS` | Single-file standalone binary with `icon.png` and system tray integration. |
+#### Platform Build Requirements & Artifacts
 
-*Note: All intermediate build caches (`build/`, `.spec` files, `__pycache__`) are automatically removed immediately upon build completion.*
+| Platform | Output Artifact | Prerequisites & Build Details |
+|---|---|---|
+| **macOS** | `dist/TinyPOS.app` | Native macOS Application Bundle with Retina icon (`icon.icns`), Dockless menu bar agent mode (`LSUIElement`), injected Bluetooth privacy permissions, and ad-hoc code signature.<br>• Run: `open dist/TinyPOS.app`<br>• Install: Drag `dist/TinyPOS.app` into `/Applications/` |
+| **Windows** | `dist/TinyPOS.exe` | Standalone executable with embedded multi-res icon (`icon.ico`), Win32 tray hooks, full Tkinter Control Panel, and crash guard.<br>• Build on Windows: `python build.py` from Command Prompt or PowerShell. |
+| **Linux** | `dist/TinyPOS` | Standalone ELF binary with embedded `icon.png` and system tray integration.<br>• Prerequisites on Ubuntu/Debian: `sudo apt install -y python3-tk python3-gi gir1.2-appindicator3-0.1` |
+
+*Note: All intermediate build caches (`build/`, `.spec` files, `__pycache__`) are automatically pruned immediately upon build completion.*
 
 ---
 

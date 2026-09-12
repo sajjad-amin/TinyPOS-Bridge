@@ -110,11 +110,17 @@ def get_platform_config():
         "core.relay_worker",
     ]
 
+    collect_all = [
+        "bleak",
+        "websockets",
+        "PIL",
+    ]
+
     extra_args = []
     icon_path = None
 
     if os_name == "Darwin":
-        # macOS Configuration
+        # macOS Configuration (100% native Cocoa)
         icon_path = ICON_DIR / "icon.icns"
         hidden_imports.extend([
             "AppKit",
@@ -131,8 +137,18 @@ def get_platform_config():
     elif os_name == "Windows":
         # Windows Configuration
         icon_path = ICON_DIR / "icon.ico"
+        collect_all.extend([
+            "pystray",
+            "tkinter",
+        ])
         hidden_imports.extend([
             "pystray",
+            "pystray._win32",
+            "pystray._util",
+            "pystray._util.win32",
+            "ctypes",
+            "ctypes.wintypes",
+            "core.settings_window",
             "core.tray_crossplatform",
         ])
         extra_args = [
@@ -143,8 +159,19 @@ def get_platform_config():
     else:
         # Linux Configuration
         icon_path = ICON_DIR / "icon.png"
+        collect_all.extend([
+            "pystray",
+            "tkinter",
+        ])
         hidden_imports.extend([
             "pystray",
+            "pystray._appindicator",
+            "pystray._gtk",
+            "pystray._xorg",
+            "pystray._util",
+            "pystray._util.gtk",
+            "pystray._util.notify_dbus",
+            "core.settings_window",
             "core.tray_crossplatform",
         ])
         extra_args = [
@@ -156,6 +183,7 @@ def get_platform_config():
         "os_name": os_name,
         "icon_path": icon_path,
         "hidden_imports": hidden_imports,
+        "collect_all": collect_all,
         "extra_args": extra_args,
         "data_sep": data_sep,
     }
@@ -192,6 +220,10 @@ def build_app(keep_cache: bool = False):
     # Add data directories
     if ICON_DIR.exists():
         cmd.extend(["--add-data", f"{ICON_DIR}{cfg['data_sep']}icon"])
+
+    # Add collect-all packages (ensures all dynamic backends like winrt/bluezdbus/pystray are packaged)
+    for pkg in cfg.get("collect_all", []):
+        cmd.extend(["--collect-all", pkg])
 
     # Add hidden imports
     for imp in cfg["hidden_imports"]:
