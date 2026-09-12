@@ -223,7 +223,7 @@ class MacTrayApp(AppKit.NSObject):
             return
 
         # Create window
-        rect = AppKit.NSMakeRect(0, 0, 520, 420)
+        rect = AppKit.NSMakeRect(0, 0, 520, 480)
         self.settings_window = AppKit.NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             rect,
             AppKit.NSWindowStyleMaskTitled | AppKit.NSWindowStyleMaskClosable,
@@ -237,7 +237,7 @@ class MacTrayApp(AppKit.NSObject):
         content = self.settings_window.contentView()
 
         # 1. Header Title & Description
-        title_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 370, 470, 26))
+        title_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 430, 470, 26))
         title_label.setStringValue_("TinyPOS Cloud Bridge Configuration")
         title_label.setFont_(AppKit.NSFont.boldSystemFontOfSize_(16))
         title_label.setEditable_(False)
@@ -245,7 +245,7 @@ class MacTrayApp(AppKit.NSObject):
         title_label.setDrawsBackground_(False)
         content.addSubview_(title_label)
 
-        sub_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 350, 470, 18))
+        sub_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 410, 470, 18))
         sub_label.setStringValue_("Connect your local thermal printer to any TinyPOS cloud or local server.")
         sub_label.setFont_(AppKit.NSFont.systemFontOfSize_(12))
         sub_label.setTextColor_(AppKit.NSColor.secondaryLabelColor())
@@ -255,7 +255,7 @@ class MacTrayApp(AppKit.NSObject):
         content.addSubview_(sub_label)
 
         # 2. Quick Setup Box (Paste WebSocket URL)
-        box_rect = AppKit.NSMakeRect(20, 240, 480, 95)
+        box_rect = AppKit.NSMakeRect(20, 305, 480, 95)
         box = AppKit.NSBox.alloc().initWithFrame_(box_rect)
         box.setTitle_("Quick Setup (Paste WebSocket URL)")
         if box.titleCell():
@@ -291,7 +291,7 @@ class MacTrayApp(AppKit.NSObject):
         content.addSubview_(box)
 
         # 3. Server URL Field
-        srv_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 205, 150, 18))
+        srv_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 265, 150, 18))
         srv_label.setStringValue_("Cloud Server URL:")
         srv_label.setFont_(AppKit.NSFont.systemFontOfSize_(12))
         srv_label.setEditable_(False)
@@ -299,13 +299,13 @@ class MacTrayApp(AppKit.NSObject):
         srv_label.setDrawsBackground_(False)
         content.addSubview_(srv_label)
 
-        self.server_url_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 203, 315, 24))
+        self.server_url_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 263, 315, 24))
         self.server_url_input.setPlaceholderString_("e.g. https://pos.sayem.top")
         self.server_url_input.setStringValue_(config.server_url or "")
         content.addSubview_(self.server_url_input)
 
         # 4. Client API Key Field
-        key_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 165, 150, 18))
+        key_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 225, 150, 18))
         key_label.setStringValue_("Client API Key:")
         key_label.setFont_(AppKit.NSFont.systemFontOfSize_(12))
         key_label.setEditable_(False)
@@ -313,13 +313,13 @@ class MacTrayApp(AppKit.NSObject):
         key_label.setDrawsBackground_(False)
         content.addSubview_(key_label)
 
-        self.api_key_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 163, 315, 24))
+        self.api_key_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 223, 315, 24))
         self.api_key_input.setPlaceholderString_("sk_client_...")
         self.api_key_input.setStringValue_(config.client_api_key or "")
         content.addSubview_(self.api_key_input)
 
         # 5. Terminal / Client Name Field
-        name_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 125, 150, 18))
+        name_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 185, 150, 18))
         name_label.setStringValue_("Terminal Name:")
         name_label.setFont_(AppKit.NSFont.systemFontOfSize_(12))
         name_label.setEditable_(False)
@@ -327,13 +327,42 @@ class MacTrayApp(AppKit.NSObject):
         name_label.setDrawsBackground_(False)
         content.addSubview_(name_label)
 
-        self.client_name_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 123, 315, 24))
+        self.client_name_input = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 183, 315, 24))
         self.client_name_input.setPlaceholderString_("e.g. Mac Mini, Office Counter")
         self.client_name_input.setStringValue_(config.client_name or "")
         content.addSubview_(self.client_name_input)
 
-        # 6. Test Status Label
-        self.test_status_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 80, 470, 20))
+        # 6. Target Bluetooth Printer Field
+        printer_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 142, 150, 18))
+        printer_label.setStringValue_("Target Printer:")
+        printer_label.setFont_(AppKit.NSFont.systemFontOfSize_(12))
+        printer_label.setEditable_(False)
+        printer_label.setBezeled_(False)
+        printer_label.setDrawsBackground_(False)
+        content.addSubview_(printer_label)
+
+        self.printer_popup = AppKit.NSPopUpButton.alloc().initWithFrame_pullsDown_(AppKit.NSMakeRect(180, 138, 220, 26), False)
+        self._populatePrinterPopup()
+        content.addSubview_(self.printer_popup)
+
+        self.printer_scan_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(405, 138, 90, 26))
+        self.printer_scan_btn.setTitle_("🔍 Scan")
+        self.printer_scan_btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
+        self.printer_scan_btn.setTarget_(self)
+        self.printer_scan_btn.setAction_("scanPrintersAction:")
+        content.addSubview_(self.printer_scan_btn)
+
+        self.printer_hint = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(180, 118, 315, 16))
+        self.printer_hint.setStringValue_("💡 Falls back to closest printer if target offline")
+        self.printer_hint.setFont_(AppKit.NSFont.systemFontOfSize_(10))
+        self.printer_hint.setTextColor_(AppKit.NSColor.secondaryLabelColor())
+        self.printer_hint.setEditable_(False)
+        self.printer_hint.setBezeled_(False)
+        self.printer_hint.setDrawsBackground_(False)
+        content.addSubview_(self.printer_hint)
+
+        # 7. Test Status Label
+        self.test_status_label = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(25, 80, 470, 22))
         self.test_status_label.setStringValue_("")
         self.test_status_label.setFont_(AppKit.NSFont.systemFontOfSize_(11))
         self.test_status_label.setEditable_(False)
@@ -341,7 +370,7 @@ class MacTrayApp(AppKit.NSObject):
         self.test_status_label.setDrawsBackground_(False)
         content.addSubview_(self.test_status_label)
 
-        # 7. Action Buttons (Bottom Bar)
+        # 8. Action Buttons (Bottom Bar)
         self.test_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(20, 25, 125, 32))
         self.test_btn.setTitle_("Test Connection")
         self.test_btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
@@ -373,6 +402,65 @@ class MacTrayApp(AppKit.NSObject):
 
         self.settings_window.makeKeyAndOrderFront_(None)
         AppKit.NSApp.activateIgnoringOtherApps_(True)
+
+    def _populatePrinterPopup(self, printers=None):
+        if not hasattr(self, "printer_popup") or not self.printer_popup:
+            return
+        self.printer_popup.removeAllItems()
+        self.printer_popup.addItemWithTitle_("⚡ Auto: Closest (Strongest RSSI)")
+        self.printer_popup.lastItem().setRepresentedObject_("")
+
+        seen = set()
+        saved_addr = (config.printer_address or "").strip()
+        if saved_addr:
+            title = f"🖨️ {config.printer_name or 'Saved Printer'} ({saved_addr})"
+            self.printer_popup.addItemWithTitle_(title)
+            self.printer_popup.lastItem().setRepresentedObject_(saved_addr)
+            seen.add(saved_addr.lower())
+
+        items = printers if printers is not None else ble_driver.discovered_printers
+        for p in items:
+            addr = (p.get("address") or "").strip()
+            if not addr or addr.lower() in seen:
+                continue
+            seen.add(addr.lower())
+            rssi_str = f" [{p['rssi']} dBm]" if p.get("rssi") is not None else ""
+            title = f"🖨️ {p.get('name', 'Printer')} ({addr}){rssi_str}"
+            self.printer_popup.addItemWithTitle_(title)
+            self.printer_popup.lastItem().setRepresentedObject_(addr)
+
+        # Select saved item if present
+        if saved_addr:
+            for i in range(self.printer_popup.numberOfItems()):
+                item = self.printer_popup.itemAtIndex_(i)
+                if item and str(item.representedObject() or "").lower() == saved_addr.lower():
+                    self.printer_popup.selectItemAtIndex_(i)
+                    break
+        else:
+            self.printer_popup.selectItemAtIndex_(0)
+
+    def scanPrintersAction_(self, sender):
+        """Asynchronously discover nearby printers and update popup button."""
+        if hasattr(self, "printer_scan_btn") and self.printer_scan_btn:
+            self.printer_scan_btn.setEnabled_(False)
+            self.printer_scan_btn.setTitle_("Scanning...")
+
+        def _scan():
+            printers = asyncio.run(ble_driver.discover_printers(timeout=4.0))
+
+            def _update():
+                if hasattr(self, "printer_scan_btn") and self.printer_scan_btn:
+                    self.printer_scan_btn.setEnabled_(True)
+                    self.printer_scan_btn.setTitle_("🔍 Scan")
+                self._populatePrinterPopup(printers)
+                count = len(printers)
+                msg = f"Found {count} printer{'s' if count != 1 else ''} nearby."
+                if hasattr(self, "printer_hint") and self.printer_hint:
+                    self.printer_hint.setStringValue_(f"✅ {msg} Fallback active.")
+
+            self.performSelectorOnMainThread_withObject_waitUntilDone_("_execCallable:", _update, False)
+
+        threading.Thread(target=_scan, daemon=True).start()
 
     def pasteClipboardAction_(self, sender):
         """Read system clipboard text directly and auto-fill connection parameters."""

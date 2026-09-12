@@ -134,6 +134,7 @@ class BLEDriver:
         self.device_address: Optional[str] = None
         self.rssi: Optional[int] = None
         self.is_online: bool = False
+        self.discovered_printers: List[dict] = []
         self._lock: Optional[asyncio.Lock] = None
         self._is_busy: bool = False
         self._missed_scans: int = 0
@@ -145,8 +146,46 @@ class BLEDriver:
             self._lock = asyncio.Lock()
         return self._lock
 
+    async def discover_printers(self, timeout: float = 4.0) -> List[dict]:
+        """Active scan to discover all available nearby thermal printers for settings UI."""
+        from .config import config
+        try:
+            discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
+            candidates = []
+            for device, adv in discovered.values():
+                name = (device.name or adv.local_name or "").strip()
+                name_lower = name.lower()
+                services = [str(u).lower() for u in (adv.service_uuids or [])]
+
+                is_printer = (
+                    any(any(s in u for s in ["ae30", "af30", "ff00", "49535343"]) for u in services)
+                    or any(k in name_lower for k in KNOWN_NAMES)
+                    or (config.printer_address and device.address.lower() == config.printer_address.lower())
+                )
+                if is_printer:
+                    candidates.append({
+                        "name": name or "Thermal Printer",
+                        "address": device.address,
+                        "rssi": adv.rssi if adv else None,
+                    })
+
+            # Sort by signal strength: strongest RSSI (closest) first
+            candidates.sort(key=lambda x: (x["rssi"] if x["rssi"] is not None else -999), reverse=True)
+            self.discovered_printers = candidates
+            return candidates
+        except Exception as e:
+            logger.warning(f"Failed to scan for printers: {e}")
+            return self.discovered_printers
+
     async def scan_printer(self, timeout: float = 3.5) -> Optional[BLEDevice]:
-        """Scan for nearby portable thermal printer with debouncing and post-activity grace period."""
+        """
+        Scan for nearby portable thermal printer with RSSI proximity and preferred printer matching.
+        If multiple printers are detected:
+          1. Uses the specifically configured printer (if present).
+          2. Otherwise (fallback), connects to the physically closest printer (strongest RSSI).
+        """
+        from .config import config
+
         # 1. If currently busy printing or feeding, printer is definitely online
         if self._is_busy:
             self.is_online = True
@@ -160,27 +199,49 @@ class BLEDriver:
 
         try:
             discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
+            candidates = []
+
+            for device, adv in discovered.values():
+                name = (device.name or adv.local_name or "").strip()
+                name_lower = name.lower()
+                services = [str(u).lower() for u in (adv.service_uuids or [])]
+
+                is_printer = (
+                    any(any(s in u for s in ["ae30", "af30", "ff00", "49535343"]) for u in services)
+                    or any(k in name_lower for k in KNOWN_NAMES)
+                    or (config.printer_address and device.address.lower() == config.printer_address.lower())
+                )
+                if is_printer:
+                    candidates.append((device, adv))
+
+            # Sort candidate printers by RSSI descending (strongest signal = closest device)
+            candidates.sort(key=lambda x: (x[1].rssi if x[1] and x[1].rssi is not None else -999), reverse=True)
+
+            # Keep track of all discovered printers for UI dropdown
+            self.discovered_printers = [
+                {
+                    "name": dev.name or (adv.local_name if adv else None) or "Thermal Printer",
+                    "address": dev.address,
+                    "rssi": adv.rssi if adv else None,
+                }
+                for dev, adv in candidates
+            ]
+
             found_device = None
             found_adv = None
 
-            for device, adv in discovered.values():
-                name = (device.name or adv.local_name or "").lower()
-                services = [str(u).lower() for u in (adv.service_uuids or [])]
+            target_addr = (config.printer_address or "").strip().lower()
 
-                # Match by known thermal printer service UUIDs
-                if any(any(s in u for s in ["ae30", "af30", "ff00", "49535343"]) for u in services):
-                    found_device, found_adv = device, adv
-                    break
+            # Priority 1: Match specifically requested printer address if configured
+            if target_addr:
+                for dev, adv in candidates:
+                    if dev.address.lower() == target_addr:
+                        found_device, found_adv = dev, adv
+                        break
 
-                # Match by known thermal printer advertisement names
-                if any(k in name for k in KNOWN_NAMES):
-                    found_device, found_adv = device, adv
-                    break
-
-                # Match by previously saved device address/UUID
-                if self.device_address and device.address == self.device_address:
-                    found_device, found_adv = device, adv
-                    break
+            # Priority 2: Fallback mode -> Connect to closest printer (highest RSSI)
+            if not found_device and candidates:
+                found_device, found_adv = candidates[0]
 
             if found_device:
                 self.device = found_device

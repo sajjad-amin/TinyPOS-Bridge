@@ -27,6 +27,8 @@ class ClientConfig:
         self.server_url: str = ""
         self.client_api_key: str = ""
         self.client_name: str = get_default_client_name()
+        self.printer_address: str = ""
+        self.printer_name: str = ""
         self.auto_connect: bool = True
         self.load()
 
@@ -44,6 +46,8 @@ class ClientConfig:
                 self.server_url = (data.get("server_url") or "").strip()
                 self.client_api_key = (data.get("client_api_key") or "").strip()
                 self.client_name = (data.get("client_name") or get_default_client_name()).strip()
+                self.printer_address = (data.get("printer_address") or "").strip()
+                self.printer_name = (data.get("printer_name") or "").strip()
                 self.auto_connect = bool(data.get("auto_connect", True))
         except Exception as e:
             print(f"[Config] Error loading {CONFIG_FILE}: {e}")
@@ -56,6 +60,8 @@ class ClientConfig:
                 "server_url": self.server_url.strip(),
                 "client_api_key": self.client_api_key.strip(),
                 "client_name": self.client_name.strip() or get_default_client_name(),
+                "printer_address": self.printer_address.strip(),
+                "printer_name": self.printer_name.strip(),
                 "auto_connect": self.auto_connect,
             }
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -68,6 +74,8 @@ class ClientConfig:
         self.server_url = ""
         self.client_api_key = ""
         self.client_name = get_default_client_name()
+        self.printer_address = ""
+        self.printer_name = ""
         self.auto_connect = True
         try:
             if CONFIG_FILE.exists():

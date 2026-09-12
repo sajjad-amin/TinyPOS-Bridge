@@ -219,6 +219,33 @@ def get_qt_dialog_stylesheet(dark: bool) -> str:
         QLineEdit:focus {
             border: 1.5px solid #3b82f6;
         }
+        QComboBox {
+            background-color: %(bg_input)s;
+            border: 1px solid %(border_input)s;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 13px;
+            color: %(text_input)s;
+            min-height: 24px;
+            max-height: 24px;
+        }
+        QComboBox:focus {
+            border: 1.5px solid #3b82f6;
+        }
+        QComboBox::drop-down {
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
+            width: 24px;
+            border-left: none;
+        }
+        QComboBox QAbstractItemView {
+            background-color: %(bg_card)s;
+            border: 1px solid %(border_card)s;
+            selection-background-color: #2563eb;
+            selection-color: #ffffff;
+            color: %(text_input)s;
+            padding: 4px;
+        }
         QPushButton {
             border-radius: 6px;
             padding: 6px 14px;
@@ -429,7 +456,38 @@ if PYQT_AVAILABLE:
             details_layout.addWidget(self.input_name)
             content_layout.addWidget(details_box)
 
-            # 5. Live Test Status Label
+            # 5. Target Bluetooth Thermal Printer
+            printer_box = QtWidgets.QGroupBox("Target Bluetooth Thermal Printer")
+            printer_layout = QtWidgets.QVBoxLayout(printer_box)
+            printer_layout.setSpacing(6)
+
+            printer_desc = QtWidgets.QLabel("Select a specific printer or let TinyPOS auto-connect to the nearest one:")
+            printer_desc.setObjectName("lblQuickDesc")
+            printer_layout.addWidget(printer_desc)
+
+            printer_row = QtWidgets.QHBoxLayout()
+            printer_row.setSpacing(8)
+
+            self.combo_printer = QtWidgets.QComboBox()
+            self.combo_printer.setFixedHeight(38)
+            self._populate_printer_combo()
+
+            self.btn_scan_printers = QtWidgets.QPushButton("🔍 Scan")
+            self.btn_scan_printers.setFixedSize(90, 38)
+            self.btn_scan_printers.clicked.connect(self._on_scan_printers)
+
+            printer_row.addWidget(self.combo_printer, 1)
+            printer_row.addWidget(self.btn_scan_printers)
+            printer_layout.addLayout(printer_row)
+
+            self.lbl_printer_hint = QtWidgets.QLabel("💡 Fallback Mode: If the selected printer is offline, TinyPOS auto-connects to the closest printer.")
+            self.lbl_printer_hint.setObjectName("lblQuickDesc")
+            self.lbl_printer_hint.setWordWrap(True)
+            printer_layout.addWidget(self.lbl_printer_hint)
+
+            content_layout.addWidget(printer_box)
+
+            # 6. Live Test Status Label
             self.lbl_test_result = QtWidgets.QLabel("")
             self.lbl_test_result.setWordWrap(True)
             self.lbl_test_result.setMinimumHeight(24)
@@ -438,7 +496,7 @@ if PYQT_AVAILABLE:
             scroll_area.setWidget(content_widget)
             root_layout.addWidget(scroll_area, 1)
 
-            # 6. Bottom Action Bar (pinned)
+            # 7. Bottom Action Bar (pinned)
             btn_bar = QtWidgets.QHBoxLayout()
             btn_bar.setSpacing(8)
 
@@ -467,6 +525,54 @@ if PYQT_AVAILABLE:
 
             # Initial status update
             self.update_status()
+
+        def _populate_printer_combo(self, discovered_list=None):
+            """Populate the printer selection dropdown with discovered and saved printers."""
+            self.combo_printer.clear()
+            self.combo_printer.addItem("⚡ Auto: Closest Printer (Strongest Signal)", "")
+
+            seen = set()
+            saved_addr = (config.printer_address or "").strip()
+            if saved_addr:
+                label = f"🖨️ {config.printer_name or 'Saved Printer'} ({saved_addr}) [Selected]"
+                self.combo_printer.addItem(label, saved_addr)
+                seen.add(saved_addr.lower())
+
+            items = discovered_list if discovered_list is not None else ble_driver.discovered_printers
+            for p in items:
+                addr = (p.get("address") or "").strip()
+                if not addr or addr.lower() in seen:
+                    continue
+                seen.add(addr.lower())
+                rssi_str = f" [{p['rssi']} dBm]" if p.get("rssi") is not None else ""
+                self.combo_printer.addItem(f"🖨️ {p.get('name', 'Printer')} ({addr}){rssi_str}", addr)
+
+            if saved_addr:
+                idx = self.combo_printer.findData(saved_addr)
+                if idx >= 0:
+                    self.combo_printer.setCurrentIndex(idx)
+            else:
+                self.combo_printer.setCurrentIndex(0)
+
+        def _on_scan_printers(self):
+            """Scan for nearby thermal printers asynchronously and update dropdown."""
+            self.btn_scan_printers.setEnabled(False)
+            self.btn_scan_printers.setText("⏳ Scanning...")
+
+            def _scan():
+                printers = asyncio.run(ble_driver.discover_printers(timeout=4.0))
+
+                def _update():
+                    self.btn_scan_printers.setEnabled(True)
+                    self.btn_scan_printers.setText("🔍 Scan")
+                    self._populate_printer_combo(printers)
+                    count = len(printers)
+                    msg = f"Found {count} printer{'s' if count != 1 else ''} nearby."
+                    self.lbl_printer_hint.setText(f"✅ Scan complete! {msg} Fallback mode active if unselected.")
+
+                QtCore.QMetaObject.invokeMethod(self, "_exec_callback", QtCore.Qt.ConnectionType.QueuedConnection, QtCore.Q_ARG(object, _update))
+
+            threading.Thread(target=_scan, daemon=True).start()
 
         def update_status(self, extra: Optional[Dict[str, Any]] = None):
             """Update live status display."""
@@ -588,7 +694,7 @@ if PYQT_AVAILABLE:
                         async with websockets.connect(ws_url, open_timeout=6.0, close_timeout=2.0) as ws:
                             raw = await asyncio.wait_for(ws.recv(), timeout=4.0)
                             data = json.loads(raw)
-                            group = data.get("group", "Unknown") if data.get("type") == "auth_success" else "Default"
+                            group = data.get("group") or "Default"
                             return True, f"✅ Connected successfully! Authorized for Group: '{group}'"
                     except asyncio.TimeoutError:
                         return False, "❌ Connection timed out after 6 seconds."
@@ -631,6 +737,8 @@ if PYQT_AVAILABLE:
                 self.input_key.setText("")
                 self.input_name.setText(config.client_name)
                 self.input_quick.setText("")
+                if hasattr(self, "combo_printer"):
+                    self.combo_printer.setCurrentIndex(0)
                 amber_col = "#f59e0b" if self._is_dark else "#d97706"
                 self.lbl_test_result.setStyleSheet(f"color: {amber_col}; font-weight: bold;")
                 self.lbl_test_result.setText("⚪ Configuration removed. Client disconnected.")
@@ -651,6 +759,18 @@ if PYQT_AVAILABLE:
             config.server_url = server
             config.client_api_key = key
             config.client_name = name
+
+            if hasattr(self, "combo_printer"):
+                selected_addr = (self.combo_printer.currentData() or "").strip()
+                selected_text = self.combo_printer.currentText()
+                if not selected_addr:
+                    config.printer_address = ""
+                    config.printer_name = ""
+                else:
+                    config.printer_address = selected_addr
+                    clean_name = selected_text.replace("🖨️", "").split("(")[0].strip()
+                    config.printer_name = clean_name
+
             config.save()
 
             self.hide()
@@ -686,8 +806,8 @@ elif TK_AVAILABLE:
         def init_ui(self, root: Any):
             self.root = root
             self.root.title("TinyPOS - Control Panel & Settings")
-            self.root.geometry("560x660")
-            self.root.minsize(520, 580)
+            self.root.geometry("560x730")
+            self.root.minsize(520, 600)
             is_dark = detect_system_dark_theme()
             self._is_dark = is_dark
 
@@ -781,6 +901,32 @@ elif TK_AVAILABLE:
             tk.Label(details_card, text="Terminal Identifier:", bg=card_bg, fg=fg_label).pack(anchor="w")
             self.client_name_var = tk.StringVar(value=config.client_name or get_default_client_name())
             tk.Entry(details_card, textvariable=self.client_name_var, bg=entry_bg, fg=entry_fg, insertbackground=entry_fg).pack(fill="x", ipady=6, pady=(2, 4))
+
+            # Target Bluetooth Thermal Printer
+            printer_card = tk.LabelFrame(
+                container, text=" Target Bluetooth Thermal Printer ",
+                font=("Segoe UI" if sys.platform == "win32" else "Helvetica", 9, "bold"),
+                bg=card_bg, fg=card_fg, padx=14, pady=10, relief="solid", bd=1
+            )
+            printer_card.pack(fill="x", pady=(0, 14))
+
+            tk.Label(printer_card, text="Select specific printer or auto-connect to nearest:", bg=card_bg, fg=fg_muted, font=("Segoe UI", 8)).pack(anchor="w", pady=(0, 4))
+
+            printer_row = tk.Frame(printer_card, bg=card_bg)
+            printer_row.pack(fill="x")
+
+            self.printer_combo_var = tk.StringVar()
+            self.printer_addr_map = {}
+            self.combo_printer = ttk.Combobox(printer_row, textvariable=self.printer_combo_var, state="readonly")
+            self.combo_printer.pack(side="left", fill="x", expand=True, ipady=4, padx=(0, 6))
+
+            self.btn_scan_printers = tk.Button(printer_row, text="🔍 Scan", command=self._on_scan_printers, bg=btn_bg, fg=btn_fg, padx=8, pady=4)
+            self.btn_scan_printers.pack(side="right")
+
+            self.lbl_printer_hint = tk.Label(printer_card, text="💡 Fallback: If target offline, connects to closest printer.", bg=card_bg, fg=fg_muted, font=("Segoe UI", 8))
+            self.lbl_printer_hint.pack(anchor="w", pady=(4, 0))
+
+            self._populate_printer_combo()
 
             # Test Label
             self.lbl_test_result = tk.Label(container, text="", bg=bg, fg=fg_muted, wraplength=480, justify="left")
@@ -891,6 +1037,62 @@ elif TK_AVAILABLE:
         def _on_reconnect_now(self):
             relay_worker.trigger_reconnect()
 
+        def _populate_printer_combo(self, discovered_list=None):
+            """Populate the printer dropdown for Tkinter."""
+            self.printer_addr_map = {"⚡ Auto: Closest Printer (Strongest Signal)": ""}
+            labels = ["⚡ Auto: Closest Printer (Strongest Signal)"]
+            seen = set()
+
+            saved_addr = (config.printer_address or "").strip()
+            if saved_addr:
+                lbl = f"🖨️ {config.printer_name or 'Saved Printer'} ({saved_addr}) [Selected]"
+                labels.append(lbl)
+                self.printer_addr_map[lbl] = saved_addr
+                seen.add(saved_addr.lower())
+
+            items = discovered_list if discovered_list is not None else ble_driver.discovered_printers
+            for p in items:
+                addr = (p.get("address") or "").strip()
+                if not addr or addr.lower() in seen:
+                    continue
+                seen.add(addr.lower())
+                rssi_str = f" [{p['rssi']} dBm]" if p.get("rssi") is not None else ""
+                lbl = f"🖨️ {p.get('name', 'Printer')} ({addr}){rssi_str}"
+                labels.append(lbl)
+                self.printer_addr_map[lbl] = addr
+
+            if hasattr(self, "combo_printer") and self.combo_printer:
+                self.combo_printer["values"] = labels
+                selected_label = labels[0]
+                if saved_addr:
+                    for l, a in self.printer_addr_map.items():
+                        if a.lower() == saved_addr.lower():
+                            selected_label = l
+                            break
+                self.printer_combo_var.set(selected_label)
+
+        def _on_scan_printers(self):
+            """Scan for nearby Bluetooth thermal printers asynchronously."""
+            if hasattr(self, "btn_scan_printers") and self.btn_scan_printers:
+                self.btn_scan_printers.config(state="disabled", text="⏳ Scanning...")
+
+            def _scan():
+                printers = asyncio.run(ble_driver.discover_printers(timeout=4.0))
+
+                def _update():
+                    if hasattr(self, "btn_scan_printers") and self.btn_scan_printers:
+                        self.btn_scan_printers.config(state="normal", text="🔍 Scan")
+                    self._populate_printer_combo(printers)
+                    count = len(printers)
+                    msg = f"Found {count} printer{'s' if count != 1 else ''} nearby."
+                    if hasattr(self, "lbl_printer_hint") and self.lbl_printer_hint:
+                        self.lbl_printer_hint.config(text=f"✅ Scan complete! {msg} Fallback active.")
+
+                if self.root:
+                    self.root.after(0, _update)
+
+            threading.Thread(target=_scan, daemon=True).start()
+
         def _on_remove_config(self):
             if messagebox.askyesno("Remove Configuration", "Are you sure you want to delete your stored server credentials and disconnect?"):
                 config.delete()
@@ -898,6 +1100,8 @@ elif TK_AVAILABLE:
                 self.api_key_var.set("")
                 self.client_name_var.set(config.client_name)
                 self.ws_quick_var.set("")
+                if hasattr(self, "printer_combo_var") and self.printer_combo_var:
+                    self.printer_combo_var.set("⚡ Auto: Closest Printer (Strongest Signal)")
                 self.lbl_test_result.config(text="⚪ Configuration removed. Disconnected.", fg="#d97706")
                 self.update_status()
                 relay_worker.trigger_reconnect()
@@ -930,7 +1134,7 @@ elif TK_AVAILABLE:
                         async with websockets.connect(ws_url, open_timeout=6.0, close_timeout=2.0) as ws:
                             raw = await asyncio.wait_for(ws.recv(), timeout=4.0)
                             data = json.loads(raw)
-                            group = data.get("group", "Unknown") if data.get("type") == "auth_success" else "Default"
+                            group = data.get("group") or "Default"
                             return True, f"✅ Connected successfully! Group: '{group}'"
                     except Exception as e:
                         return False, f"❌ Connection failed: {e}"
@@ -961,6 +1165,18 @@ elif TK_AVAILABLE:
             config.server_url = server
             config.client_api_key = key
             config.client_name = name
+
+            if hasattr(self, "combo_printer") and self.combo_printer and hasattr(self, "printer_addr_map"):
+                selected_lbl = self.printer_combo_var.get() if self.printer_combo_var else ""
+                selected_addr = self.printer_addr_map.get(selected_lbl, "").strip()
+                if not selected_addr:
+                    config.printer_address = ""
+                    config.printer_name = ""
+                else:
+                    config.printer_address = selected_addr
+                    clean_name = selected_lbl.replace("🖨️", "").split("(")[0].strip()
+                    config.printer_name = clean_name
+
             config.save()
             self.hide()
             relay_worker.trigger_reconnect()
