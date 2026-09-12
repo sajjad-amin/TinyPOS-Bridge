@@ -22,7 +22,7 @@ BUILD_DIR = CLIENT_DIR / "build"
 SPEC_FILE = CLIENT_DIR / "TinyPOS.spec"
 
 APP_NAME = "TinyPOS"
-BUNDLE_ID = "top.sayem.tinypos.client"
+BUNDLE_ID = "com.sajjadamin.tinypos.client"
 APP_VERSION = "1.0.0"
 
 
@@ -86,6 +86,8 @@ def ensure_pyinstaller():
         print_step("PyInstaller not detected. Installing in current environment...")
         cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "pyinstaller"]
         res = subprocess.run(cmd)
+        if res.returncode != 0:
+            res = subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pyinstaller", "--break-system-packages"])
         if res.returncode != 0:
             print_error("Failed to install PyInstaller automatically. Please install it with: pip install pyinstaller")
             sys.exit(1)
@@ -196,12 +198,12 @@ def get_platform_config():
     }
 
 
-def build_app(keep_cache: bool = False):
+def build_app(keep_cache: bool = False, version: str = APP_VERSION):
     """Execute the PyInstaller build process."""
     ensure_pyinstaller()
     cfg = get_platform_config()
 
-    print_step(f"Starting TinyPOS standalone build for {cfg['os_name']} ({platform.machine()})...")
+    print_step(f"Starting TinyPOS standalone build for {cfg['os_name']} ({platform.machine()}) v{version}...")
 
     # Construct PyInstaller command
     entry_script = CLIENT_DIR / "main.py"
@@ -269,8 +271,8 @@ def build_app(keep_cache: bool = False):
                     pl["NSBluetoothPeripheralUsageDescription"] = (
                         "TinyPOS requires Bluetooth access to connect to your portable thermal printer."
                     )
-                    pl["CFBundleShortVersionString"] = APP_VERSION
-                    pl["CFBundleVersion"] = APP_VERSION
+                    pl["CFBundleShortVersionString"] = version
+                    pl["CFBundleVersion"] = version
                     pl["NSHighResolutionCapable"] = True
                     pl["LSUIElement"] = True  # Native Menu Bar agent app (runs as status item without Dock clutter)
                     with open(plist_path, "wb") as fp:
@@ -305,13 +307,14 @@ def main():
     parser = argparse.ArgumentParser(description="TinyPOS Desktop Client Standalone Builder")
     parser.add_argument("--clean-only", action="store_true", help="Remove build cache and artifacts without building")
     parser.add_argument("--keep-cache", action="store_true", help="Preserve intermediate build/ directory and spec file")
+    parser.add_argument("--version", "-v", default=APP_VERSION, help=f"Application version string (default: {APP_VERSION})")
     args = parser.parse_args()
 
     if args.clean_only:
         clean_cache()
         return
 
-    build_app(keep_cache=args.keep_cache)
+    build_app(keep_cache=args.keep_cache, version=args.version)
 
 
 if __name__ == "__main__":

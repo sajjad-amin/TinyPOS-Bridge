@@ -39,10 +39,14 @@ api_keys.json
 # ==============================================================================
 build/
 dist/
+dist/installer/
 *.spec
 client-app/build/
 client-app/dist/
+client-app/dist/installer/
 client-app/*.spec
+client-app/*.iss
+client-app/*.inn
 client-app/icon/*.iconset/
 client-app/icon/preview_*.png
 .pyinstaller/
@@ -51,6 +55,10 @@ client-app/.pyinstaller/
 *.exe
 *.dmg
 *.pkg
+*.deb
+*.tar.gz
+*.iss
+*.inn
 
 # ==============================================================================
 # Operating System & Editors
