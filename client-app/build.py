@@ -161,7 +161,7 @@ def get_platform_config():
         ])
         extra_args = [
             "--windowed",
-            "--onefile",
+            "--onedir" if onedir else "--onefile",
         ]
 
     else:
@@ -198,10 +198,10 @@ def get_platform_config():
     }
 
 
-def build_app(keep_cache: bool = False, version: str = APP_VERSION):
+def build_app(keep_cache: bool = False, version: str = APP_VERSION, onedir: bool = False):
     """Execute the PyInstaller build process."""
     ensure_pyinstaller()
-    cfg = get_platform_config()
+    cfg = get_platform_config(onedir=onedir)
 
     print_step(f"Starting TinyPOS standalone build for {cfg['os_name']} ({platform.machine()}) v{version}...")
 
@@ -288,10 +288,14 @@ def build_app(keep_cache: bool = False, version: str = APP_VERSION):
             print(f"  To run: open \"{out_target}\"")
             print(f"  To install: cp -R \"{out_target}\" /Applications/")
     elif cfg["os_name"] == "Windows":
-        out_target = DIST_DIR / f"{APP_NAME}.exe"
-        if out_target.exists():
-            size_mb = out_target.stat().st_size / (1024 * 1024)
-            print_success(f"Executable: \033[1m{out_target}\033[0m ({size_mb:.1f} MB)")
+        dir_target = DIST_DIR / APP_NAME
+        exe_target = DIST_DIR / f"{APP_NAME}.exe"
+        if dir_target.is_dir():
+            size_mb = sum(f.stat().st_size for f in dir_target.rglob("*") if f.is_file()) / (1024 * 1024)
+            print_success(f"Directory Bundle: \033[1m{dir_target}\033[0m ({size_mb:.1f} MB)")
+        elif exe_target.exists():
+            size_mb = exe_target.stat().st_size / (1024 * 1024)
+            print_success(f"Executable: \033[1m{exe_target}\033[0m ({size_mb:.1f} MB)")
     else:
         out_target = DIST_DIR / APP_NAME
         if out_target.exists():
@@ -307,6 +311,7 @@ def main():
     parser = argparse.ArgumentParser(description="TinyPOS Desktop Client Standalone Builder")
     parser.add_argument("--clean-only", action="store_true", help="Remove build cache and artifacts without building")
     parser.add_argument("--keep-cache", action="store_true", help="Preserve intermediate build/ directory and spec file")
+    parser.add_argument("--onedir", action="store_true", help="Build directory bundle instead of single-file executable")
     parser.add_argument("--version", "-v", default=APP_VERSION, help=f"Application version string (default: {APP_VERSION})")
     args = parser.parse_args()
 
@@ -314,7 +319,7 @@ def main():
         clean_cache()
         return
 
-    build_app(keep_cache=args.keep_cache, version=args.version)
+    build_app(keep_cache=args.keep_cache, version=args.version, onedir=args.onedir)
 
 
 if __name__ == "__main__":
