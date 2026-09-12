@@ -540,7 +540,6 @@ DefaultDirName={{autopf}}\\{{#MyAppName}}
 DisableProgramGroupPage=yes
 OutputBaseFilename={APP_NAME}-Setup-{{#MyAppVersion}}
 OutputDir=.
-SourceDir=..\\..
 SetupIconFile=..\\..\\icon\\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -557,8 +556,8 @@ Name: "desktopicon"; Description: "{{cm:CreateDesktopIcon}}"; GroupDescription: 
 Name: "startupicon"; Description: "Start {APP_NAME} automatically when logging in"; GroupDescription: "Startup:"; Flags: unchecked
 
 [Files]
-Source: "dist\\{{#MyAppExeName}}"; DestDir: "{{app}}"; Flags: ignoreversion
-Source: "icon\\*"; DestDir: "{{app}}\\icon"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\\{{#MyAppExeName}}"; DestDir: "{{app}}"; Flags: ignoreversion
+Source: "..\\..\\icon\\*"; DestDir: "{{app}}\\icon"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{{autoprograms}}\\{{#MyAppName}}"; Filename: "{{app}}\\{{#MyAppExeName}}"
@@ -659,7 +658,7 @@ def compile_inno_setup(iss_file: Path) -> Optional[Path]:
         return None
 
     print(f"  Compiling installer with Inno Setup compiler: {iscc_bin}...")
-    res = subprocess.run([str(iscc_bin), str(iss_file)], cwd=str(INSTALLER_DIR))
+    res = subprocess.run([str(iscc_bin), str(iss_file)], cwd=str(INSTALLER_DIR), capture_output=True, text=True)
     if res.returncode == 0:
         setup_exe = INSTALLER_DIR / f"{APP_NAME}-Setup.exe"
         # Find any matching installer in installer dir
@@ -671,6 +670,10 @@ def compile_inno_setup(iss_file: Path) -> Optional[Path]:
             return setup_exe
     else:
         print_error(f"Inno Setup compilation failed with exit code {res.returncode}")
+        if res.stdout and res.stdout.strip():
+            print(f"\n\033[1;33m--- Inno Setup Compiler Output ---\033[0m\n{res.stdout.strip()}")
+        if res.stderr and res.stderr.strip():
+            print(f"\n\033[1;31m--- Inno Setup Compiler Errors ---\033[0m\n{res.stderr.strip()}", file=sys.stderr)
     return None
 
 
