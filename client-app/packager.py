@@ -629,16 +629,38 @@ def package_windows(version: str) -> Optional[Path]:
         return iss_file
 
 
+def clean_dist():
+    """Remove the dist/ directory and intermediate build caches."""
+    print_step(f"Cleaning distribution directory: {DIST_DIR}...")
+    if DIST_DIR.exists():
+        shutil.rmtree(DIST_DIR, ignore_errors=True)
+        print_success(f"Removed dist directory: {DIST_DIR}")
+    else:
+        print_success(f"Directory already clean: {DIST_DIR}")
+
+    build_dir = CLIENT_DIR / "build"
+    if build_dir.exists():
+        shutil.rmtree(build_dir, ignore_errors=True)
+        print_success(f"Removed build cache: {build_dir}")
+
+
 # ==============================================================================
 # CLI Entrypoint
 # ==============================================================================
 
 def main():
+    # Fast path for positional 'clean' command: python packager.py clean
+    if len(sys.argv) > 1 and sys.argv[1].lower() in ("clean", "distclean", "clean-dist"):
+        clean_dist()
+        return
+
     parser = argparse.ArgumentParser(
         description="TinyPOS Cross-Platform Standalone Packager",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   python packager.py                     Auto-detects platform and packages output
+  python packager.py --clean             Clean and remove dist/ directory
+  python packager.py clean               Clean and remove dist/ directory
   python packager.py --version 1.2.0     Specify version without interactive prompt
   python packager.py --target dmg        Build macOS DMG disk image
   python packager.py --target deb        Build Linux Debian (.deb) package
@@ -648,6 +670,11 @@ def main():
 """,
     )
     parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Remove dist/ and build cache directories and exit",
+    )
+    parser.add_argument(
         "--version", "-v",
         type=str,
         default=None,
@@ -655,7 +682,7 @@ def main():
     )
     parser.add_argument(
         "--target", "-t",
-        choices=["auto", "dmg", "deb", "tar", "inno", "all"],
+        choices=["auto", "dmg", "deb", "tar", "inno", "all", "clean"],
         default="auto",
         help="Packaging target format (default: auto detect from current OS)",
     )
@@ -671,6 +698,12 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # If clean requested via flag or target
+    if args.clean or args.target == "clean":
+        clean_dist()
+        return
+
     os_name = platform.system()
 
     print_step(f"TinyPOS Distribution Packager - Host: {os_name} ({platform.machine()})")
