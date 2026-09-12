@@ -272,7 +272,7 @@ python3 packager.py
 
 | Platform | Installer Package | Format | Details |
 |---|---|---|---|
-| **macOS** | `dist/installer/TinyPOS-1.0.0-macOS.dmg` | **Apple Disk Image** | Drag-and-drop installer with customized volume layout and `/Applications` alias symlink. |
+| **macOS** | `dist/installer/TinyPOS-1.0.0.dmg` | **Apple Disk Image** | Drag-and-drop installer with customized volume layout and `/Applications` alias symlink. |
 | **Windows** | `dist/installer/TinyPOS-Setup-1.0.0.exe` | **Inno Setup 6/7 Installer** | Ultra-compressed wizard installer using LZMA2 solid compression. Includes Start Menu shortcuts, desktop shortcut, clean uninstaller, and single-instance kill guard. |
 | **Linux** | `dist/installer/tinypos_1.0.0_amd64.deb`<br>`TinyPOS-1.0.0-linux-x86_64.tar.gz` | **Debian Package & Archive** | Standard Debian package installing to `/opt/tinypos` with desktop `.desktop` entry, icon integration, and terminal symlink `/usr/local/bin/tinypos`. |
 
