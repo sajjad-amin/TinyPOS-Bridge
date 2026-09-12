@@ -342,6 +342,8 @@ if PYQT_AVAILABLE:
             if current_dark != self._is_dark:
                 self._is_dark = current_dark
                 self.apply_theme()
+            if hasattr(self, "combo_printer"):
+                self._populate_printer_combo()
 
         def _on_color_scheme_changed(self):
             self._is_dark = detect_system_dark_theme()
@@ -548,9 +550,16 @@ if PYQT_AVAILABLE:
                 self.combo_printer.addItem(f"🖨️ {p.get('name', 'Printer')} ({addr}){rssi_str}", addr)
 
             if saved_addr:
-                idx = self.combo_printer.findData(saved_addr)
+                idx = -1
+                for i in range(self.combo_printer.count()):
+                    d = str(self.combo_printer.itemData(i) or "").strip()
+                    if d.lower() == saved_addr.lower():
+                        idx = i
+                        break
                 if idx >= 0:
                     self.combo_printer.setCurrentIndex(idx)
+                else:
+                    self.combo_printer.setCurrentIndex(0)
             else:
                 self.combo_printer.setCurrentIndex(0)
 
@@ -733,6 +742,7 @@ if PYQT_AVAILABLE:
 
             if confirm == QtWidgets.QMessageBox.StandardButton.Yes:
                 config.delete()
+                ble_driver.reset_cache()
                 self.input_server.setText("")
                 self.input_key.setText("")
                 self.input_name.setText(config.client_name)
@@ -772,6 +782,7 @@ if PYQT_AVAILABLE:
                     config.printer_name = clean_name
 
             config.save()
+            ble_driver.reset_cache()
 
             self.hide()
             relay_worker.trigger_reconnect()
@@ -957,6 +968,7 @@ elif TK_AVAILABLE:
             self.root.deiconify()
             self.root.lift()
             self.root.focus_force()
+            self._populate_printer_combo()
             self.update_status()
 
         def hide(self):
@@ -1096,6 +1108,7 @@ elif TK_AVAILABLE:
         def _on_remove_config(self):
             if messagebox.askyesno("Remove Configuration", "Are you sure you want to delete your stored server credentials and disconnect?"):
                 config.delete()
+                ble_driver.reset_cache()
                 self.server_url_var.set("")
                 self.api_key_var.set("")
                 self.client_name_var.set(config.client_name)
@@ -1178,6 +1191,7 @@ elif TK_AVAILABLE:
                     config.printer_name = clean_name
 
             config.save()
+            ble_driver.reset_cache()
             self.hide()
             relay_worker.trigger_reconnect()
             if self.on_save_callback:

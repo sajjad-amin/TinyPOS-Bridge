@@ -217,7 +217,13 @@ class MacTrayApp(AppKit.NSObject):
 
     def openSettingsAction_(self, sender):
         """Open the native Cocoa preferences/settings dialog."""
-        if self.settings_window and self.settings_window.isVisible():
+        if self.settings_window:
+            self.server_url_input.setStringValue_(config.server_url or "")
+            self.api_key_input.setStringValue_(config.client_api_key or "")
+            self.client_name_input.setStringValue_(config.client_name or "")
+            self.ws_quick_input.setStringValue_("")
+            self.test_status_label.setStringValue_("")
+            self._populatePrinterPopup()
             self.settings_window.makeKeyAndOrderFront_(None)
             AppKit.NSApp.activateIgnoringOtherApps_(True)
             return
@@ -407,15 +413,19 @@ class MacTrayApp(AppKit.NSObject):
         if not hasattr(self, "printer_popup") or not self.printer_popup:
             return
         self.printer_popup.removeAllItems()
+        self._popup_printer_items = []
+
+        # Index 0: Automatic fallback to closest
         self.printer_popup.addItemWithTitle_("⚡ Auto: Closest (Strongest RSSI)")
-        self.printer_popup.lastItem().setRepresentedObject_("")
+        self._popup_printer_items.append({"name": "", "address": ""})
 
         seen = set()
         saved_addr = (config.printer_address or "").strip()
         if saved_addr:
-            title = f"🖨️ {config.printer_name or 'Saved Printer'} ({saved_addr})"
+            saved_name = (config.printer_name or "Saved Printer").strip()
+            title = f"🖨️ {saved_name} ({saved_addr}) [Selected]"
             self.printer_popup.addItemWithTitle_(title)
-            self.printer_popup.lastItem().setRepresentedObject_(saved_addr)
+            self._popup_printer_items.append({"name": saved_name, "address": saved_addr})
             seen.add(saved_addr.lower())
 
         items = printers if printers is not None else ble_driver.discovered_printers
@@ -424,20 +434,20 @@ class MacTrayApp(AppKit.NSObject):
             if not addr or addr.lower() in seen:
                 continue
             seen.add(addr.lower())
+            p_name = (p.get("name") or "Thermal Printer").strip()
             rssi_str = f" [{p['rssi']} dBm]" if p.get("rssi") is not None else ""
-            title = f"🖨️ {p.get('name', 'Printer')} ({addr}){rssi_str}"
+            title = f"🖨️ {p_name} ({addr}){rssi_str}"
             self.printer_popup.addItemWithTitle_(title)
-            self.printer_popup.lastItem().setRepresentedObject_(addr)
+            self._popup_printer_items.append({"name": p_name, "address": addr})
 
-        # Select saved item if present
+        # Select saved item if configured, else default to index 0 (Auto)
+        selected_idx = 0
         if saved_addr:
-            for i in range(self.printer_popup.numberOfItems()):
-                item = self.printer_popup.itemAtIndex_(i)
-                if item and str(item.representedObject() or "").lower() == saved_addr.lower():
-                    self.printer_popup.selectItemAtIndex_(i)
+            for i, p_info in enumerate(self._popup_printer_items):
+                if p_info["address"].lower() == saved_addr.lower():
+                    selected_idx = i
                     break
-        else:
-            self.printer_popup.selectItemAtIndex_(0)
+        self.printer_popup.selectItemAtIndex_(selected_idx)
 
     def scanPrintersAction_(self, sender):
         """Asynchronously discover nearby printers and update popup button."""
@@ -557,10 +567,13 @@ class MacTrayApp(AppKit.NSObject):
         resp = alert.runModal()
         if resp == AppKit.NSAlertFirstButtonReturn:
             config.delete()
+            ble_driver.reset_cache()
             self.server_url_input.setStringValue_("")
             self.api_key_input.setStringValue_("")
             self.client_name_input.setStringValue_(config.client_name)
             self.ws_quick_input.setStringValue_("")
+            if hasattr(self, "printer_popup") and self.printer_popup:
+                self.printer_popup.selectItemAtIndex_(0)
             self.test_status_label.setTextColor_(AppKit.NSColor.systemOrangeColor())
             self.test_status_label.setStringValue_("⚪ Configuration removed. Disconnected.")
             self.updateStatusUI_(None)
@@ -576,7 +589,21 @@ class MacTrayApp(AppKit.NSObject):
         config.server_url = self.server_url_input.stringValue().strip()
         config.client_api_key = self.api_key_input.stringValue().strip()
         config.client_name = self.client_name_input.stringValue().strip() or "Store Terminal"
+
+        if hasattr(self, "printer_popup") and self.printer_popup:
+            idx = self.printer_popup.indexOfSelectedItem()
+            items = getattr(self, "_popup_printer_items", [])
+            if 0 < idx < len(items):
+                target = items[idx]
+                config.printer_address = (target.get("address") or "").strip()
+                config.printer_name = (target.get("name") or "").strip()
+            else:
+                config.printer_address = ""
+                config.printer_name = ""
+
         config.save()
+        ble_driver.reset_cache()
+        logger.info(f"Saved configuration: server={config.server_url}, printer={config.printer_name} ({config.printer_address})")
 
         if self.settings_window:
             self.settings_window.close()

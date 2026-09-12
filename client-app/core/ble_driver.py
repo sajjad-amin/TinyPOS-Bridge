@@ -146,6 +146,13 @@ class BLEDriver:
             self._lock = asyncio.Lock()
         return self._lock
 
+    def reset_cache(self):
+        """Reset cached device and timer so the next scan re-evaluates candidate printers."""
+        self.device = None
+        self.device_address = None
+        self.device_name = None
+        self._last_success_time = 0.0
+
     async def discover_printers(self, timeout: float = 4.0) -> List[dict]:
         """Active scan to discover all available nearby thermal printers for settings UI."""
         from .config import config
@@ -192,10 +199,13 @@ class BLEDriver:
             return self.device
 
         # 2. If recent successful communication occurred, keep online during cooldown
+        target_addr = (config.printer_address or "").strip().lower()
         now = time.time()
         if (now - self._last_success_time) < 25.0 and self.device:
-            self.is_online = True
-            return self.device
+            # If a specific target printer is configured, only use cooldown if current device matches it
+            if not target_addr or (self.device_address and self.device_address.lower() == target_addr):
+                self.is_online = True
+                return self.device
 
         try:
             discovered = await BleakScanner.discover(timeout=timeout, return_adv=True)
