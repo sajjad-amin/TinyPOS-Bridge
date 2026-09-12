@@ -63,6 +63,18 @@ class ClientConfig:
         except Exception as e:
             print(f"[Config] Error saving {CONFIG_FILE}: {e}")
 
+    def delete(self):
+        """Remove configuration file from disk and clear in-memory credentials."""
+        self.server_url = ""
+        self.client_api_key = ""
+        self.client_name = get_default_client_name()
+        self.auto_connect = True
+        try:
+            if CONFIG_FILE.exists():
+                CONFIG_FILE.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"[Config] Error deleting {CONFIG_FILE}: {e}")
+
     @staticmethod
     def parse_ws_url(raw_url: str) -> Dict[str, str]:
         """

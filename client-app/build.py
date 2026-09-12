@@ -137,23 +137,20 @@ def get_platform_config():
     elif os_name == "Windows":
         # Windows Configuration
         icon_path = ICON_DIR / "icon.ico"
-        collect_all.extend([
-            "pystray",
-        ])
-        hidden_imports.extend([
-            "pystray",
-            "pystray._win32",
-            "pystray._util",
-            "pystray._util.win32",
-            "ctypes",
-            "ctypes.wintypes",
-            "core.settings_window",
-            "core.tray_crossplatform",
-        ])
         import importlib.util
+        if importlib.util.find_spec("PyQt6") is not None:
+            collect_all.append("PyQt6")
         if importlib.util.find_spec("tkinter") is not None:
             collect_all.append("tkinter")
+        if importlib.util.find_spec("pystray") is not None:
+            collect_all.append("pystray")
 
+        hidden_imports.extend([
+            "core.settings_window",
+            "core.tray_crossplatform",
+            "ctypes",
+            "ctypes.wintypes",
+        ])
         extra_args = [
             "--windowed",
             "--onefile",
@@ -162,34 +159,18 @@ def get_platform_config():
     else:
         # Linux Configuration
         icon_path = ICON_DIR / "icon.png"
-        collect_all.extend([
-            "pystray",
-        ])
+        import importlib.util
+        if importlib.util.find_spec("PyQt6") is not None:
+            collect_all.append("PyQt6")
+        if importlib.util.find_spec("tkinter") is not None:
+            collect_all.append("tkinter")
+        if importlib.util.find_spec("pystray") is not None:
+            collect_all.append("pystray")
+
         hidden_imports.extend([
-            "pystray",
-            "pystray._appindicator",
-            "pystray._gtk",
-            "pystray._xorg",
-            "pystray._util",
-            "pystray._util.gtk",
-            "pystray._util.notify_dbus",
             "core.settings_window",
             "core.tray_crossplatform",
         ])
-        import importlib.util
-        if importlib.util.find_spec("tkinter") is not None:
-            collect_all.append("tkinter")
-        if importlib.util.find_spec("gi") is not None:
-            collect_all.append("gi")
-            hidden_imports.extend([
-                "gi",
-                "gi.repository.GLib",
-                "gi.repository.GObject",
-                "gi.repository.Gtk",
-                "gi.repository.AppIndicator3",
-                "gi.repository.AyatanaAppIndicator3",
-            ])
-
         extra_args = [
             "--windowed",
             "--onefile",

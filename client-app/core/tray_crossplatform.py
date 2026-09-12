@@ -1,201 +1,257 @@
 """
 Cross-Platform System Tray & Control Application (Windows / Linux)
-Combines pystray for taskbar/tray integration with Tkinter Control Panel & Settings dialog,
-with dynamic status tooltips, zero-latency activation, and browser fallback.
+Uses native PyQt6 as the primary modern GUI and tray framework with zero system dependencies.
+Falls back to Tkinter + Pystray if PyQt6 is not present.
 """
 
 import logging
 import sys
-import threading
 from typing import Any, Dict, Optional
-from PIL import Image, ImageDraw
 
 from .config import config
 from .ble_driver import ble_driver
 from .relay_worker import relay_worker
-from .settings_window import TK_AVAILABLE, TkSettingsWindow, open_browser_settings
+from .settings_window import PYQT_AVAILABLE, TK_AVAILABLE
 
 logger = logging.getLogger("tinypos.client.crossplatform")
 
 
-def create_tray_icon_image(color_name: str = "gray") -> Image.Image:
-    """Generate a clean 64x64 PIL icon with a circular color badge."""
-    img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
+def run_pyqt_app():
+    """Launch native PyQt6 application with System Tray and Control Panel dialog."""
+    from PyQt6 import QtCore, QtGui, QtWidgets
+    from .settings_window import QtSettingsDialog
 
-    colors = {
-        "green": (46, 204, 113, 255),
-        "yellow": (241, 196, 15, 255),
-        "red": (231, 76, 60, 255),
-        "gray": (149, 165, 166, 255),
-    }
-    fill_col = colors.get(color_name, colors["gray"])
+    app = QtWidgets.QApplication.instance()
+    if not app:
+        app = QtWidgets.QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
 
-    # Outer dark border
-    draw.ellipse((6, 6, 58, 58), fill=(30, 30, 30, 220), outline=(255, 255, 255, 180), width=2)
-    # Inner colored status circle
-    draw.ellipse((14, 14, 50, 50), fill=fill_col)
+    # 1. Custom status badge icons
+    def create_tray_qicon(color_name: str = "gray") -> QtGui.QIcon:
+        pixmap = QtGui.QPixmap(64, 64)
+        pixmap.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(pixmap)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
 
-    return img
+        colors = {
+            "green": QtGui.QColor(46, 204, 113),
+            "yellow": QtGui.QColor(241, 196, 15),
+            "red": QtGui.QColor(231, 76, 60),
+            "gray": QtGui.QColor(149, 165, 166),
+        }
+        col = colors.get(color_name, colors["gray"])
+
+        # Outer dark ring with white border
+        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255, 200), 2))
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(30, 30, 30, 220)))
+        painter.drawEllipse(6, 6, 52, 52)
+
+        # Inner colored circle
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.setBrush(QtGui.QBrush(col))
+        painter.drawEllipse(14, 14, 36, 36)
+        painter.end()
+
+        return QtGui.QIcon(pixmap)
+
+    icon_green = create_tray_qicon("green")
+    icon_yellow = create_tray_qicon("yellow")
+    icon_red = create_tray_qicon("red")
+    icon_gray = create_tray_qicon("gray")
+
+    # 2. Thread-safe Signal Bridge for cross-thread relay updates
+    class SignalBridge(QtCore.QObject):
+        status_updated = QtCore.pyqtSignal(dict)
+
+    bridge = SignalBridge()
+
+    # 3. Native Settings Dialog
+    dialog = QtSettingsDialog()
+
+    # 4. System Tray Icon
+    tray_icon = QtWidgets.QSystemTrayIcon()
+    initial_icon = icon_gray if not config.is_configured() else icon_red
+    tray_icon.setIcon(initial_icon)
+    tray_icon.setToolTip("TinyPOS Cloud Bridge")
+
+    # 5. Tray Menu
+    menu = QtWidgets.QMenu()
+
+    status_action = menu.addAction("TinyPOS: Connecting...")
+    status_action.setEnabled(False)
+
+    group_action = menu.addAction("API Group: --")
+    group_action.setEnabled(False)
+
+    printer_action = menu.addAction("Printer: Scanning Bluetooth...")
+    printer_action.setEnabled(False)
+
+    menu.addSeparator()
+
+    def show_dialog():
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    settings_action = menu.addAction("⚙️ Settings & Control Panel...")
+    settings_action.triggered.connect(show_dialog)
+
+    feed_action = menu.addAction("📄 Feed Paper")
+    feed_action.triggered.connect(relay_worker.feed_paper)
+
+    reconnect_action = menu.addAction("🔄 Reconnect Now")
+    reconnect_action.triggered.connect(relay_worker.trigger_reconnect)
+
+    menu.addSeparator()
+
+    def quit_app():
+        logger.info("Terminating TinyPOS client...")
+        relay_worker.stop()
+        tray_icon.hide()
+        app.quit()
+
+    quit_action = menu.addAction("🚪 Quit TinyPOS Client")
+    quit_action.triggered.connect(quit_app)
+
+    tray_icon.setContextMenu(menu)
+
+    # 6. Handle single/double click on tray icon
+    def on_tray_activated(reason):
+        if reason in (
+            QtWidgets.QSystemTrayIcon.ActivationReason.Trigger,
+            QtWidgets.QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            show_dialog()
+
+    tray_icon.activated.connect(on_tray_activated)
+    tray_icon.show()
+
+    # 7. Slot to update UI on main thread
+    def handle_status_update(info: dict):
+        if not config.is_configured():
+            tray_icon.setIcon(icon_gray)
+            status_action.setText("TinyPOS: ⚪ Not Configured")
+            group_action.setText("API Group: --")
+            printer_action.setText("Printer: Not Configured")
+        elif relay_worker.is_connected:
+            group_name = relay_worker.current_group or "Pending..."
+            group_action.setText(f"API Group: {group_name}")
+            if ble_driver.is_online:
+                tray_icon.setIcon(icon_green)
+                status_action.setText("TinyPOS: 🟢 Connected")
+                rssi = f" ({ble_driver.rssi} dBm)" if ble_driver.rssi else ""
+                printer_action.setText(f"Printer: 🖨️ {ble_driver.device_name}{rssi}")
+            else:
+                tray_icon.setIcon(icon_yellow)
+                status_action.setText("TinyPOS: 🟡 Standby")
+                printer_action.setText("Printer: ⚪ Offline / Scanning...")
+        else:
+            tray_icon.setIcon(icon_red)
+            msg = relay_worker.last_status_message or "Connecting..."
+            status_action.setText(f"TinyPOS: 🔴 {msg}")
+            group_action.setText("API Group: --")
+            printer_action.setText(f"Printer: {'Online' if ble_driver.is_online else 'Offline'}")
+
+        dialog.update_status(info)
+
+    bridge.status_updated.connect(handle_status_update)
+
+    def on_worker_notify(state: str, info: dict):
+        bridge.status_updated.emit(info)
+
+    relay_worker.set_status_callback(on_worker_notify)
+    relay_worker.start()
+
+    # If unconfigured on start, open settings dialog automatically
+    if not config.is_configured():
+        show_dialog()
+
+    logger.info("Starting TinyPOS PyQt6 application loop...")
+    sys.exit(app.exec())
 
 
-def run_crossplatform_app():
-    """Launch system tray app with Tkinter Settings GUI on Windows / Linux."""
-    logger.info(f"Initializing TinyPOS cross-platform client on {sys.platform} (Tkinter={TK_AVAILABLE})...")
+def run_tkinter_fallback_app():
+    """Fallback using Tkinter + Pystray if PyQt6 is not installed."""
+    import pystray
+    from PIL import Image, ImageDraw
+    import tkinter as tk
+    from .settings_window import TkSettingsWindow
 
-    # Cached state icon images
+    def create_tray_icon_image(color_name: str = "gray") -> Image.Image:
+        img = Image.new("RGBA", (64, 64), color=(0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        colors = {
+            "green": (46, 204, 113, 255),
+            "yellow": (241, 196, 15, 255),
+            "red": (231, 76, 60, 255),
+            "gray": (149, 165, 166, 255),
+        }
+        fill_col = colors.get(color_name, colors["gray"])
+        draw.ellipse((6, 6, 58, 58), fill=(30, 30, 30, 220), outline=(255, 255, 255, 180), width=2)
+        draw.ellipse((14, 14, 50, 50), fill=fill_col)
+        return img
+
     icon_green = create_tray_icon_image("green")
     icon_yellow = create_tray_icon_image("yellow")
     icon_red = create_tray_icon_image("red")
     icon_gray = create_tray_icon_image("gray")
 
-    settings_win: Optional[TkSettingsWindow] = None
-    root = None
-    icon = None
-    is_quitting = False
+    root = tk.Tk()
+    settings_win = TkSettingsWindow()
+    settings_win.init_ui(root)
 
-    # Setup Tkinter Root if available
-    if TK_AVAILABLE:
-        try:
-            import tkinter as tk
-            root = tk.Tk()
-            settings_win = TkSettingsWindow()
-            settings_win.init_ui(root)
-
-            # Initially show or hide depending on whether configured
-            if config.is_configured():
-                settings_win.hide()
-            else:
-                logger.info("Client is not configured. Displaying Settings dialog on startup.")
-                settings_win.show()
-        except Exception as e:
-            logger.warning(f"Failed to initialize Tkinter desktop window: {e}. Falling back to tray-only mode.")
-            root = None
-            settings_win = None
+    if config.is_configured():
+        settings_win.hide()
+    else:
+        settings_win.show()
 
     def on_show_settings(item=None):
-        """Open or focus the Settings & Control Panel window."""
-        if settings_win and root:
-            root.after(0, settings_win.show)
-        else:
-            open_browser_settings()
-
-    def on_feed(item=None):
-        relay_worker.feed_paper()
-
-    def on_reconnect(item=None):
-        relay_worker.trigger_reconnect()
+        root.after(0, settings_win.show)
 
     def on_quit(item=None):
-        nonlocal is_quitting
-        if is_quitting:
-            return
-        is_quitting = True
-        logger.info("Stopping TinyPOS Client...")
         relay_worker.stop()
-        if icon:
-            try:
-                icon.stop()
-            except Exception:
-                pass
-        if root:
-            try:
-                root.after(0, root.destroy)
-            except Exception:
-                pass
+        icon.stop()
+        root.after(0, root.destroy)
 
-    # Build Pystray System Tray Icon
-    try:
-        import pystray
+    menu = pystray.Menu(
+        pystray.MenuItem(lambda item: f"TinyPOS: {relay_worker.last_status_message}", None, enabled=False),
+        pystray.MenuItem(lambda item: f"API Group: {relay_worker.current_group or '--'}", None, enabled=False),
+        pystray.MenuItem(lambda item: f"Printer: {ble_driver.device_name or 'Offline'}", None, enabled=False),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("⚙️ Settings & Control Panel...", on_show_settings, default=True),
+        pystray.MenuItem("📄 Feed Paper", lambda item: relay_worker.feed_paper()),
+        pystray.MenuItem("🔄 Reconnect", lambda item: relay_worker.trigger_reconnect()),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("🚪 Quit TinyPOS Client", on_quit),
+    )
 
-        # Dynamic menu item text getters
-        def get_status_text(item):
-            if not config.is_configured():
-                return "TinyPOS: Not Configured"
-            if relay_worker.is_connected:
-                return "TinyPOS: 🟢 Connected"
-            return f"TinyPOS: 🔴 {relay_worker.last_status_message}"
+    initial_icon = icon_gray if not config.is_configured() else icon_red
+    icon = pystray.Icon("TinyPOS Client", icon=initial_icon, title="TinyPOS Cloud Bridge", menu=menu)
 
-        def get_group_text(item):
-            return f"API Group: {relay_worker.current_group or '--'}"
-
-        def get_printer_text(item):
-            if ble_driver.is_online:
-                rssi = f" ({ble_driver.rssi} dBm)" if ble_driver.rssi else ""
-                return f"Printer: 🖨️ {ble_driver.device_name}{rssi}"
-            return "Printer: ⚪ Offline"
-
-        menu = pystray.Menu(
-            pystray.MenuItem(get_status_text, None, enabled=False),
-            pystray.MenuItem(get_group_text, None, enabled=False),
-            pystray.MenuItem(get_printer_text, None, enabled=False),
-            pystray.Menu.SEPARATOR,
-            # default=True ensures single/double click on icon opens settings on Xorg & Windows!
-            pystray.MenuItem("⚙️ Settings & Control Panel...", on_show_settings, default=True),
-            pystray.MenuItem("📄 Feed Paper", on_feed),
-            pystray.MenuItem("🔄 Reconnect", on_reconnect),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("🚪 Quit TinyPOS Client", on_quit),
-        )
-
-        initial_icon = icon_gray if not config.is_configured() else icon_red
-        icon = pystray.Icon("TinyPOS Client", icon=initial_icon, title="TinyPOS Cloud Bridge", menu=menu)
-
-    except Exception as e:
-        logger.warning(f"Could not initialize system tray with pystray: {e}")
-        icon = None
-
-    # Status update callback from relay worker
     def on_status_update(state: str, info: Dict[str, Any]):
-        if icon:
-            try:
-                if not config.is_configured():
-                    icon.icon = icon_gray
-                elif relay_worker.is_connected:
-                    if ble_driver.is_online:
-                        icon.icon = icon_green
-                    else:
-                        icon.icon = icon_yellow
-                else:
-                    icon.icon = icon_red
-            except Exception:
-                pass
-
-        if settings_win:
-            settings_win.update_status(info)
+        if not config.is_configured():
+            icon.icon = icon_gray
+        elif relay_worker.is_connected:
+            icon.icon = icon_green if ble_driver.is_online else icon_yellow
+        else:
+            icon.icon = icon_red
+        settings_win.update_status(info)
 
     relay_worker.set_status_callback(on_status_update)
     relay_worker.start()
 
-    # Launch Application Loops
-    if icon and root:
-        # Both Tray and Tkinter GUI available
-        try:
-            icon.run_detached()
-            logger.info("Pystray system tray loop detached; running Tkinter mainloop.")
-            root.mainloop()
-        except Exception as e:
-            logger.error(f"Error in application loop: {e}")
-            on_quit()
-    elif icon:
-        # Tray only (headless or no Tkinter)
-        logger.info("Running in system tray only mode.")
-        if not config.is_configured():
-            open_browser_settings()
-        icon.run()
-    elif root:
-        # Desktop Window only (no system tray support)
-        logger.info("Running in desktop window only mode.")
-        settings_win.show()
-        root.mainloop()
+    icon.run_detached()
+    root.mainloop()
+
+
+def run_crossplatform_app():
+    """Select between PyQt6 and Tkinter backends."""
+    if PYQT_AVAILABLE:
+        logger.info("Launching with native PyQt6 GUI and System Tray.")
+        run_pyqt_app()
+    elif TK_AVAILABLE:
+        logger.info("PyQt6 not detected. Falling back to Tkinter + Pystray.")
+        run_tkinter_fallback_app()
     else:
-        # Headless with web fallback
-        logger.info("Running in headless console mode with web settings server.")
-        if not config.is_configured():
-            open_browser_settings()
-        try:
-            while not is_quitting:
-                import time
-                time.sleep(1)
-        except KeyboardInterrupt:
-            on_quit()
+        logger.critical("No desktop GUI toolkit available. Please install PyQt6: pip install PyQt6")
+        sys.exit(1)

@@ -342,14 +342,21 @@ class MacTrayApp(AppKit.NSObject):
         content.addSubview_(self.test_status_label)
 
         # 7. Action Buttons (Bottom Bar)
-        self.test_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(20, 25, 130, 32))
+        self.test_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(20, 25, 125, 32))
         self.test_btn.setTitle_("Test Connection")
         self.test_btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
         self.test_btn.setTarget_(self)
         self.test_btn.setAction_("testConnectionAction:")
         content.addSubview_(self.test_btn)
 
-        cancel_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(280, 25, 100, 32))
+        remove_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(150, 25, 125, 32))
+        remove_btn.setTitle_("Remove Config")
+        remove_btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
+        remove_btn.setTarget_(self)
+        remove_btn.setAction_("removeConfigAction:")
+        content.addSubview_(remove_btn)
+
+        cancel_btn = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(285, 25, 95, 32))
         cancel_btn.setTitle_("Cancel")
         cancel_btn.setBezelStyle_(AppKit.NSBezelStyleRounded)
         cancel_btn.setTarget_(self)
@@ -449,6 +456,27 @@ class MacTrayApp(AppKit.NSObject):
 
     def _execCallable_(self, func):
         func()
+
+    def removeConfigAction_(self, sender):
+        """Prompt confirmation and remove saved configuration from disk."""
+        alert = AppKit.NSAlert.alloc().init()
+        alert.setMessageText_("Remove Configuration?")
+        alert.setInformativeText_("This will delete your saved Server URL and API Key from this Mac and disconnect from the cloud relay.")
+        alert.addButtonWithTitle_("Remove Config")
+        alert.addButtonWithTitle_("Cancel")
+        alert.setAlertStyle_(AppKit.NSAlertStyleWarning)
+
+        resp = alert.runModal()
+        if resp == AppKit.NSAlertFirstButtonReturn:
+            config.delete()
+            self.server_url_input.setStringValue_("")
+            self.api_key_input.setStringValue_("")
+            self.client_name_input.setStringValue_(config.client_name)
+            self.ws_quick_input.setStringValue_("")
+            self.test_status_label.setTextColor_(AppKit.NSColor.systemOrangeColor())
+            self.test_status_label.setStringValue_("⚪ Configuration removed. Disconnected.")
+            self.updateStatusUI_(None)
+            relay_worker.trigger_reconnect()
 
     def cancelSettingsAction_(self, sender):
         """Close settings window without saving."""
