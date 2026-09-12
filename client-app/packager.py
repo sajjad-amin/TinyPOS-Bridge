@@ -578,27 +578,82 @@ Filename: "{{app}}\\{{#MyAppExeName}}"; Description: "{{cm:LaunchProgram,{{#Stri
     return iss_file
 
 
-def compile_inno_setup(iss_file: Path) -> Optional[Path]:
-    """Search for ISCC.exe and compile installer executable on Windows."""
-    # Look for ISCC compiler in common paths and PATH
-    iscc_candidates = [
-        shutil.which("iscc"),
-        shutil.which("ISCC.exe"),
-        Path(os.environ.get("ProgramFiles(x86)", "C:/Program Files (x86)")) / "Inno Setup 6" / "ISCC.exe",
-        Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "Inno Setup 6" / "ISCC.exe",
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Inno Setup 6" / "ISCC.exe",
+def find_iscc_executable() -> Optional[Path]:
+    """Find ISCC.exe compiler across PATH, registry, and Inno Setup 7 / 6 installation directories."""
+    # 1. PATH check
+    for bin_name in ("iscc", "ISCC.exe", "iscc.exe"):
+        which_path = shutil.which(bin_name)
+        if which_path and Path(which_path).exists():
+            return Path(which_path)
+
+    # 2. Windows Registry lookup (if on Windows)
+    if platform.system() == "Windows":
+        try:
+            import winreg
+            hives = [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]
+            subkeys = [
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+            ]
+            for hive in hives:
+                for subkey in subkeys:
+                    try:
+                        with winreg.OpenKey(hive, subkey) as root_key:
+                            num_subkeys, _, _ = winreg.QueryInfoKey(root_key)
+                            for i in range(num_subkeys):
+                                try:
+                                    child_name = winreg.EnumKey(root_key, i)
+                                    if "inno setup" in child_name.lower():
+                                        with winreg.OpenKey(root_key, child_name) as app_key:
+                                            install_loc, _ = winreg.QueryValueEx(app_key, "InstallLocation")
+                                            if install_loc:
+                                                cand = Path(install_loc) / "ISCC.exe"
+                                                if cand.exists():
+                                                    return cand
+                                except Exception:
+                                    continue
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    # 3. Comprehensive directory scan across Inno Setup 7, Inno Setup 6, etc.
+    base_dirs = [
+        os.environ.get("ProgramFiles", r"C:\Program Files"),
+        os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+        os.environ.get("ProgramW6432", r"C:\Program Files"),
+        os.environ.get("LOCALAPPDATA", ""),
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs"),
     ]
 
-    iscc_bin = None
-    for cand in iscc_candidates:
-        if cand and Path(cand).exists():
-            iscc_bin = Path(cand)
-            break
+    for base in base_dirs:
+        if not base or not os.path.isdir(base):
+            continue
+        base_path = Path(base)
+        # Check modern Inno Setup 7 first, then 6, 5, etc.
+        for folder_name in ("Inno Setup 7", "Inno Setup 6", "Inno Setup 5", "Inno Setup"):
+            cand = base_path / folder_name / "ISCC.exe"
+            if cand.exists():
+                return cand
+        # Glob fallback for any custom version numbering (e.g. Inno Setup 7.0)
+        try:
+            for cand in sorted(base_path.glob("Inno Setup*/ISCC.exe"), reverse=True):
+                if cand.exists():
+                    return cand
+        except Exception:
+            pass
+
+    return None
+
+
+def compile_inno_setup(iss_file: Path) -> Optional[Path]:
+    """Search for ISCC.exe and compile installer executable on Windows."""
+    iscc_bin = find_iscc_executable()
 
     if not iscc_bin:
         print_warning(
             "Inno Setup Compiler (ISCC.exe) not found.\n"
-            "  Script was generated. To build the installer on Windows, install Inno Setup 6\n"
+            "  Script was generated. To build the installer on Windows, install Inno Setup 7 or 6\n"
             "  from https://jrsoftware.org/isdl.php and compile TinyPOS.iss."
         )
         return None
