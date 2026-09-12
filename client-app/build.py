@@ -94,7 +94,7 @@ def ensure_pyinstaller():
         print_success("PyInstaller installed successfully.")
 
 
-def get_platform_config():
+def get_platform_config(onedir: bool = False):
     """Determine OS-specific icon, flags, and hidden imports."""
     os_name = platform.system()
     data_sep = ";" if os_name == "Windows" else ":"
