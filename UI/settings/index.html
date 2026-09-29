@@ -489,16 +489,6 @@
                         </tbody>
                     </table>
                 </div>
-
-                <div class="p-3 bg-body-tertiary rounded-3 border mt-3 small text-muted">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                        <div>
-                            <i class="bi bi-terminal text-primary me-1"></i>
-                            <strong>Client Connection Example:</strong>
-                            <code class="font-monospace ms-1">python client.py --url ws://your-server/ws/client?api_key=&lt;CLIENT_KEY&gt;</code>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -596,13 +586,22 @@
                         </button>
                     </div>
                 </div>
-                <!-- Launch Command Hint -->
-                <div class="p-3 bg-body-tertiary rounded-3 border">
-                    <div class="d-flex align-items-center justify-content-between mb-1">
-                        <span class="small fw-bold text-uppercase text-muted"><i class="bi bi-terminal me-1"></i> Launch Client Command</span>
-                        <button class="btn btn-sm btn-link text-primary text-decoration-none p-0" onclick="copyModalField('viewModalCmdText', 'Launch command copied!')">Copy Command</button>
+                <!-- Mobile Client Quick Connect QR Code -->
+                <div class="p-3 bg-body-tertiary rounded-3 border text-center">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="small fw-bold text-uppercase text-muted">
+                            <i class="bi bi-qr-code-scan me-1 text-primary"></i> Mobile Client Quick Connect
+                        </span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">1-Click Pair</span>
                     </div>
-                    <code class="font-monospace small text-body text-break d-block" id="viewModalCmdText"></code>
+                    <div class="d-flex flex-column align-items-center justify-content-center py-2">
+                        <div id="viewModalQrContainer" class="p-2 bg-white rounded-3 shadow-sm d-inline-block border">
+                            <div id="viewModalQrCode" style="min-width: 180px; min-height: 180px;" class="d-flex align-items-center justify-content-center"></div>
+                        </div>
+                        <div class="small text-muted mt-2">
+                            <i class="bi bi-camera me-1"></i> Open the <strong>TinyPOS</strong> mobile app &rarr; <strong>Cloud Relay</strong> &rarr; Scan to pair instantly.
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer bg-body-tertiary py-2">
@@ -730,6 +729,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
     let currentMode = "{{ bridge_mode }}";
 
@@ -762,7 +762,29 @@
         document.getElementById('viewModalNameInput').value = name;
         document.getElementById('viewModalKeyInput').value = key;
         document.getElementById('viewModalWsInput').value = wsUrl;
-        document.getElementById('viewModalCmdText').innerText = `python client.py --url ${wsUrl}`;
+
+        // Generate Mobile Connect QR Code (with client_name parameter)
+        let connectUrl = wsUrl;
+        if (!connectUrl.includes('client_name=')) {
+            connectUrl += (connectUrl.includes('?') ? '&' : '?') + 'client_name=' + encodeURIComponent(name);
+        }
+
+        const qrContainer = document.getElementById('viewModalQrCode');
+        if (qrContainer) {
+            qrContainer.innerHTML = '';
+            if (typeof QRCode !== 'undefined') {
+                new QRCode(qrContainer, {
+                    text: connectUrl,
+                    width: 180,
+                    height: 180,
+                    colorDark: "#111827",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } else {
+                qrContainer.innerHTML = `<img src="/api/v1/qr/generate?content=${encodeURIComponent(connectUrl)}&size=180" alt="Connect QR Code" class="img-fluid rounded" style="width:180px; height:180px;" />`;
+            }
+        }
 
         const badgeContainer = document.getElementById('viewModalGroupBadgeContainer');
         const assignedBox = document.getElementById('viewModalAssignedBox');

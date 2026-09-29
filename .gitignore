@@ -60,6 +60,37 @@ client-app/.pyinstaller/
 *.iss
 *.inn
 
+# Flutter & Mobile Client Artifacts
+client-mobile/.dart_tool/
+client-mobile/.flutter-plugins
+client-mobile/.flutter-plugins-dependencies
+client-mobile/.pub-cache/
+client-mobile/.pub/
+client-mobile/build/
+client-mobile/android/.gradle/
+client-mobile/android/local.properties
+client-mobile/android/captures/
+client-mobile/android/key.properties
+client-mobile/android/**/*.keystore
+client-mobile/android/**/*.jks
+client-mobile/ios/.last_build_id
+client-mobile/ios/Pods/
+client-mobile/ios/.symlinks/
+client-mobile/ios/Flutter/Flutter.framework
+client-mobile/ios/Flutter/Flutter.podspec
+client-mobile/ios/Flutter/Generated.xcconfig
+client-mobile/ios/Flutter/app.flx
+client-mobile/ios/Flutter/app.zip
+client-mobile/ios/Flutter/flutter_assets/
+client-mobile/macos/Pods/
+client-mobile/macos/.symlinks/
+client-mobile/macos/Flutter/ephemeral/
+client-mobile/linux/flutter/ephemeral/
+client-mobile/windows/flutter/ephemeral/
+*.apk
+*.aab
+*.dill
+
 # ==============================================================================
 # Operating System & Editors
 # ==============================================================================
