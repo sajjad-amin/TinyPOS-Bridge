@@ -50,15 +50,22 @@ TinyPOS/
 ├── UI/                 # Modern Web Dashboard (console, API keys, settings, docs)
 │   ├── static/         # Brand assets & favicons (icon.png, favicon.ico)
 │   └── documentation/  # Interactive web documentation subpages
-└── client-app/         # Native Desktop Menu Bar / System Tray client for Cloud Relay
-    ├── build.py        # Automated cross-platform standalone builder (macOS/Win/Linux)
-    ├── packager.py     # Native installer generator (.dmg, Inno Setup .exe, .deb, .tar.gz)
-    ├── run.sh          # Quick launch script for desktop client
-    ├── requirements.txt# Client dependencies (bleak, websockets, Pillow, pyobjc/pystray)
-    ├── main.py         # Client launcher & platform selector
-    ├── icon/           # Squircle app icon assets (icon.icns, icon.ico, icon.png)
-    ├── ui/             # Native settings GUIs (Cocoa, Qt6, Tkinter, Browser fallback)
-    └── core/           # Tray UI, Bluetooth LE driver, and WebSocket relay worker
+├── client-app/         # Native Desktop Menu Bar / System Tray client for Cloud Relay
+│   ├── build.py        # Automated cross-platform standalone builder (macOS/Win/Linux)
+│   ├── packager.py     # Native installer generator (.dmg, Inno Setup .exe, .deb, .tar.gz)
+│   ├── run.sh          # Quick launch script for desktop client
+│   ├── requirements.txt# Client dependencies (bleak, websockets, Pillow, pyobjc/pystray)
+│   ├── main.py         # Client launcher & platform selector
+│   ├── icon/           # Squircle app icon assets (icon.icns, icon.ico, icon.png)
+│   ├── ui/             # Native settings GUIs (Cocoa, Qt6, Tkinter, Browser fallback)
+│   └── core/           # Tray UI, Bluetooth LE driver, and WebSocket relay worker
+└── client-mobile/      # Cross-Platform Flutter Mobile Application (iOS & Android)
+    ├── create_apk.sh   # Automated Android build script (Split APKs, Universal APK, AAB)
+    ├── create_ipa.sh   # Automated iOS build & sideloading script (Signed, Unsigned, Wi-Fi)
+    ├── key.properties.example # Keystore credentials template
+    ├── lib/            # Flutter source (BLE printing, dithering, cloud bridge, UI)
+    ├── android/        # Android native project & signing configuration
+    └── ios/            # iOS native project & entitlements
 ```
 
 ---
@@ -277,6 +284,75 @@ python3 packager.py
 | **Linux** | `dist/installer/tinypos_1.0.0_amd64.deb`<br>`TinyPOS-1.0.0-linux-x86_64.tar.gz` | **Debian Package & Archive** | Standard Debian package installing to `/opt/tinypos` with desktop `.desktop` entry, icon integration, and terminal symlink `/usr/local/bin/tinypos`. |
 
 *Note: All intermediate build caches (`build/`, `.spec` files, `__pycache__`) are automatically pruned immediately upon build completion.*
+
+---
+
+## TinyPOS Mobile Client (`client-mobile/`)
+
+TinyPOS Mobile is a standalone Flutter app for **iOS and Android** that communicates directly with portable Bluetooth Low Energy (BLE) thermal receipt printers running the Bainiu / Tiny Print protocol (e.g. X6, X5, C9, MX0, iPrint).
+
+### Key Features
+
+* **Direct BLE Printing**: Discover, connect, and stream thermal dot data directly over Bluetooth Low Energy with zero cloud dependency.
+* **Photo Studio Engine**: High-fidelity Floyd-Steinberg error-diffusion dithering and contrast curves identical to the official Tiny Print app.
+* **Document & Invoice Printing**: Native PDF and image invoice processor with adaptive binarization, auto-contrast enhancement, and 384-dot scaling.
+* **Multilingual Text & Notes**: Print receipts in any world language and emojis with font sizing, formatting, alignment, and auto-dismiss keyboard controls.
+* **QR Code Studio**: Generate and print sharp, scan-ready thermal QR codes on 57mm rolls.
+* **Cloud Bridge Mode**: Connect your smartphone to your remote TinyPOS VPS server via WebSockets, turning the phone into a mobile print gateway.
+
+---
+
+### Android Production Build (`create_apk.sh`)
+
+TinyPOS Mobile includes an automated release build script that handles keystore verification and produces signed, optimized artifacts.
+
+#### 1. Setup Signing Keystore
+
+Create a signing keystore (if you haven't already):
+```bash
+keytool -genkey -v -keystore client-mobile/tinypos-release.jks \
+  -alias tinypos -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Create `client-mobile/key.properties` (or copy from `client-mobile/key.properties.example`):
+```properties
+storePassword=your_keystore_password
+keyPassword=your_key_password
+keyAlias=tinypos
+storeFile=tinypos-release.jks
+```
+*(Note: `key.properties` and `*.jks` files are strictly excluded from version control).*
+
+#### 2. Run the Build Script
+
+```bash
+cd client-mobile
+./create_apk.sh
+```
+
+Choose from the interactive menu:
+* **Option 1: Split Architecture Signed APKs (Recommended)** &mdash; Generates tiny, device-specific APKs (`arm64-v8a`, `armeabi-v7a`, `x86_64`) for direct sideloading or sharing.
+* **Option 2: Universal Fat Signed APK** &mdash; Single APK that works on any Android phone.
+* **Option 3: Google Play App Bundle (`.aab`)** &mdash; Signed bundle ready for upload to Google Play Console.
+* **Option 4: Build Everything** &mdash; Generates all APKs and the AAB bundle simultaneously into `client-mobile/releases/`.
+
+---
+
+### iOS Production & Sideloading Guide (`create_ipa.sh`)
+
+For iOS, building and installing without a paid Apple Developer account is supported via development signing, sideloading tools, or direct wireless Wi-Fi deployment.
+
+#### 1. Run the iOS Release Script
+
+```bash
+cd client-mobile
+./create_ipa.sh
+```
+
+Choose your deployment mode:
+* **Option 1: Development Signed `.ipa`** &mdash; Generates a signed `.ipa` using your local Mac development team. Ready for Sideloadly or AltStore.
+* **Option 2: Unsigned / Payload `.ipa`** &mdash; Generates a clean, stripped `.ipa` payload ready for signing with third-party web signers, cert services, or TrollStore.
+* **Option 3: Direct Wi-Fi Wireless Deployment** &mdash; Installs and launches the release build directly onto your paired iPhone over your local Wi-Fi network without third-party apps.
 
 ---
 

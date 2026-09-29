@@ -1,0 +1,8 @@
+# Android Production Keystore Credentials
+# Place this file as 'key.properties' in client-mobile/ or client-mobile/android/
+# WARNING: NEVER commit key.properties or .jks files to public git repositories!
+
+storePassword=
+keyPassword=
+keyAlias=
+storeFile=

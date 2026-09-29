@@ -71,8 +71,12 @@ client-mobile/android/.gradle/
 client-mobile/android/local.properties
 client-mobile/android/captures/
 client-mobile/android/key.properties
+client-mobile/key.properties
 client-mobile/android/**/*.keystore
 client-mobile/android/**/*.jks
+client-mobile/*.keystore
+client-mobile/*.jks
+client-mobile/releases/
 client-mobile/ios/.last_build_id
 client-mobile/ios/Pods/
 client-mobile/ios/.symlinks/
@@ -89,6 +93,7 @@ client-mobile/linux/flutter/ephemeral/
 client-mobile/windows/flutter/ephemeral/
 *.apk
 *.aab
+*.ipa
 *.dill
 
 # ==============================================================================
