@@ -68,7 +68,7 @@ build_signed_ipa() {
     echo -e "\n${CYAN}🔨 Building Development Signed iOS Application...${NC}"
     flutter build ios --release
 
-    local DEST="$OUTPUT_DIR/TinyPrint-v${VERSION}-signed.ipa"
+    local DEST="$OUTPUT_DIR/TinyPOS-v${VERSION}-signed.ipa"
     package_ipa "$DEST"
 }
 
@@ -76,7 +76,7 @@ build_unsigned_ipa() {
     echo -e "\n${CYAN}🔨 Building Unsigned iOS Application (for web/cloud signing)...${NC}"
     flutter build ios --release --no-codesign
 
-    local DEST="$OUTPUT_DIR/TinyPrint-v${VERSION}-unsigned.ipa"
+    local DEST="$OUTPUT_DIR/TinyPOS-v${VERSION}-unsigned.ipa"
     package_ipa "$DEST"
 }
 

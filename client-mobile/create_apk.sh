@@ -60,7 +60,7 @@ build_universal_apk() {
     flutter build apk --release
 
     SRC_APK="build/app/outputs/flutter-apk/app-release.apk"
-    DEST_APK="$OUTPUT_DIR/TinyPrint-v${VERSION}-universal-signed.apk"
+    DEST_APK="$OUTPUT_DIR/TinyPOS-v${VERSION}-universal-signed.apk"
 
     if [ -f "$SRC_APK" ]; then
         cp "$SRC_APK" "$DEST_APK"
@@ -79,7 +79,7 @@ build_split_apks() {
     
     for abi in arm64-v8a armeabi-v7a x86_64; do
         SRC_APK="$APK_DIR/app-${abi}-release.apk"
-        DEST_APK="$OUTPUT_DIR/TinyPrint-v${VERSION}-${abi}-signed.apk"
+        DEST_APK="$OUTPUT_DIR/TinyPOS-v${VERSION}-${abi}-signed.apk"
         if [ -f "$SRC_APK" ]; then
             cp "$SRC_APK" "$DEST_APK"
             SIZE=$(du -h "$DEST_APK" | cut -f1)
@@ -93,7 +93,7 @@ build_appbundle() {
     flutter build appbundle --release
 
     SRC_AAB="build/app/outputs/bundle/release/app-release.aab"
-    DEST_AAB="$OUTPUT_DIR/TinyPrint-v${VERSION}-signed.aab"
+    DEST_AAB="$OUTPUT_DIR/TinyPOS-v${VERSION}-signed.aab"
 
     if [ -f "$SRC_AAB" ]; then
         cp "$SRC_AAB" "$DEST_AAB"
