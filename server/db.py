@@ -572,7 +572,19 @@ def get_jobs_paginated(
     offset = (page - 1) * per_page
 
     with get_connection() as conn:
-        if api_key is not None:
+        if api_key == "test_page":
+            count_cur = conn.execute("SELECT COUNT(*) AS total FROM jobs WHERE api_key IN ('test_page', 'web_ui')")
+            data_cur = conn.execute(
+                """
+                SELECT job_id, api_key, job_type, status, error, strength, scale, autocrop, keep_job, created_at, completed_at
+                FROM jobs
+                WHERE api_key IN ('test_page', 'web_ui')
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                (per_page, offset),
+            )
+        elif api_key is not None:
             count_cur = conn.execute("SELECT COUNT(*) AS total FROM jobs WHERE api_key = ?", (api_key,))
             data_cur = conn.execute(
                 """
@@ -622,7 +634,9 @@ def delete_job(job_id: str) -> bool:
 def delete_jobs_by_filter(api_key: Optional[str] = None) -> int:
     """Bulk delete jobs, optionally filtered by api_key."""
     with get_connection() as conn:
-        if api_key is not None:
+        if api_key == "test_page":
+            cur = conn.execute("DELETE FROM jobs WHERE api_key IN ('test_page', 'web_ui')")
+        elif api_key is not None:
             cur = conn.execute("DELETE FROM jobs WHERE api_key = ?", (api_key,))
         else:
             cur = conn.execute("DELETE FROM jobs")

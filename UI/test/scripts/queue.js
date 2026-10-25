@@ -10,7 +10,7 @@ async function loadQueue(page = 1) {
     const pagNav = document.getElementById('queue-pagination-nav');
 
     try {
-        const res = await fetch(`/api/internal/queue?page=${page}&per_page=50`);
+        const res = await fetch(`/api/internal/queue?page=${page}&per_page=50&api_key=test_page`);
         const data = await res.json();
         const jobs = data.jobs || [];
         const total = data.total || 0;
@@ -19,7 +19,7 @@ async function loadQueue(page = 1) {
         if (badgeTotal) badgeTotal.innerText = `${total} Total`;
 
         if (jobs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted"><i class="bi bi-inbox d-block fs-3 mb-2 opacity-50"></i>No print jobs in database yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted"><i class="bi bi-inbox d-block fs-3 mb-2 opacity-50"></i>No test print jobs recorded yet.</td></tr>';
             if (pagContainer) pagContainer.style.setProperty('display', 'none', 'important');
             return;
         }
@@ -36,10 +36,6 @@ async function loadQueue(page = 1) {
                 ? '<span class="badge bg-secondary-subtle text-secondary ms-1" title="Preserved permanently in SQLite"><i class="bi bi-bookmark-fill me-1"></i>Saved</span>'
                 : '<span class="badge bg-warning-subtle text-warning-emphasis ms-1" title="Temporary - auto-purged after 5 minutes"><i class="bi bi-clock-history me-1"></i>Temp (5m)</span>';
 
-            const srcBadge = job.api_key === 'test_page' 
-                ? '<span class="badge bg-info-subtle text-info">Test Page</span>'
-                : (job.api_key ? `<span class="badge bg-dark-subtle text-body font-monospace" title="${job.api_key}">API (${job.api_key.substring(0, 8)}...)</span>` : '<span class="badge bg-secondary-subtle text-secondary">Direct</span>');
-
             const createdTime = job.created_at ? job.created_at.substring(0, 19).replace('T', ' ') : '';
 
             const stopBtnHtml = (job.status === 'printing')
@@ -53,7 +49,6 @@ async function loadQueue(page = 1) {
             html += `<tr>
                 <td class="ps-3 font-monospace small"><span title="${job.job_id}">${job.job_id.substring(0, 8)}...</span></td>
                 <td><span class="badge bg-body-secondary text-body text-uppercase">${job.job_type}</span></td>
-                <td>${srcBadge}</td>
                 <td>${badge} ${keepBadge}</td>
                 <td class="small text-muted">
                     <span class="badge bg-light text-dark border">Str: ${job.strength || 7}</span>
@@ -194,11 +189,16 @@ async function executeClearAllJobs() {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Clearing...';
 
     try {
-        const res = await fetch('/api/internal/jobs/clear', { method: 'POST' });
+        const formData = new FormData();
+        formData.append('api_key', 'test_page');
+        const res = await fetch('/api/internal/jobs/clear', {
+            method: 'POST',
+            body: formData
+        });
         const data = await res.json();
         if (data.success) {
             bootstrap.Modal.getInstance(document.getElementById('clearAllModal')).hide();
-            showToast(`Cleared ${data.count} jobs from history!`, 'text-bg-success');
+            showToast(`Cleared ${data.count} test prints from history!`, 'text-bg-success');
             loadQueue(1);
         } else {
             showToast(data.message || 'Failed to clear jobs', 'text-bg-danger');

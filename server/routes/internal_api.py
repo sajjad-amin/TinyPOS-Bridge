@@ -466,10 +466,11 @@ async def internal_preview_photo(
 async def internal_queue(
     page: int = 1,
     per_page: int = 50,
-    api_key: Optional[str] = None,
+    api_key: Optional[str] = "test_page",
 ):
-    """Retrieve paginated jobs for the web dashboard (default: 50/page)."""
-    return db.get_jobs_paginated(api_key=api_key, page=page, per_page=per_page)
+    """Retrieve paginated jobs for the web dashboard (default: test_page prints only)."""
+    filter_key = None if api_key in (None, "", "all") else api_key
+    return db.get_jobs_paginated(api_key=filter_key, page=page, per_page=per_page)
 
 
 @internal_api_router.delete("/jobs/{job_id}")
