@@ -42,10 +42,6 @@ async function loadQueue(page = 1) {
                 ? `<button class="btn btn-sm btn-danger me-1" onclick="stopJob('${job.job_id}')" title="Stop Printing This Job"><i class="bi bi-stop-circle-fill"></i></button>`
                 : '';
 
-            const printBtnHtml = (job.status !== 'printing')
-                ? `<button class="btn btn-sm btn-outline-primary me-1" onclick="reprintJob('${job.job_id}', this)" title="Print / Re-print Job"><i class="bi bi-printer me-1"></i>Print</button>`
-                : '';
-
             html += `<tr>
                 <td class="ps-3 font-monospace small"><span title="${job.job_id}">${job.job_id.substring(0, 8)}...</span></td>
                 <td><span class="badge bg-body-secondary text-body text-uppercase">${job.job_type}</span></td>
@@ -57,7 +53,6 @@ async function loadQueue(page = 1) {
                 <td class="small text-muted">${createdTime}</td>
                 <td class="text-end pe-3 text-nowrap">
                     ${stopBtnHtml}
-                    ${printBtnHtml}
                     <button class="btn btn-sm btn-outline-secondary me-1" onclick="openJobPreview('${job.job_id}')" title="Preview Raster">
                         <i class="bi bi-eye"></i>
                     </button>

@@ -89,15 +89,6 @@
                             {{ job.created_at[:19].replace('T', ' ') }}
                         </td>
                         <td class="text-end pe-3 text-nowrap">
-                            {% if job.status != 'printing' %}
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="reprintJob('{{ job.job_id }}', this)" title="Print / Re-print Job">
-                                <i class="bi bi-printer me-1"></i>Print
-                            </button>
-                            {% else %}
-                            <button class="btn btn-sm btn-outline-primary me-1" disabled title="Currently Printing">
-                                <i class="bi bi-printer me-1"></i>Print
-                            </button>
-                            {% endif %}
                             <button class="btn btn-sm btn-outline-secondary me-1" onclick="openPreviewModal('{{ job.job_id }}')" title="Preview 384px Raster">
                                 <i class="bi bi-eye"></i>
                             </button>
