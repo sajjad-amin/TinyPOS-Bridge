@@ -1,0 +1,53 @@
+<!-- Component: Text Printing -->
+<div class="tab-pane active" id="tab-text-pane" role="tabpanel" aria-labelledby="tab-text-btn">
+    <div class="mb-3">
+        <label for="text-input" class="form-label small fw-bold text-muted text-uppercase mb-1">
+            <i class="bi bi-card-text me-1"></i> Text &amp; Notes
+        </label>
+        <textarea id="text-input" class="form-control font-monospace" rows="6" placeholder="Type or paste plain text here to print..."></textarea>
+    </div>
+
+    <div class="row g-2 g-sm-3 mb-3">
+        <div class="col-6">
+            <label for="text-font-size" class="form-label small fw-semibold text-muted mb-1 text-nowrap">
+                <i class="bi bi-fonts me-1"></i> Font Size:
+            </label>
+            <select id="text-font-size" class="form-select form-select-sm">
+                <option value="14">14px - Ultra Tiny</option>
+                <option value="16">16px - Tiny</option>
+                <option value="18">18px - Small</option>
+                <option value="22" selected>22px - Standard</option>
+                <option value="26">26px - Medium</option>
+                <option value="30">30px - Large</option>
+                <option value="36">36px - Extra Large</option>
+                <option value="42">42px - Banner</option>
+                <option value="48">48px - Huge Title</option>
+                <option value="54">54px - Jumbo</option>
+                <option value="60">60px - Maximum</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <label for="text-strength" class="form-label small fw-semibold text-muted mb-1 text-nowrap">
+                <i class="bi bi-fire text-danger me-1"></i> Strength (1-7):
+            </label>
+            <select id="text-strength" class="form-select form-select-sm">
+                <option value="1">1 - Ultra Light</option>
+                <option value="2">2 - Light</option>
+                <option value="3">3 - Medium</option>
+                <option value="4" selected>4 - Normal (Default)</option>
+                <option value="5">5 - Dark</option>
+                <option value="6">6 - Extra Dark</option>
+                <option value="7">7 - Max Dark (Weak Paper)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center">
+        <button id="btn-print-text" class="btn btn-primary btn-sm rounded-pill px-3 py-1 fw-semibold flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="printText()">
+            <i class="bi bi-printer-fill me-1"></i> Print Text
+        </button>
+        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="previewText()">
+            <i class="bi bi-eye me-1"></i> Preview
+        </button>
+    </div>
+</div>

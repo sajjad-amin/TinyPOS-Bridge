@@ -1,0 +1,78 @@
+<!-- Component: Modals & Toasts -->
+
+<!-- Server URL & API Key Settings Modal -->
+<div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header border-bottom py-3">
+                <h5 class="modal-title fw-bold" id="configModalLabel">
+                    <i class="bi bi-key-fill text-primary me-2"></i>Printer Connection Settings
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label for="cfg-server-url" class="form-label small fw-semibold">Server URL</label>
+                    <input type="url" class="form-control" id="cfg-server-url" placeholder="http://localhost:8100">
+                    <div class="form-text small">Leave as default or specify your hosted TinyPOS server address.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="cfg-api-key" class="form-label small fw-semibold">Printing API Key (X-API-Key)</label>
+                    <input type="password" class="form-control font-monospace" id="cfg-api-key" placeholder="sk_live_...">
+                    <div class="form-text small">The API key issued by your administrator. Saved securely in local storage.</div>
+                </div>
+
+                <div class="alert alert-info py-2 small mb-0" role="alert">
+                    <i class="bi bi-info-circle me-1"></i> All print operations and live status queries run client-side using this API key.
+                </div>
+            </div>
+            <div class="modal-footer border-top py-2 d-flex justify-content-end align-items-center gap-2">
+                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center" onclick="clearConfig()" id="btn-clear-config" title="Remove saved connection and clear local storage">
+                    <i class="bi bi-trash3 me-1"></i> Remove Connection
+                </button>
+                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center" onclick="saveConfig()">
+                    <i class="bi bi-check2-circle me-1"></i> Save &amp; Connect
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Thermal Bitmap Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header border-bottom py-3">
+                <h5 class="modal-title fw-bold" id="previewModalLabel">
+                    <i class="bi bi-cpu-fill text-primary me-2"></i>Thermal Raster Preview
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center bg-dark rounded-bottom-0">
+                <div class="p-3 bg-white rounded shadow-sm d-inline-block border" style="max-width: 100%;">
+                    <img id="preview-modal-img" src="" alt="Thermal Bitmap" class="img-fluid" style="max-height: 400px; image-rendering: pixelated; object-fit: contain;">
+                </div>
+                <div class="text-white-50 small mt-2">
+                    384 dots &bull; 1-bit Monochrome Dot Matrix
+                </div>
+            </div>
+            <div class="modal-footer border-top py-2 d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary btn-sm fw-semibold" id="btn-modal-confirm" onclick="confirmPrintModal()" style="display:none;">
+                    <i class="bi bi-printer-fill me-1"></i> Confirm &amp; Print
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container for notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="action-toast" class="toast align-items-center text-white border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body small fw-semibold" id="toast-message">Notification</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>

@@ -84,6 +84,15 @@ class GenerateQRRequest(BaseModel):
         return 260
 
 
+def should_preserve_job(api_key: Optional[str], requested_keep: bool) -> bool:
+    """Return True if job should be preserved, respecting the API key's force_keep_history setting."""
+    if api_key:
+        key_data = db.get_api_key(api_key)
+        if key_data and bool(key_data.get("force_keep_history")):
+            return True
+    return bool(requested_keep)
+
+
 @public_api_router.get("/status")
 async def check_status(api_key: str = Depends(verify_api_key)):
     """Probe thermal printer online/offline status for the authorized API group."""
@@ -137,7 +146,7 @@ async def print_raw_file(
 
     job_id = str(uuid.uuid4())
     job_status = "printing" if immediate else "pending"
-    preserve = bool(keep_job) or bool(keepjob)
+    preserve = should_preserve_job(x_api_key, bool(keep_job) or bool(keepjob))
 
     db.insert_job(
         job_id=job_id,
@@ -219,7 +228,7 @@ async def print_photo_job(
 
     job_id = str(uuid.uuid4())
     job_status = "printing" if immediate else "pending"
-    preserve = bool(keep_job) or bool(keepjob)
+    preserve = should_preserve_job(x_api_key, bool(keep_job) or bool(keepjob))
 
     db.insert_job(
         job_id=job_id,
@@ -280,7 +289,7 @@ async def print_text_job(
 
     job_id = str(uuid.uuid4())
     job_status = "printing" if payload.immediate else "pending"
-    preserve = payload.should_keep()
+    preserve = should_preserve_job(x_api_key, payload.should_keep())
 
     db.insert_job(
         job_id=job_id,
@@ -409,7 +418,7 @@ async def print_qr_job(
 
     job_id = str(uuid.uuid4())
     job_status = "printing" if payload.immediate else "pending"
-    preserve = payload.should_keep()
+    preserve = should_preserve_job(x_api_key, payload.should_keep())
 
     db.insert_job(
         job_id=job_id,

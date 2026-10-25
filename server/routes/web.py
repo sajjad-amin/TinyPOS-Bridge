@@ -30,6 +30,19 @@ async def login_view(request: Request, user: Optional[str] = Depends(get_current
     )
 
 
+@web_router.get("/playground", response_class=HTMLResponse)
+async def playground_view(request: Request):
+    """Public playground page for thermal printer testing with API Key."""
+    return templates.TemplateResponse(
+        request=request,
+        name="playground/index.html",
+        context={
+            "title": "Printer Playground | TinyPOS",
+            "active_page": "playground",
+        },
+    )
+
+
 @web_router.post("/login")
 async def login_action(
     request: Request,
@@ -106,6 +119,7 @@ async def api_key_history_view(
 ):
     matched = db.get_api_key(key)
     key_name = matched["name"] if matched else "API Key"
+    force_keep = bool(matched.get("force_keep_history", 0)) if matched else False
 
     data = db.get_jobs_paginated(api_key=key, page=page, per_page=50)
 
@@ -117,6 +131,7 @@ async def api_key_history_view(
             "title": f"History: {key_name} | TinyPOS",
             "target_key": key,
             "key_name": key_name,
+            "force_keep_history": force_keep,
             "jobs": data["jobs"],
             "total": data["total"],
             "page": data["page"],

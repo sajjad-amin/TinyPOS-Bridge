@@ -128,6 +128,8 @@ def render_photo_to_bitmap(
     """
     Converts any color or grayscale photo/image into a 384-pixel wide, 1-bit monochrome
     dithered bitmap (mode="1") optimized for 200dpi thermal receipt paper.
+    If the image is already pre-rendered as a dot bitmap, it bypasses re-dithering and
+    is passed directly to the printer.
 
     Supports:
     1. Presets: 'portrait', 'sharp', 'balanced', 'high_contrast', 'halftone'
@@ -135,6 +137,10 @@ def render_photo_to_bitmap(
     3. Unsharp Mask spatial sharpening (0.0 to 3.0)
     4. Contrast & brightness dynamic range compensation
     """
+    from .renderer import is_pre_rendered_bitmap, process_pre_rendered_bitmap
+    if is_pre_rendered_bitmap(img):
+        return process_pre_rendered_bitmap(img, scale=scale, autocrop=autocrop)
+
     # 1. Resolve preset defaults and explicit overrides
     preset_key = str(preset).lower()
     preset_config = PHOTO_PRESETS.get(preset_key, PHOTO_PRESETS["portrait"])

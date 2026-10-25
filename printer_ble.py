@@ -44,6 +44,8 @@ from engine import (
     wrap_segments,
     autocrop_whitespace,
     convert_image_to_bitmap,
+    is_pre_rendered_bitmap,
+    process_pre_rendered_bitmap,
     render_pdf_to_bitmap,
     render_text_to_bitmap,
     render_qr_to_bitmap,

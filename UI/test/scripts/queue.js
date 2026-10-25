@@ -46,6 +46,10 @@ async function loadQueue(page = 1) {
                 ? `<button class="btn btn-sm btn-danger me-1" onclick="stopJob('${job.job_id}')" title="Stop Printing This Job"><i class="bi bi-stop-circle-fill"></i></button>`
                 : '';
 
+            const printBtnHtml = (job.status !== 'printing')
+                ? `<button class="btn btn-sm btn-outline-primary me-1" onclick="reprintJob('${job.job_id}', this)" title="Print / Re-print Job"><i class="bi bi-printer me-1"></i>Print</button>`
+                : '';
+
             html += `<tr>
                 <td class="ps-3 font-monospace small"><span title="${job.job_id}">${job.job_id.substring(0, 8)}...</span></td>
                 <td><span class="badge bg-body-secondary text-body text-uppercase">${job.job_type}</span></td>
@@ -58,6 +62,7 @@ async function loadQueue(page = 1) {
                 <td class="small text-muted">${createdTime}</td>
                 <td class="text-end pe-3 text-nowrap">
                     ${stopBtnHtml}
+                    ${printBtnHtml}
                     <button class="btn btn-sm btn-outline-secondary me-1" onclick="openJobPreview('${job.job_id}')" title="Preview Raster">
                         <i class="bi bi-eye"></i>
                     </button>
@@ -105,9 +110,48 @@ async function loadQueue(page = 1) {
     }
 }
 
+async function reprintJob(jobId, btn) {
+    if (btn) {
+        btn.disabled = true;
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Printing...';
+    }
+
+    try {
+        const res = await fetch(`/api/internal/jobs/${jobId}/reprint`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message || 'Job printed successfully!', 'text-bg-success');
+            loadQueue(currentPage);
+        } else {
+            showToast('Print failed: ' + (data.message || 'Error occurred'), 'text-bg-danger');
+            loadQueue(currentPage);
+        }
+    } catch (e) {
+        showToast('Print request error: ' + e.message, 'text-bg-danger');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.originalHtml || '<i class="bi bi-printer me-1"></i>Print';
+        }
+    }
+}
+
+let currentPreviewJobId = null;
+
 function openJobPreview(jobId) {
+    currentPreviewJobId = jobId;
     document.getElementById('preview-img').src = `/api/print/preview/${jobId}`;
     new bootstrap.Modal(document.getElementById('previewModal')).show();
+}
+
+async function reprintCurrentPreview() {
+    if (!currentPreviewJobId) return;
+    const btn = document.getElementById('preview-modal-print-btn');
+    await reprintJob(currentPreviewJobId, btn);
+    const modalEl = document.getElementById('previewModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
 }
 
 function openDeleteJobModal(jobId) {

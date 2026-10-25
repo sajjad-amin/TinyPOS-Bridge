@@ -36,6 +36,11 @@
                             <div class="d-flex align-items-center">
                                 <i class="bi bi-shield-lock text-primary me-2 fs-5"></i>
                                 <span>{{ item.name }}</span>
+                                {% if item.force_keep_history %}
+                                <span class="badge bg-info-subtle text-info border border-info-subtle ms-2" title="Force Keep History enabled">
+                                    <i class="bi bi-clock-history me-1"></i>Force Keep
+                                </span>
+                                {% endif %}
                             </div>
                         </td>
                         <td>
@@ -293,11 +298,39 @@
         }
     }
 
+    function safeCopyText(text, callback) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(callback).catch(() => fallbackCopy(text, callback));
+        } else {
+            fallbackCopy(text, callback);
+        }
+    }
+
+    function fallbackCopy(text, callback) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '-9999px';
+        textArea.style.left = '-9999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            if (callback) callback();
+        } catch (err) {
+            console.error('Fallback clipboard copy failed:', err);
+        }
+        document.body.removeChild(textArea);
+    }
+
     function copyToClipboard(inputId) {
         const input = document.getElementById(inputId);
-        navigator.clipboard.writeText(input.value).then(() => {
+        const val = input ? (input.value || input.innerText || '') : '';
+        safeCopyText(val, () => {
             const toastEl = document.getElementById('keyToast');
-            new bootstrap.Toast(toastEl).show();
+            if (toastEl) new bootstrap.Toast(toastEl).show();
         });
     }
 

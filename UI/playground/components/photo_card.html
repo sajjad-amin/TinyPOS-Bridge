@@ -1,0 +1,142 @@
+<!-- Component: Photo & Artwork Studio -->
+<div class="col-12">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-secondary-subtle text-secondary-emphasis py-2 px-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-camera-fill text-info fs-5 me-2"></i>
+                <div>
+                    <h6 class="mb-0 fw-bold small">Photo &amp; Artwork Studio</h6>
+                    <small class="text-muted d-none d-sm-inline" style="font-size:0.75rem;">High-fidelity 1-bit thermal halftoning</small>
+                </div>
+            </div>
+            <span class="badge bg-info-subtle text-info border" style="font-size:0.72rem;">Floyd-Steinberg</span>
+        </div>
+        <div class="card-body p-3 p-sm-4">
+            <div class="row g-3 g-sm-4">
+                <!-- Left: Photo Upload & Dropzone -->
+                <div class="col-lg-5">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase mb-0" style="font-size:0.75rem;">Photo Source</label>
+                        <span class="badge bg-body-secondary text-muted border" style="font-size: 0.7rem;">
+                            <kbd>Ctrl+V</kbd> / <kbd>⌘+V</kbd> Paste
+                        </span>
+                    </div>
+
+                    <!-- Dropzone -->
+                    <div id="photo-dropzone" class="p-3 p-sm-4 text-center rounded dropzone-container position-relative" style="cursor: pointer; min-height: 150px; display: flex; align-items: center; justify-content: center;">
+                        <input class="position-absolute top-0 start-0 w-100 h-100 opacity-0" type="file" id="photo-file-input" accept="image/*" style="cursor: pointer;" onchange="handlePhotoSelected(this.files)">
+                        <div>
+                            <i class="bi bi-images fs-2 fs-sm-1 text-primary d-block mb-1 mb-sm-2"></i>
+                            <span class="small fw-bold text-body d-block mb-1" style="font-size:0.82rem;">Drag photo here, or browse</span>
+                            <small class="text-muted d-block" style="font-size:0.72rem;">JPG, PNG, WebP &bull; Auto-scaled to 384 dots</small>
+                        </div>
+                    </div>
+
+                    <!-- Selected Photo Details -->
+                    <div id="photo-selected-box" class="p-2 p-sm-3 border rounded bg-body-tertiary text-center" style="display:none;">
+                        <div class="mb-2">
+                            <img id="photo-preview-thumb" src="" alt="Thumbnail" class="img-fluid rounded border shadow-sm" style="max-height: 120px; object-fit: contain;">
+                        </div>
+                        <div class="fw-semibold small text-truncate mb-1" id="photo-file-name" style="font-size:0.8rem;">photo.jpg</div>
+                        <div class="d-flex justify-content-center align-items-center gap-2">
+                            <small class="text-muted" id="photo-file-size" style="font-size:0.72rem;">0 KB</small>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill py-0 px-2" onclick="clearPhotoFile()" style="font-size:0.72rem;">
+                                <i class="bi bi-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Photo Dithering & Tone Calibration (2-col grid on all screens) -->
+                <div class="col-lg-7">
+                    <div class="row g-2 g-sm-3">
+                        <div class="col-6">
+                            <label for="photo-preset" class="form-label small fw-semibold text-muted mb-1 text-nowrap" style="font-size:0.78rem;">Preset</label>
+                            <select class="form-select form-select-sm" id="photo-preset" onchange="onPhotoPresetChange()">
+                                <option value="portrait" selected>Portrait / Face</option>
+                                <option value="sharp">Crisp &amp; Detailed</option>
+                                <option value="balanced">Balanced Natural</option>
+                                <option value="high_contrast">High Contrast</option>
+                                <option value="halftone">Retro Halftone</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6">
+                            <label for="photo-dither" class="form-label small fw-semibold text-muted mb-1 text-nowrap" style="font-size:0.78rem;">Dithering</label>
+                            <select class="form-select form-select-sm" id="photo-dither">
+                                <option value="floyd" selected>Floyd-Steinberg</option>
+                                <option value="atkinson">Atkinson</option>
+                                <option value="bayer">Bayer 8x8</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6">
+                            <label for="photo-sharpness" class="form-label small fw-semibold text-muted mb-1 text-nowrap" style="font-size:0.78rem;">Sharpening</label>
+                            <select class="form-select form-select-sm" id="photo-sharpness">
+                                <option value="1.2" selected>Normal (120%)</option>
+                                <option value="2.0">High (200%)</option>
+                                <option value="0.0">None (Soft)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6">
+                            <label for="photo-strength" class="form-label small fw-semibold text-muted mb-1 text-nowrap" style="font-size:0.78rem;">
+                                <i class="bi bi-fire text-danger me-1"></i>Strength:
+                            </label>
+                            <select class="form-select form-select-sm" id="photo-strength">
+                                <option value="1">1 - Ultra Light</option>
+                                <option value="2">2 - Light</option>
+                                <option value="3">3 - Medium</option>
+                                <option value="4">4 - Normal</option>
+                                <option value="5">5 - Dark</option>
+                                <option value="6">6 - Extra Dark</option>
+                                <option value="7" selected>7 - Max Dark (Default)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6">
+                            <label for="photo-contrast" class="form-label small fw-semibold text-muted mb-1 text-nowrap" style="font-size:0.78rem;">Contrast</label>
+                            <select class="form-select form-select-sm" id="photo-contrast">
+                                <option value="default" selected>Preset Default</option>
+                                <option value="1.0">100% Normal</option>
+                                <option value="1.15">+15% Enhanced</option>
+                                <option value="1.30">+30% High</option>
+                                <option value="0.9">-10% Soft</option>
+                            </select>
+                        </div>
+
+                        <div class="col-6">
+                            <label for="photo-brightness" class="form-label small fw-semibold text-muted mb-1 text-nowrap" style="font-size:0.78rem;">Brightness</label>
+                            <select class="form-select form-select-sm" id="photo-brightness">
+                                <option value="default" selected>Preset Default</option>
+                                <option value="1.08">+8% Shadow Lift</option>
+                                <option value="1.15">+15% High</option>
+                                <option value="1.0">100% Neutral</option>
+                                <option value="0.95">-5% Darker</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" role="switch" id="photo-autocrop" checked>
+                                <label class="form-check-label small fw-semibold" for="photo-autocrop" style="font-size:0.8rem;">
+                                    Auto-crop empty borders
+                                    <small class="text-muted d-block fw-normal" style="font-size:0.72rem;">Trims white margins to fill 384 dots</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 align-items-center mt-3 pt-3 border-top">
+                        <button id="btn-print-photo" class="btn btn-info btn-sm rounded-pill px-3 py-1 fw-semibold text-white flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="printPhoto()">
+                            <i class="bi bi-printer-fill me-1"></i> Print Photo
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="previewPhoto()">
+                            <i class="bi bi-eye me-1"></i> Preview
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

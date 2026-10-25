@@ -751,8 +751,35 @@
         document.getElementById('inputNewKey').value = 'sk_client_' + rand;
     }
 
+    function safeCopyText(text, callback) {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(callback).catch(() => fallbackCopy(text, callback));
+        } else {
+            fallbackCopy(text, callback);
+        }
+    }
+
+    function fallbackCopy(text, callback) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '-9999px';
+        textArea.style.left = '-9999px';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            if (callback) callback();
+        } catch (err) {
+            console.error('Fallback clipboard copy failed:', err);
+        }
+        document.body.removeChild(textArea);
+    }
+
     function copyToClipboard(text, msg) {
-        navigator.clipboard.writeText(text).then(() => {
+        safeCopyText(text, () => {
             showToast(msg || 'Copied to clipboard!');
         });
     }
@@ -838,7 +865,7 @@
     function copyModalField(elementId, msg) {
         const el = document.getElementById(elementId);
         const val = el.value !== undefined ? el.value : el.innerText;
-        navigator.clipboard.writeText(val).then(() => {
+        safeCopyText(val, () => {
             showToast(msg || 'Copied to clipboard!');
         });
     }

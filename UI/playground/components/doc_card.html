@@ -1,0 +1,83 @@
+<!-- Component: Documents & Invoices Printing -->
+<div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-secondary-subtle text-secondary-emphasis py-2 px-3 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-file-earmark-pdf-fill text-danger fs-5 me-2"></i>
+                <h6 class="mb-0 fw-bold small">Documents &amp; Invoices</h6>
+            </div>
+            <span class="badge bg-danger-subtle text-danger" style="font-size:0.72rem;">PDF &amp; Image</span>
+        </div>
+        <div class="card-body p-3 p-sm-4 d-flex flex-column justify-content-between">
+            <div>
+                <!-- Dropzone when no file selected -->
+                <div id="doc-dropzone" class="p-3 p-sm-4 text-center rounded dropzone-container position-relative mb-3" style="cursor: pointer; min-height: 140px; display: flex; align-items: center; justify-content: center;">
+                    <input class="position-absolute top-0 start-0 w-100 h-100 opacity-0" type="file" id="doc-file-input" accept=".pdf,image/*" style="cursor: pointer;" onchange="handleDocSelected(this.files)">
+                    <div>
+                        <i class="bi bi-cloud-arrow-up fs-2 fs-sm-1 text-primary d-block mb-1 mb-sm-2"></i>
+                        <span class="small fw-bold text-body d-block mb-1" style="font-size:0.82rem;">Drag &amp; drop document, or browse</span>
+                        <small class="text-muted d-block" style="font-size:0.75rem;">PDF, PNG, JPG &bull; Fits 384 dots</small>
+                    </div>
+                </div>
+
+                <!-- Selected File Display -->
+                <div id="doc-selected-box" class="p-2 p-sm-3 border rounded bg-body-tertiary mb-3 align-items-center justify-content-between" style="display:none;">
+                    <div class="d-flex align-items-center text-truncate me-2">
+                        <i class="bi bi-file-earmark-check text-success fs-4 me-2 flex-shrink-0"></i>
+                        <div class="text-truncate">
+                            <div class="fw-semibold small text-truncate" id="doc-file-name" style="max-width: 170px;">invoice.pdf</div>
+                            <small class="text-muted" id="doc-file-size" style="font-size:0.72rem;">0 KB</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-0" onclick="clearDocFile()">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label for="doc-scale" class="form-label small fw-semibold text-muted mb-1 text-nowrap">Scale Zoom</label>
+                        <select class="form-select form-select-sm" id="doc-scale">
+                            <option value="1.0">100% Fit Width</option>
+                            <option value="1.15">115% Zoom</option>
+                            <option value="1.25">125% Zoom</option>
+                            <option value="1.5" selected>150% (A4 Best)</option>
+                            <option value="1.75">175% Zoom</option>
+                            <option value="2.0">200% Zoom</option>
+                            <option value="0.85">85% Shrink</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label for="doc-strength" class="form-label small fw-semibold text-muted mb-1 text-nowrap">Strength (1-7)</label>
+                        <select class="form-select form-select-sm" id="doc-strength">
+                            <option value="1">1 - Ultra Light</option>
+                            <option value="2">2 - Light</option>
+                            <option value="3">3 - Medium</option>
+                            <option value="4" selected>4 - Normal (Default)</option>
+                            <option value="5">5 - Dark</option>
+                            <option value="6">6 - Extra Dark</option>
+                            <option value="7">7 - Max Dark (Weak Paper)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="doc-autocrop" checked>
+                    <label class="form-check-label small fw-semibold" for="doc-autocrop" style="font-size:0.8rem;">
+                        Auto-crop whitespace
+                        <small class="text-muted d-block fw-normal" style="font-size:0.72rem;">Trims empty margins to fill paper width</small>
+                    </label>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 align-items-center mt-2 pt-2 border-top">
+                <button id="btn-print-doc" class="btn btn-danger btn-sm rounded-pill px-3 py-1 fw-semibold flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="printDoc()">
+                    <i class="bi bi-printer-fill me-1"></i> Print Doc
+                </button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="previewDoc()">
+                    <i class="bi bi-eye me-1"></i> Preview
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

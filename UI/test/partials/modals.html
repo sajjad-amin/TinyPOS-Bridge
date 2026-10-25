@@ -12,8 +12,11 @@
                     <img id="preview-img" src="" alt="Thermal Bitmap" style="max-width: 100%; height: auto; image-rendering: pixelated;">
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer d-flex justify-content-between">
                 <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-sm btn-primary fw-semibold" id="preview-modal-print-btn" onclick="reprintCurrentPreview()">
+                    <i class="bi bi-printer me-1"></i> Print Job
+                </button>
             </div>
         </div>
     </div>

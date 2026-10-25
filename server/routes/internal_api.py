@@ -146,6 +146,57 @@ async def internal_stop_job(job_id: str):
     return JSONResponse(status_code=400, content={"success": False, "message": "Job is not currently printing or pending"})
 
 
+@internal_api_router.post("/jobs/{job_id}/reprint")
+@internal_api_router.post("/jobs/{job_id}/print")
+async def internal_reprint_job(job_id: str):
+    """Re-print or retry an existing print job using its stored raster."""
+    job = db.get_job(job_id)
+    if not job:
+        return JSONResponse(status_code=404, content={"success": False, "message": "Job not found"})
+
+    if printer_ble.is_printing() or relay_manager.is_printing():
+        return JSONResponse(status_code=400, content={"success": False, "message": "Printer is currently busy printing another job"})
+
+    img = db.get_job_image(job_id)
+    if not img:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No bitmap raster found in database for this job"})
+
+    # Determine routing group:
+    # 1. If job has an associated API key, respect that key's assigned group
+    # 2. If test_page or web_ui or key has no group, fallback to configured admin printer group
+    target_group = None
+    job_api_key = job.get("api_key")
+    if job_api_key and job_api_key not in ("web_ui", "test_page"):
+        key_data = db.get_api_key(job_api_key)
+        if key_data:
+            target_group = key_data.get("group_name")
+
+    mode = db.get_setting("bridge_mode", "bluetooth")
+    if mode == "relay":
+        if not target_group:
+            target_group, err = validate_admin_printer_group()
+            if err:
+                return JSONResponse(status_code=400, content={"success": False, "message": err})
+
+    # Update job status to printing while dispatching
+    db.update_job_status(job_id, "printing", error=None)
+
+    try:
+        strength = int(job.get("strength") or 7)
+        success, msg = await dispatch_bitmap_print(
+            img,
+            strength=strength,
+            job_id=job_id,
+            target_group=target_group,
+        )
+        final_status = "completed" if success else ("cancelled" if "stop" in msg.lower() or "cancel" in msg.lower() else "failed")
+        db.update_job_status(job_id, final_status, error=None if success else msg)
+        return {"success": success, "message": msg, "job_id": job_id, "status": final_status}
+    except Exception as e:
+        db.update_job_status(job_id, "failed", error=str(e))
+        return JSONResponse(status_code=500, content={"success": False, "message": str(e), "job_id": job_id, "status": "failed"})
+
+
 @internal_api_router.post("/preview-text")
 async def internal_preview_text(payload: InternalPrintTextRequest):
     """Generate 384px PNG preview for text."""
@@ -576,3 +627,29 @@ async def internal_relay_status():
         # Backward compatibility with existing UI
         "client": active_client or (clients[0] if clients else None),
     }
+
+
+class ToggleForceKeepRequest(BaseModel):
+    force_keep: bool
+
+
+@internal_api_router.post("/api-keys/{key}/force-keep")
+async def internal_toggle_api_key_force_keep(key: str, payload: ToggleForceKeepRequest):
+    """Toggle force keep history for an API key. When enabled, history is preserved regardless of keep_job param."""
+    clean_k = key.strip()
+    key_data = db.get_api_key(clean_k)
+    if not key_data:
+        return JSONResponse(status_code=404, content={"success": False, "message": "API key not found."})
+
+    success = db.set_api_key_force_keep(clean_k, payload.force_keep)
+    if not success:
+        return JSONResponse(status_code=500, content={"success": False, "message": "Failed to update setting in database."})
+
+    status_str = "enabled" if payload.force_keep else "disabled"
+    return {
+        "success": True,
+        "key": clean_k,
+        "force_keep_history": payload.force_keep,
+        "message": f"Force keep history has been {status_str} for this API key.",
+    }
+

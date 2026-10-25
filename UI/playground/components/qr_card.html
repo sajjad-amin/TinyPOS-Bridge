@@ -1,0 +1,106 @@
+<!-- Component: QR Code Printing -->
+<div class="tab-pane" id="tab-qr-pane" role="tabpanel" aria-labelledby="tab-qr-btn">
+    <div class="mb-3">
+        <label class="form-label small fw-bold text-muted text-uppercase mb-1">
+            <i class="bi bi-qr-code me-1"></i> Content Type
+        </label>
+        <div class="btn-group btn-group-sm w-100" role="group">
+            <button type="button" class="btn btn-primary" id="qr-btn-url" onclick="setQRMode('url')">
+                <i class="bi bi-link-45deg me-1"></i> <span class="d-none d-sm-inline">Website / </span>Link
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="qr-btn-wifi" onclick="setQRMode('wifi')">
+                <i class="bi bi-wifi me-1"></i> Wi-Fi<span class="d-none d-sm-inline"> Access</span>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="qr-btn-text" onclick="setQRMode('text')">
+                <i class="bi bi-chat-left-text me-1"></i> <span class="d-none d-sm-inline">Plain </span>Text
+            </button>
+        </div>
+    </div>
+
+    <!-- Mode 1: URL -->
+    <div id="qr-box-url" class="mb-3">
+        <label for="qr-input-url" class="form-label small fw-semibold text-muted mb-1">Target URL</label>
+        <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-globe"></i></span>
+            <input type="url" class="form-control" id="qr-input-url" placeholder="https://example.com/pay" oninput="updateLiveQR()">
+        </div>
+    </div>
+
+    <!-- Mode 2: Wi-Fi -->
+    <div id="qr-box-wifi" class="mb-3" style="display:none;">
+        <div class="row g-2">
+            <div class="col-12 col-sm-5">
+                <label for="qr-wifi-ssid" class="form-label small fw-semibold text-muted mb-1">Network Name (SSID)</label>
+                <input type="text" class="form-control form-control-sm" id="qr-wifi-ssid" placeholder="Office-WiFi" oninput="updateLiveQR()">
+            </div>
+            <div class="col-6 col-sm-4">
+                <label for="qr-wifi-pass" class="form-label small fw-semibold text-muted mb-1">Password</label>
+                <input type="text" class="form-control form-control-sm" id="qr-wifi-pass" placeholder="Password" oninput="updateLiveQR()">
+            </div>
+            <div class="col-6 col-sm-3">
+                <label for="qr-wifi-sec" class="form-label small fw-semibold text-muted mb-1">Security</label>
+                <select class="form-select form-select-sm" id="qr-wifi-sec" onchange="updateLiveQR()">
+                    <option value="WPA" selected>WPA/WPA2</option>
+                    <option value="WEP">WEP</option>
+                    <option value="nopass">Open</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode 3: Text -->
+    <div id="qr-box-text" class="mb-3" style="display:none;">
+        <label for="qr-input-text" class="form-label small fw-semibold text-muted mb-1">Text Payload</label>
+        <textarea class="form-control font-monospace form-control-sm" id="qr-input-text" rows="3" placeholder="Enter text to encode into QR code..." oninput="updateLiveQR()"></textarea>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <label for="qr-header" class="form-label small fw-semibold text-muted mb-1">Header Text</label>
+            <input type="text" class="form-control form-control-sm" id="qr-header" placeholder="e.g. Scan to Pay" oninput="updateLiveQR()">
+        </div>
+        <div class="col-6">
+            <label for="qr-footer" class="form-label small fw-semibold text-muted mb-1">Footer Text</label>
+            <input type="text" class="form-control form-control-sm" id="qr-footer" placeholder="e.g. Thank you!" oninput="updateLiveQR()">
+        </div>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <label for="qr-size" class="form-label small fw-semibold text-muted mb-1">QR Dimension</label>
+            <select class="form-select form-select-sm" id="qr-size" onchange="updateLiveQR()">
+                <option value="200">200px (Compact)</option>
+                <option value="260" selected>260px (Standard)</option>
+                <option value="320">320px (Large)</option>
+                <option value="360">360px (Maximum)</option>
+            </select>
+        </div>
+        <div class="col-6">
+            <label for="qr-strength" class="form-label small fw-semibold text-muted mb-1">Print Strength (1-7)</label>
+            <select class="form-select form-select-sm" id="qr-strength">
+                <option value="1">1 - Ultra Light</option>
+                <option value="2">2 - Light</option>
+                <option value="3">3 - Medium</option>
+                <option value="4" selected>4 - Normal (Default)</option>
+                <option value="5">5 - Dark</option>
+                <option value="6">6 - Extra Dark</option>
+                <option value="7">7 - Max Dark (Sharp Scan)</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Live QR Preview Area -->
+    <div id="qr-live-preview-box" class="text-center p-2 p-sm-3 mb-3 rounded bg-body-tertiary border" style="display:none;">
+        <small class="text-muted d-block mb-2 fw-semibold" style="font-size:0.75rem;">Live Thermal Raster Preview</small>
+        <img id="qr-live-preview-img" src="" alt="Live QR Preview" class="img-fluid rounded border bg-white p-2 shadow-sm" style="max-height: 180px; image-rendering: pixelated;">
+    </div>
+
+    <div class="d-flex gap-2 align-items-center">
+        <button id="btn-print-qr" class="btn btn-success btn-sm rounded-pill px-3 py-1 fw-semibold flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="printQR()">
+            <i class="bi bi-printer-fill me-1"></i> Print QR
+        </button>
+        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 flex-fill flex-sm-grow-0 d-inline-flex align-items-center justify-content-center" onclick="previewQR()">
+            <i class="bi bi-eye me-1"></i> Preview
+        </button>
+    </div>
+</div>

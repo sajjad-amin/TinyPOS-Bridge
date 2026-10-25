@@ -17,6 +17,110 @@ from .fonts import load_multi_fonts
 from .layout import segment_line, wrap_segments
 
 
+def is_pre_rendered_bitmap(img: Image.Image) -> bool:
+    """
+    Detects whether an image is already prepared as a 1-bit monochrome dot bitmap
+    (e.g., pre-dithered artwork, halftoned photo, or binary POS receipt).
+    """
+    if img.mode == "1":
+        return True
+
+    # Flatten transparency if present to evaluate visible content
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+        flat = Image.alpha_composite(bg, rgba).convert("L")
+    else:
+        flat = img.convert("L")
+
+    # Check for binary colors
+    colors = flat.getcolors(maxcolors=256)
+    if colors is not None and len(colors) <= 2:
+        vals = [c[1] for c in colors]
+        if all(v <= 32 or v >= 224 for v in vals):
+            return True
+
+    # Check histogram: in an already-dithered dot bitmap, virtually all pixels (>98.5%)
+    # are clustered at extreme black (0-24) or extreme white (230-255).
+    hist = flat.histogram()
+    total = sum(hist)
+    if total > 0:
+        binary_dots = sum(hist[:25]) + sum(hist[230:])
+        if (binary_dots / total) >= 0.985:
+            return True
+
+    return False
+
+
+def process_pre_rendered_bitmap(
+    img: Image.Image,
+    scale: float = 1.0,
+    autocrop: bool = True,
+) -> Image.Image:
+    """
+    Direct 1:1 pass-through for images that are already formatted as dot bitmaps.
+    Preserves exact micro-dots without re-dithering, Lanczos blurring, or contrast adjustments.
+    """
+    if img.mode == "1":
+        bitmap = img
+    elif img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+        flat = Image.alpha_composite(bg, rgba).convert("L")
+        bitmap = flat.point(lambda p: 255 if p > 127 else 0, mode="1")
+    else:
+        bitmap = img.convert("L").point(lambda p: 255 if p > 127 else 0, mode="1")
+
+    scale = max(0.4, min(3.0, float(scale)))
+    orig_w, orig_h = bitmap.size
+
+    # If width is already exactly PRINT_WIDTH (384px) and standard scale:
+    # 100% direct pass-through, no resizing or cropping needed!
+    if orig_w == PRINT_WIDTH and abs(scale - 1.0) < 0.02:
+        return bitmap
+
+    # If autocrop requested and width is not 384:
+    if autocrop and orig_w != PRINT_WIDTH:
+        bbox = bitmap.point(lambda p: 255 if p == 0 else 0).getbbox()
+        if bbox:
+            bitmap = bitmap.crop(bbox)
+            orig_w, orig_h = bitmap.size
+
+    if orig_w == 0 or orig_h == 0:
+        return Image.new("1", (PRINT_WIDTH, 100), 1)
+
+    # If width is already PRINT_WIDTH (384px) after crop, return directly
+    if orig_w == PRINT_WIDTH and abs(scale - 1.0) < 0.02:
+        return bitmap
+
+    # If very close to 384px and scale == 1.0: center on 384px canvas without scaling
+    if abs(scale - 1.0) < 0.02 and abs(orig_w - PRINT_WIDTH) <= 16:
+        canvas = Image.new("1", (PRINT_WIDTH, orig_h), 1)
+        offset_x = (PRINT_WIDTH - orig_w) // 2
+        canvas.paste(bitmap, (offset_x, 0))
+        return canvas
+
+    # Otherwise, scale using NEAREST neighbor to preserve discrete 1-bit dots
+    if abs(scale - 1.0) < 0.02:
+        new_h = max(1, int(orig_h * (PRINT_WIDTH / float(orig_w))))
+        return bitmap.resize((PRINT_WIDTH, new_h), Image.Resampling.NEAREST)
+    elif scale < 1.0:
+        target_w = max(10, int(PRINT_WIDTH * scale))
+        target_h = max(1, int(orig_h * (target_w / float(orig_w))))
+        resized = bitmap.resize((target_w, target_h), Image.Resampling.NEAREST)
+        canvas = Image.new("1", (PRINT_WIDTH, target_h), 1)
+        offset_x = (PRINT_WIDTH - target_w) // 2
+        canvas.paste(resized, (offset_x, 0))
+        return canvas
+    else:
+        target_w = int(PRINT_WIDTH * scale)
+        target_h = max(1, int(orig_h * (target_w / float(orig_w))))
+        resized = bitmap.resize((target_w, target_h), Image.Resampling.NEAREST)
+        crop_left = (target_w - PRINT_WIDTH) // 2
+        crop_right = crop_left + PRINT_WIDTH
+        return resized.crop((crop_left, 0, crop_right, target_h))
+
+
 def convert_image_to_bitmap(
     img: Image.Image,
     scale: float = 1.0,
@@ -27,10 +131,15 @@ def convert_image_to_bitmap(
 ) -> Image.Image:
     """
     Processes an image into a 384-pixel wide bitmap.
+    If the image is already pre-rendered as a dot bitmap, it bypasses re-rasterization
+    and is passed directly to the printer.
     If mode == "photo" or dither is True, applies Floyd-Steinberg error-diffusion dithering
     for photorealistic shading, soft gradients, and delicate skin tones.
     Otherwise (default "text" mode), applies high-contrast binarization for receipts and invoices.
     """
+    if is_pre_rendered_bitmap(img):
+        return process_pre_rendered_bitmap(img, scale=scale, autocrop=autocrop)
+
     if str(mode).lower() == "photo" or dither:
         from .photo import render_photo_to_bitmap
         return render_photo_to_bitmap(img, scale=scale, autocrop=autocrop, strength=strength)

@@ -91,6 +91,8 @@ def init_db():
         existing_cols = [row["name"] for row in cur.fetchall()]
         if "group_name" not in existing_cols:
             conn.execute("ALTER TABLE api_keys ADD COLUMN group_name TEXT")
+        if "force_keep_history" not in existing_cols:
+            conn.execute("ALTER TABLE api_keys ADD COLUMN force_keep_history INTEGER DEFAULT 0")
 
         conn.commit()
 
@@ -155,16 +157,33 @@ def insert_api_key(key: str, name: str, group_name: Optional[str] = None) -> Dic
 def list_api_keys() -> List[Dict[str, Any]]:
     """List all active API keys."""
     with get_connection() as conn:
-        cur = conn.execute("SELECT key, name, group_name, created_at FROM api_keys ORDER BY created_at DESC")
+        cur = conn.execute(
+            "SELECT key, name, group_name, created_at, COALESCE(force_keep_history, 0) as force_keep_history FROM api_keys ORDER BY created_at DESC"
+        )
         return [dict(r) for r in cur.fetchall()]
 
 
 def get_api_key(key: str) -> Optional[Dict[str, Any]]:
     """Retrieve a single API key by key string."""
     with get_connection() as conn:
-        cur = conn.execute("SELECT key, name, group_name, created_at FROM api_keys WHERE key = ?", (key,))
+        cur = conn.execute(
+            "SELECT key, name, group_name, created_at, COALESCE(force_keep_history, 0) as force_keep_history FROM api_keys WHERE key = ?",
+            (key,),
+        )
         row = cur.fetchone()
         return dict(row) if row else None
+
+
+def set_api_key_force_keep(key: str, force_keep: bool) -> bool:
+    """Toggle or set whether an API key forces keeping all history regardless of request parameters."""
+    clean_k = (key or "").strip()
+    if not clean_k:
+        return False
+    val = 1 if force_keep else 0
+    with get_connection() as conn:
+        cur = conn.execute("UPDATE api_keys SET force_keep_history = ? WHERE key = ?", (val, clean_k))
+        conn.commit()
+        return cur.rowcount > 0
 
 
 def delete_api_key(key: str) -> bool:
