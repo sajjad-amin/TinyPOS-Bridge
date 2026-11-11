@@ -79,4 +79,4 @@ app.include_router(websocket_api_router)
 
 if __name__ == "__main__":
     print(f"Starting TinyPOS on http://{HOST}:{PORT}")
-    uvicorn.run("main:app", host=HOST, port=PORT, reload=True, proxy_headers=True, forwarded_allow_ips="*")
+    uvicorn.run("main:app", host=HOST, port=PORT, reload=False, proxy_headers=True, forwarded_allow_ips="*")

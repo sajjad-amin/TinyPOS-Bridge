@@ -223,14 +223,21 @@ def render_pdf_to_bitmap(
     if not pymupdf:
         raise RuntimeError("PyMuPDF (pymupdf) is not installed")
 
-    doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     page_images = []
-
-    for page in doc:
-        pix = page.get_pixmap(dpi=200)
-        img_data = pix.tobytes("png")
-        page_img = Image.open(io.BytesIO(img_data))
-        page_images.append(page_img)
+    doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        for page in doc:
+            pix = page.get_pixmap(dpi=200)
+            img_data = pix.tobytes("png")
+            del pix
+            with Image.open(io.BytesIO(img_data)) as page_img:
+                page_images.append(page_img.copy())
+    finally:
+        doc.close()
+        try:
+            pymupdf.TOOLS.store_shrink(100)
+        except Exception:
+            pass
 
     if not page_images:
         raise ValueError("PDF document contains no pages")
@@ -240,12 +247,16 @@ def render_pdf_to_bitmap(
     total_h = sum(p.height for p in page_images)
     stitched = Image.new("RGB", (total_w, total_h), (255, 255, 255))
 
-    curr_y = 0
-    for p in page_images:
-        stitched.paste(p, (0, curr_y))
-        curr_y += p.height
+    try:
+        curr_y = 0
+        for p in page_images:
+            stitched.paste(p, (0, curr_y))
+            curr_y += p.height
+            p.close()
 
-    return convert_image_to_bitmap(stitched, scale=scale, autocrop=autocrop, strength=strength, mode=mode, dither=dither)
+        return convert_image_to_bitmap(stitched, scale=scale, autocrop=autocrop, strength=strength, mode=mode, dither=dither)
+    finally:
+        stitched.close()
 
 
 def render_text_to_bitmap(text: str, font_size: int = 22, strength: int = 7) -> Image.Image:
